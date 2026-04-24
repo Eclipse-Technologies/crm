@@ -166,6 +166,12 @@ $initials = strtoupper(substr($user_name, 0, 2));
           </a>
         </li>
         <li class="nav-item">
+          <a href="forecast_dashboard.php" class="nav-link <?= $currentPage === 'forecast_dashboard.php' ? 'active' : '' ?>">
+            <span class="nav-icon">📈</span>
+            <span>Forecast Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
           <a href="add_opportunity.php" class="nav-link <?= $currentPage === 'add_opportunity.php' ? 'active' : '' ?>">
             <span class="nav-icon">➕</span>
             <span>Add Opportunity</span>
