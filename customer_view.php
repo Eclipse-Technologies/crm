@@ -634,8 +634,10 @@ $conn->close();
                         $resinComponent = $componentsByEquipment[$eq['equipment_id']]['resin'] ?? null;
                         $resinPartNumber = $resinComponent['item_id'] ?? ($eq['resin_type'] ?? '');
                         $resinQty = isset($resinComponent['quantity_required']) ? rtrim(rtrim(number_format((float) $resinComponent['quantity_required'], 3, '.', ''), '0'), '.') : '';
+                        $eqStatus = $eq['status'] ?? 'Active';
+                        $isTrial  = strtolower($eqStatus) === 'trial';
                         ?>
-                        <tr>
+                        <tr<?= $isTrial ? ' style="background:#fffbe6;"' : '' ?>>
                             <td><?= htmlspecialchars($eq['equipment_type'] ?? '') ?></td>
                             <td><?= htmlspecialchars($eq['serial_number'] ?? '') ?></td>
                             <td><?= htmlspecialchars($eq['tank_size'] ?? '') ?></td>
@@ -666,10 +668,19 @@ $conn->close();
                             <td><?= htmlspecialchars($eq['install_date'] ?? 'N/A') ?></td>
                             <td><?= htmlspecialchars($eq['last_service_date'] ?? 'N/A') ?></td>
                             <td><?= htmlspecialchars($eq['next_service_date'] ?? 'N/A') ?></td>
-                            <td><?= htmlspecialchars($eq['status'] ?? 'Active') ?></td>
+                            <td>
+                                <?php if ($isTrial): ?>
+                                    <span class="badge" style="background:#f59e0b;color:#fff;">Trial</span>
+                                <?php else: ?>
+                                    <?= htmlspecialchars($eqStatus) ?>
+                                <?php endif; ?>
+                            </td>
                             <td>
                                 <div class="action-btns">
                                     <a href="equipment_view.php?id=<?= urlencode($eq['equipment_id']) ?>" class="action-btn action-btn-view">View</a>
+                                    <?php if ($isTrial): ?>
+                                        <a href="contract_form.php?customer_id=<?= urlencode($customerId) ?>&contact_id=<?= urlencode($customer['contact_id'] ?? '') ?>" class="action-btn" style="background:#16a34a;color:#fff;white-space:nowrap;">📄 Create Contract</a>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>

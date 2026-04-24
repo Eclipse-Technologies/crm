@@ -133,6 +133,7 @@ $fieldLabels = [
   'ownership' => 'Rent / Own',
   'tank_size' => 'Tank Size',
   'location'  => 'Location',
+  'status'    => 'Status',
 ];
 ?>
 
@@ -241,6 +242,11 @@ function addLineItem() {
         <option value="6">6 cu ft</option>
         <option value="9">9 cu ft</option>
         <option value="12">12 cu ft</option>
+      </select>`;
+    } else if (f === 'status') {
+      input = `<select name="items[${index}][${f}]">
+        <option value="Trial" selected>Trial</option>
+        <option value="Active">Active</option>
       </select>`;
     } else if (f === 'last_service_date') {
       input = `<input type="date" name="items[${index}][${f}]">`;
