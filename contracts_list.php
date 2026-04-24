@@ -151,7 +151,7 @@ foreach ($contracts as &$contract) {
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
 .contracts-table { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 .contracts-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.contracts-table table { width: 100%; min-width: 900px; border-collapse: collapse; }
+.contracts-table table { width: 100%; min-width: 1200px; border-collapse: collapse; }
 .contracts-table th { background: #F9FAFB; padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #E5E7EB; }
 .contracts-table td { padding: 16px; border-bottom: 1px solid #F3F4F6; font-size: 14px; }
 .contracts-table tr:hover { background: #F9FAFB; }
@@ -251,7 +251,10 @@ foreach ($contracts as &$contract) {
                     <th>Equipment Type</th>
                     <th>Tank Quantity</th>
                     <th>Tank Size</th>
-                    <th>Monthly / Annual</th>
+                    <th>Monthly Rental</th>
+                    <th>Regen Fee</th>
+                    <th>Delivery Fee</th>
+                    <th>Annual Value</th>
                     <th>Status</th>
                     <th>Start Date</th>
                     <th>End Date</th>
@@ -297,7 +300,10 @@ foreach ($contracts as &$contract) {
                         <td><?= htmlspecialchars($contract['equipment_type']) ?></td>
                         <td><?= htmlspecialchars($contract['tank_quantity']) ?></td>
                         <td><?= htmlspecialchars($contract['tank_size']) ?></td>
-                        <td><strong>$<?= number_format((float)$contract['monthly_fee'], 2) ?> / $<?= number_format((float)($contract['annual_value_calc'] ?? 0), 2) ?></strong></td>
+                        <td>$<?= number_format((float)($contract['monthly_fee'] ?? 0), 2) ?></td>
+                        <td>$<?= number_format((float)($contract['regen_fee'] ?? 0), 2) ?></td>
+                        <td>$<?= number_format((float)($contract['tank_sale_price'] ?? 0), 2) ?></td>
+                        <td><strong>$<?= number_format((float)($contract['annual_value_calc'] ?? 0), 2) ?></strong></td>
                         <td>
                             <span class="status-badge <?= $statusClass ?>">
                                 <?= htmlspecialchars($displayStatus) ?>
