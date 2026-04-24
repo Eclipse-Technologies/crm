@@ -31,9 +31,6 @@ $contacts = fetch_mysql('contacts', require __DIR__ . '/contact_schema.php');
 $customers = fetch_mysql('customers', require __DIR__ . '/customer_schema.php');
 $equipment = fetch_mysql('equipment', require __DIR__ . '/equipment_schema.php');
 
-echo '<h1>Edit Service Contract</h1>';
-echo '<p>This is a placeholder for contract editing. Implement form and logic as needed.</p>';
-
 $error = '';
 // 1. Get contract ID from URL
 $contractId = $_GET['id'] ?? '';
@@ -149,6 +146,166 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // 4. Show form, pre-filled with $contract
 ?>
+<style>
+.page-header {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    color: white;
+    padding: 32px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+}
+
+.page-header h1 {
+    margin: 0 0 8px 0;
+    font-size: 32px;
+    font-weight: 700;
+}
+
+.form-container {
+    background: white;
+    padding: 32px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    max-width: 1200px;
+}
+
+.form-section {
+    margin-bottom: 32px;
+    padding-bottom: 32px;
+    border-bottom: 2px solid #E5E7EB;
+}
+
+.form-section:last-child {
+    border-bottom: none;
+}
+
+.form-section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1F2937;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 12px 16px;
+    border: 2px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #10B981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.calculated-value {
+    background: #F0FDF4;
+    padding: 16px;
+    border-radius: 8px;
+    border: 2px solid #10B981;
+    font-weight: 700;
+    color: #065F46;
+    font-size: 20px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+}
+
+.btn {
+    padding: 14px 32px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+    border: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-secondary {
+    background: #F3F4F6;
+    color: #374151;
+    border: 2px solid #E5E7EB;
+}
+
+.btn-secondary:hover {
+    background: #E5E7EB;
+}
+
+.btn-danger {
+    background: #EF4444;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #DC2626;
+}
+
+.form-help {
+    font-size: 12px;
+    color: #6B7280;
+    margin-top: 6px;
+}
+
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
 <a href="contracts_list.php" style="display: inline-flex; align-items: center; gap: 8px; color: #10B981; text-decoration: none; font-weight: 600; margin-bottom: 16px;">
     ← Back to Contracts
 </a>
@@ -174,7 +331,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <select name="contact_id" id="contact_id" required>
                         <option value="">Select Contact</option>
                         <?php foreach ($contacts as $contact): ?>
-                            <option value="<?= htmlspecialchars($contact['id']) ?>" <?= ($contract['contact_id'] == $contact['id']) ? 'selected' : '' ?>>
+                            <?php $contactValue = $contact['contact_id'] ?? $contact['id'] ?? ''; ?>
+                            <option value="<?= htmlspecialchars($contactValue) ?>" <?= ((string)($contract['contact_id'] ?? '') === (string)$contactValue) ? 'selected' : '' ?>>
                                 <?= htmlspecialchars(trim($contact['first_name'] . ' ' . $contact['last_name'])) ?>
                                 <?php if (!empty($contact['company'])): ?> - <?= htmlspecialchars($contact['company']) ?><?php endif; ?>
                             </option>
@@ -326,7 +484,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Delete (separate form to avoid submitting edit fields) -->
     <form method="POST" style="margin-top:12px;" onsubmit="return confirm('Permanently delete this contract? This cannot be undone.');">
         <input type="hidden" name="delete_contract" value="1">
-        <button type="submit" class="btn btn-danger" style="background:#EF4444;color:white;">🗑️ Delete Contract</button>
+        <button type="submit" class="btn btn-danger">🗑️ Delete Contract</button>
     </form>
 </div>
 <script>
@@ -334,72 +492,6 @@ function calculateAnnualValue() {
     const monthlyFee = parseFloat(document.getElementById('monthly_fee').value) || 0;
     const annualValue = monthlyFee * 12;
     document.getElementById('annual_value_display').textContent = '$' + annualValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-    $fields = [];
-        foreach ($contractSchema as $field) {
-            if ($field === 'contract_id') {
-                $fields[$field] = $contractId;
-            } elseif (isset($_POST[$field])) {
-                // Fix: convert empty string to null for integer and date fields
-                if ($field === 'customer_id' && ($_POST[$field] === '' || !is_numeric($_POST[$field]))) {
-                    $fields[$field] = null;
-                } elseif (in_array($field, ['start_date','end_date','renewal_date','last_service_date','next_service_date','created_date','modified_date']) && trim($_POST[$field]) === '') {
-                    $fields[$field] = null;
-                } else {
-                    $fields[$field] = $_POST[$field];
-                }
-            } else {
-                $fields[$field] = $contract[$field] ?? null;
-            }
-        }
-        // Calculate annual_value if monthly_fee is set
-        if (isset($fields['monthly_fee'])) {
-            $fields['annual_value'] = (float)$fields['monthly_fee'] * 12;
-        }
-        // Calculate end_date if start_date and contract_term are set
-        if (!empty($fields['start_date']) && !empty($fields['contract_term'])) {
-            $fields['end_date'] = date('Y-m-d', strtotime($fields['start_date'] . ' + ' . (int)$fields['contract_term'] . ' months'));
-        }
-        // Calculate renewal_date if end_date and notice_period are set
-        if (!empty($fields['end_date']) && !empty($fields['notice_period'])) {
-            $fields['renewal_date'] = date('Y-m-d', strtotime($fields['end_date'] . ' - ' . (int)$fields['notice_period'] . ' days'));
-        }
-        $fields['modified_date'] = date('Y-m-d H:i:s');
-        $fields['modified_by'] = $_SESSION['user_id'] ?? 'system';
-
-        // Build update query
-        $set = [];
-        $types = '';
-        $values = [];
-        foreach ($fields as $k => $v) {
-            if ($k === 'contract_id') continue;
-            $set[] = "`$k` = ?";
-            if (is_int($v)) {
-                $types .= 'i';
-            } elseif (is_float($v)) {
-                $types .= 'd';
-            } else {
-                $types .= 's';
-            }
-            $values[] = $v;
-        }
-        $types .= 's';
-        $values[] = $contractId;
-        $conn = get_mysql_connection();
-        $sql = "UPDATE contracts SET ".implode(',', $set)." WHERE contract_id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param($types, ...$values);
-        $result = $stmt->execute();
-        if ($result) {
-            $stmt->close();
-            $conn->close();
-            if (ob_get_length()) ob_end_clean();
-            header('Location: contracts_list.php?updated=1');
-            exit;
-        } else {
-            $error = 'Failed to update contract: ' . htmlspecialchars($stmt->error);
-        }
-    }
 }
 function calculateDates() {
     const startDate = document.getElementById('start_date').value;
