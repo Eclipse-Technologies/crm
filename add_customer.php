@@ -38,10 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customerData[$field] = trim($_POST[$field] ?? '');
   }
 
-  // Collect equipment rows
+  // Collect equipment rows (pool-based: each row has a count)
   $items = [];
   foreach ($_POST['items'] ?? [] as $item) {
-    $clean = [];
+    $clean = ['_count' => max(1, (int)($item['_count'] ?? 1))];
     foreach ($itemFields as $f) {
       $clean[$f] = trim($item[$f] ?? '');
     }
@@ -80,29 +80,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$stmt->execute()) {
       $errors[] = 'Failed to save customer: ' . $stmt->error;
     } else {
-      // Insert each equipment row
+      // Insert each equipment row — repeat for the group count
       foreach ($items as $item) {
-        $eqId     = 'EQ-' . strtoupper(substr(md5(uniqid('', true)), 0, 8));
-        $eqFields = array_merge(['equipment_id', 'customer_id', 'contact_id', 'equipment_type'], $itemFields);
-        $eqVals   = array_merge(
-          [$eqId, $nextId, $contactId, 'DI Tank'],
-          array_map(function ($f) use ($item, $dateFields) {
-            $v = trim($item[$f] ?? '');
-            if (in_array($f, $dateFields)) {
-              return preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) ? $v : null;
-            }
-            return $v === '' ? null : $v;
-          }, $itemFields)
-        );
+        $groupCount = (int)($item['_count'] ?? 1);
+        for ($t = 0; $t < $groupCount; $t++) {
+          $eqId     = 'EQ-' . strtoupper(substr(md5(uniqid('', true)), 0, 8));
+          $eqFields = array_merge(['equipment_id', 'customer_id', 'contact_id', 'equipment_type'], $itemFields);
+          $eqVals   = array_merge(
+            [$eqId, $nextId, $contactId, 'DI Tank'],
+            array_map(function ($f) use ($item) {
+              $v = trim($item[$f] ?? '');
+              return $v === '' ? null : $v;
+            }, $itemFields)
+          );
 
-        $fStr  = implode(', ', $eqFields);
-        $pStr  = implode(', ', array_fill(0, count($eqFields), '?'));
-        $stmt2 = $db->prepare("INSERT INTO equipment ($fStr) VALUES ($pStr)");
-        $stmt2->bind_param(str_repeat('s', count($eqFields)), ...$eqVals);
-        if (!$stmt2->execute()) {
-          $errors[] = 'Failed to save tank: ' . $stmt2->error;
+          $fStr  = implode(', ', $eqFields);
+          $pStr  = implode(', ', array_fill(0, count($eqFields), '?'));
+          $stmt2 = $db->prepare("INSERT INTO equipment ($fStr) VALUES ($pStr)");
+          $stmt2->bind_param(str_repeat('s', count($eqFields)), ...$eqVals);
+          if (!$stmt2->execute()) {
+            $errors[] = 'Failed to save tank: ' . $stmt2->error;
+          }
+          $stmt2->close();
         }
-        $stmt2->close();
       }
     }
 
@@ -131,15 +131,9 @@ if ($selectedContactId !== '') {
 
 // Display labels for item fields
 $fieldLabels = [
-  'serial_number'    => 'Tank Serial #',
-  'ownership'        => 'Rent / Own',
-  'tank_size'        => 'Tank Size',
-  'location'         => 'Location',
-  'resin_type'       => 'Resin Type',
-  'resin_qty_cuft'   => 'Resin Qty (cu ft)',
-  'last_service_date'=> 'Last Service Date',
-  'regeneration_id'  => 'Regeneration #',
-  'purchase_order'   => 'Purchase Order',
+  'ownership' => 'Rent / Own',
+  'tank_size' => 'Tank Size',
+  'location'  => 'Location',
 ];
 ?>
 
@@ -199,16 +193,12 @@ $fieldLabels = [
       </div>
     </fieldset>
 
-    <!-- Tank / Equipment Line Items -->
+    <!-- Tank Pool -->
     <fieldset>
       <legend><strong>Tanks</strong></legend>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-        <label><strong>Number of Tanks:</strong></label>
-        <input type="number" id="tankCount" min="1" max="20" value="1" style="width:70px;"
-               oninput="syncTankCount(this.value)">
-      </div>
+      <p style="margin:0 0 10px;color:#555;font-size:.9em;">Each row is a group of tanks sharing the same size, ownership, and location.</p>
       <div id="lineItems"></div>
-      <button type="button" onclick="addLineItem()" class="btn-outline" style="margin-top:8px;">➕ Add Tank</button>
+      <button type="button" onclick="addLineItem()" class="btn-outline" style="margin-top:8px;">➕ Add Tank Group</button>
     </fieldset>
 
     <div style="margin-top:20px;">
@@ -228,9 +218,11 @@ function addLineItem() {
   const wrapper = document.createElement('div');
   wrapper.style.cssText = 'margin-bottom:12px;border:1px solid #ccc;padding:12px;border-radius:6px;background:#f9f9f9;position:relative;';
 
-  let html = `<button type="button" onclick="this.closest('div').remove(); document.getElementById('tankCount').value = document.getElementById('lineItems').children.length;"
-    style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:1.1em;cursor:pointer;color:#c00;" title="Remove tank">✕</button>`;
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;padding-right:24px;">';
+  let html = `<button type="button" onclick="this.closest('div').remove()"
+    style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:1.1em;cursor:pointer;color:#c00;" title="Remove group">✕</button>`;
+  html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;padding-right:24px;">`;
+  // Count field (not in itemFields, handled separately)
+  html += `<div><label><strong># of Tanks</strong></label><br><input type="number" name="items[${index}][_count]" min="1" max="99" value="1" style="width:80px;"></div>`;
 
   itemFields.forEach(f => {
     const label = fieldLabels[f] || f.replace(/_/g, ' ');
@@ -269,16 +261,8 @@ function addLineItem() {
   container.appendChild(wrapper);
 }
 
-function syncTankCount(val) {
-  const count = Math.max(1, Math.min(20, parseInt(val) || 1));
-  const container = document.getElementById('lineItems');
-  while (container.children.length < count) addLineItem();
-  while (container.children.length > count) container.lastElementChild.remove();
-  document.getElementById('tankCount').value = container.children.length;
-}
-
-// Initialize with 1 tank on page load
-document.addEventListener('DOMContentLoaded', () => syncTankCount(1));
+// Start with one group on page load
+document.addEventListener('DOMContentLoaded', () => addLineItem());
 </script>
 
 <?php include_once(__DIR__ . '/layout_end.php'); ?>
