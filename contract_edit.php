@@ -99,10 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($fields['monthly_fee'])) {
         $fields['annual_value'] = (float)$fields['monthly_fee'] * 12;
     }
-    // Calculate end_date if start_date and contract_term are set
-    if (!empty($fields['start_date']) && !empty($fields['contract_term'])) {
-        $fields['end_date'] = date('Y-m-d', strtotime($fields['start_date'] . ' + ' . (int)$fields['contract_term'] . ' months'));
-    }
+    // Contract term has been retired from the workflow.
+    $fields['contract_term'] = null;
     // Calculate renewal_date if end_date and notice_period are set
     if (!empty($fields['end_date']) && !empty($fields['notice_period'])) {
         $fields['renewal_date'] = date('Y-m-d', strtotime($fields['end_date'] . ' - ' . (int)$fields['notice_period'] . ' days'));
@@ -389,13 +387,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="contract_term">Contract Term (Months) *</label>
-                    <select name="contract_term" id="contract_term" required onchange="calculateDates()">
-                        <option value="12" <?= ($contract['contract_term'] == 12) ? 'selected' : '' ?>>12 Months</option>
-                        <option value="24" <?= ($contract['contract_term'] == 24) ? 'selected' : '' ?>>24 Months</option>
-                        <option value="36" <?= ($contract['contract_term'] == 36) ? 'selected' : '' ?>>36 Months</option>
-                        <option value="48" <?= ($contract['contract_term'] == 48) ? 'selected' : '' ?>>48 Months</option>
-                        <option value="60" <?= ($contract['contract_term'] == 60) ? 'selected' : '' ?>>60 Months</option>
+                    <label for="contract_status">Contract Status *</label>
+                    <select name="contract_status" id="contract_status" required>
+                        <option value="Active" <?= (($contract['contract_status'] ?? '') === 'Active') ? 'selected' : '' ?>>Active</option>
+                        <option value="Lost" <?= (($contract['contract_status'] ?? '') === 'Lost') ? 'selected' : '' ?>>Lost</option>
                     </select>
                 </div>
             </div>
@@ -406,12 +401,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-grid">
                 <div class="form-group">
                     <label for="start_date">Contract Start Date *</label>
-                    <input type="date" name="start_date" id="start_date" required value="<?= htmlspecialchars($contract['start_date'] ?? '') ?>" onchange="calculateDates()">
+                    <input type="date" name="start_date" id="start_date" required value="<?= htmlspecialchars($contract['start_date'] ?? '') ?>">
                 </div>
                 <div class="form-group">
                     <label for="end_date">Contract End Date</label>
-                    <div class="calculated-value" id="end_date_display"><?= htmlspecialchars($contract['end_date'] ?? 'Not calculated') ?></div>
-                    <div class="form-help">Calculated from start date + term</div>
+                    <input type="date" name="end_date" id="end_date" value="<?= htmlspecialchars($contract['end_date'] ?? '') ?>" onchange="calculateDates()">
+                    <div class="form-help">Set a date if known</div>
                 </div>
                 <div class="form-group">
                     <label for="notice_period">Cancellation Notice Period (Days) *</label>
@@ -494,17 +489,14 @@ function calculateAnnualValue() {
     document.getElementById('annual_value_display').textContent = '$' + annualValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 function calculateDates() {
-    const startDate = document.getElementById('start_date').value;
-    const termMonths = parseInt(document.getElementById('contract_term').value);
+    const endDate = document.getElementById('end_date').value;
     const noticeDays = parseInt(document.getElementById('notice_period').value);
-    if (!startDate || !termMonths) return;
-    // Calculate end date
-    const start = new Date(startDate);
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + termMonths);
-    const endDateStr = end.toISOString().split('T')[0];
-    document.getElementById('end_date_display').textContent = endDateStr;
+    if (!endDate) {
+        document.getElementById('renewal_date_display').textContent = 'Not calculated';
+        return;
+    }
     // Calculate renewal date
+    const end = new Date(endDate);
     const renewal = new Date(end);
     renewal.setDate(renewal.getDate() - noticeDays);
     const renewalDateStr = renewal.toISOString().split('T')[0];

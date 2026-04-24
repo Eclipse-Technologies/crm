@@ -116,12 +116,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Calculate values
     $monthlyFee = (float)$_POST['monthly_fee'];
-    $contractTerm = (int)$_POST['contract_term'];
     $annualValue = $monthlyFee * 12;
 
-    // Calculate end date
     $startDate = $_POST['start_date'];
-    $endDate = date('Y-m-d', strtotime($startDate . ' + ' . $contractTerm . ' months'));
+    $endDate = valid_date_or_null($_POST['end_date'] ?? '');
 
     // Calculate renewal date (end date - notice period)
     $noticePeriod = (int)$_POST['notice_period'];
@@ -137,14 +135,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'customer_id' => (isset($_POST['customer_id']) && is_numeric($_POST['customer_id']) && $_POST['customer_id'] !== '' ? (int)$_POST['customer_id'] : null),
         'contact_id' => $_POST['contact_id'] ?? null,
         'contract_type' => $_POST['contract_type'],
-        'contract_status' => 'Active',
+        'contract_status' => ($_POST['contract_status'] ?? 'Active'),
         'equipment_type' => $_POST['equipment_type'],
         'monthly_fee' => $monthlyFee,
         'regen_fee' => isset($_POST['regen_fee']) && $_POST['regen_fee'] !== '' ? (float)$_POST['regen_fee'] : null,
         'tank_sale_price' => isset($_POST['tank_sale_price']) && $_POST['tank_sale_price'] !== '' ? (float)$_POST['tank_sale_price'] : null,
         'annual_value' => $annualValue,
         'payment_frequency' => $_POST['payment_frequency'],
-        'contract_term' => $contractTerm,
+        'contract_term' => null,
         'start_date' => $startDate,
         'end_date' => $endDate,
         'renewal_date' => $renewalDate,
@@ -507,13 +505,10 @@ require_once 'layout_start.php';
                 </div>
 
                 <div class="form-group">
-                    <label for="contract_term">Contract Term (Months) *</label>
-                    <select name="contract_term" id="contract_term" required onchange="calculateDates()">
-                        <option value="12">12 Months</option>
-                        <option value="24">24 Months</option>
-                        <option value="36">36 Months</option>
-                        <option value="48">48 Months</option>
-                        <option value="60">60 Months</option>
+                    <label for="contract_status">Contract Status *</label>
+                    <select name="contract_status" id="contract_status" required>
+                        <option value="Active" selected>Active</option>
+                        <option value="Lost">Lost</option>
                     </select>
                 </div>
             </div>
@@ -525,13 +520,13 @@ require_once 'layout_start.php';
             <div class="form-grid">
                 <div class="form-group">
                     <label for="start_date">Contract Start Date *</label>
-                    <input type="date" name="start_date" id="start_date" required onchange="calculateDates()">
+                    <input type="date" name="start_date" id="start_date" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="end_date">Contract End Date</label>
-                    <div class="calculated-value" id="end_date_display">Not calculated</div>
-                    <div class="form-help">Calculated from start date + term</div>
+                    <input type="date" name="end_date" id="end_date" onchange="calculateDates()">
+                    <div class="form-help">Set a date if known</div>
                 </div>
                 
                 <div class="form-group">
@@ -715,21 +710,16 @@ function setOwnershipUI(ownership) {
 }
 
 function calculateDates() {
-    const startDate = document.getElementById('start_date').value;
-    const termMonths = parseInt(document.getElementById('contract_term').value);
+    const endDate = document.getElementById('end_date').value;
     const noticeDays = parseInt(document.getElementById('notice_period').value);
-    
-    if (!startDate || !termMonths) return;
-    
-    // Calculate end date
-    const start = new Date(startDate);
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + termMonths);
-    
-    const endDateStr = end.toISOString().split('T')[0];
-    document.getElementById('end_date_display').textContent = endDateStr;
-    
+
+    if (!endDate) {
+        document.getElementById('renewal_date_display').textContent = 'Not calculated';
+        return;
+    }
+
     // Calculate renewal date
+    const end = new Date(endDate);
     const renewal = new Date(end);
     renewal.setDate(renewal.getDate() - noticeDays);
     const renewalDateStr = renewal.toISOString().split('T')[0];
