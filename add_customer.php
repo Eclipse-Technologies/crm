@@ -1,14 +1,11 @@
 <?php
-include_once(__DIR__ . '/layout_start.php');
 require_once 'db_mysql.php';
 require_once 'csrf_helper.php';
 
 $schema     = require __DIR__ . '/customer_schema.php';
 $itemFields = require __DIR__ . '/customer_item_config.php';
-$dateFields = ['last_service_date', 'install_date', 'purchase_date', 'next_service_date', 'warranty_expiry'];
 
-$errors  = [];
-$success = false;
+$errors = [];
 
 // ── Generate a unique customer_id ────────────────────────────────────────────
 $conn   = get_mysql_connection();
@@ -117,7 +114,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 }
 
-// ── Load contact for display ──────────────────────────────────────────────────
+// ── Now safe to output HTML ───────────────────────────────────────────────────
+include_once(__DIR__ . '/layout_start.php');
 $selectedContactId = trim($_GET['contact_id'] ?? $_POST['contact_id'] ?? '');
 $selectedContact   = null;
 if ($selectedContactId !== '') {
@@ -141,9 +139,6 @@ $fieldLabels = [
 <div class="container">
   <h2>Add New Customer</h2>
 
-  <?php if ($success): ?>
-    <p style="color:green;">✅ Customer added successfully (ID: <?= htmlspecialchars($nextId) ?>).</p>
-  <?php endif; ?>
 
   <?php if (!empty($errors)): ?>
     <ul style="color:red;">
