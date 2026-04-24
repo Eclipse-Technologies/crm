@@ -1,6 +1,6 @@
 <?php
-require_once 'layout_start.php';
 require_once 'db_mysql.php';
+require_once 'csrf_helper.php';
 
 $pageTitle = 'Add Service Contract';
 $contractSchema = require __DIR__ . '/contract_schema.php';
@@ -181,16 +181,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($result) {
         $stmt->close();
         $conn->close();
-        // Clean output buffer before redirect
-        if (ob_get_length()) {
-            ob_end_clean();
-        }
         header('Location: contracts_list.php?success=1');
         exit;
     } else {
         echo '<div style="color:red;"><b>Failed to add contract:</b> ' . htmlspecialchars($stmt->error) . '</div>';
     }
 }
+
+require_once 'layout_start.php';
 ?>
 
 <!-- Debug Section (visible only if DEBUG is true) -->
