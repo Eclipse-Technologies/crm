@@ -76,6 +76,18 @@ $contracts = fetch_table_mysql('contracts', $contractSchema);
 $contacts = fetch_table_mysql('contacts', $contactSchema);
 $customers = fetch_table_mysql('customers', $customerSchema);
 
+// Build lookup sets so contract rows can reliably show customer status.
+$customerIdSet = [];
+$customerContactIdSet = [];
+foreach ($customers as $cust) {
+    if (isset($cust['customer_id']) && $cust['customer_id'] !== null && $cust['customer_id'] !== '') {
+        $customerIdSet[(string)$cust['customer_id']] = true;
+    }
+    if (isset($cust['contact_id']) && $cust['contact_id'] !== null && $cust['contact_id'] !== '') {
+        $customerContactIdSet[(string)$cust['contact_id']] = true;
+    }
+}
+
 // Calculate contract metrics
 $totalActive = 0;
 $totalMRR = 0;
@@ -104,12 +116,23 @@ foreach ($contracts as &$contract) {
             $contract['expiry_status'] = 'normal';
         }
     }
-    // Calculate metrics for active contracts
+    // Normalize effective status and annual value for display + metrics.
+    $effectiveStatus = (string)($contract['contract_status'] ?? '');
+    if (($contract['expiry_status'] ?? '') === 'expired') {
+        $effectiveStatus = 'Expired';
+    }
+    $contract['effective_status'] = $effectiveStatus;
 
-    if ($contract['contract_status'] === 'Active') {
+    $annualValue = (float)($contract['annual_value'] ?? 0);
+    if ($annualValue <= 0) {
+        $annualValue = ((float)($contract['monthly_fee'] ?? 0)) * 12;
+    }
+    $contract['annual_value_calc'] = $annualValue;
+
+    if ($effectiveStatus === 'Active') {
         $totalActive++;
         $totalMRR += (float)($contract['monthly_fee'] ?? 0);
-        $totalARR += (float)($contract['annual_value'] ?? 0);
+        $totalARR += $annualValue;
     }
 }
 ?>
@@ -228,7 +251,7 @@ foreach ($contracts as &$contract) {
                     <th>Equipment Type</th>
                     <th>Tank Quantity</th>
                     <th>Tank Size</th>
-                    <th>Monthly Fee</th>
+                    <th>Monthly / Annual</th>
                     <th>Status</th>
                     <th>Start Date</th>
                     <th>End Date</th>
@@ -246,18 +269,25 @@ foreach ($contracts as &$contract) {
                         'is_customer' => '—'
                     ];
                     foreach ($contacts as $c) {
-                        if ((isset($c['contact_id']) && $c['contact_id'] === $contract['contact_id']) || (isset($c['id']) && $c['id'] === $contract['contact_id'])) {
+                        if ((isset($c['contact_id']) && (string)$c['contact_id'] === (string)$contract['contact_id']) || (isset($c['id']) && (string)$c['id'] === (string)$contract['contact_id'])) {
                             $contactInfo['company'] = $c['company'] ?? '—';
                             $contactInfo['first_name'] = $c['first_name'] ?? '—';
                             $contactInfo['email'] = $c['email'] ?? '—';
-                            $contactInfo['is_customer'] = isset($c['is_customer']) ? ($c['is_customer'] ? 'Yes' : 'No') : '—';
+                            $isCustomer = isset($customerContactIdSet[(string)($contract['contact_id'] ?? '')])
+                                || isset($customerIdSet[(string)($contract['customer_id'] ?? '')]);
+                            if ($isCustomer) {
+                                $contactInfo['is_customer'] = 'Yes';
+                            } elseif (isset($c['is_customer'])) {
+                                $contactInfo['is_customer'] = $c['is_customer'] ? 'Yes' : 'No';
+                            }
                             break;
                         }
                     }
-                    $statusClass = 'status-' . strtolower(str_replace(' ', '-', $contract['contract_status']));
+                    $displayStatus = $contract['effective_status'] ?? $contract['contract_status'];
+                    $statusClass = 'status-' . strtolower(str_replace(' ', '-', $displayStatus));
                     $expiryClass = 'expiry-' . ($contract['expiry_status'] ?? 'normal');
                     ?>
-                    <tr data-status="<?= htmlspecialchars($contract['contract_status']) ?>" 
+                    <tr data-status="<?= htmlspecialchars($displayStatus) ?>" 
                         data-type="<?= htmlspecialchars($contract['contract_type']) ?>">
                         <td><strong><?= htmlspecialchars($contract['contract_id']) ?></strong></td>
                         <td><?= htmlspecialchars($contactInfo['company']) ?></td>
@@ -267,10 +297,10 @@ foreach ($contracts as &$contract) {
                         <td><?= htmlspecialchars($contract['equipment_type']) ?></td>
                         <td><?= htmlspecialchars($contract['tank_quantity']) ?></td>
                         <td><?= htmlspecialchars($contract['tank_size']) ?></td>
-                        <td><strong>$<?= number_format((float)$contract['monthly_fee'], 2) ?></strong></td>
+                        <td><strong>$<?= number_format((float)$contract['monthly_fee'], 2) ?> / $<?= number_format((float)($contract['annual_value_calc'] ?? 0), 2) ?></strong></td>
                         <td>
                             <span class="status-badge <?= $statusClass ?>">
-                                <?= htmlspecialchars($contract['contract_status']) ?>
+                                <?= htmlspecialchars($displayStatus) ?>
                             </span>
                         </td>
                         <td><?= htmlspecialchars($contract['start_date']) ?></td>
@@ -290,7 +320,7 @@ foreach ($contracts as &$contract) {
                             <div class="action-btns">
                                 <a href="contract_view.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-view">View</a>
                                 <a href="contract_edit.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-edit">Edit</a>
-                                <?php if ($contract['contract_status'] === 'Active' && isset($contract['days_to_expiry']) && $contract['days_to_expiry'] <= 90): ?>
+                                <?php if (($contract['effective_status'] ?? $contract['contract_status']) === 'Active' && isset($contract['days_to_expiry']) && $contract['days_to_expiry'] <= 90): ?>
                                     <a href="contract_renew.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-renew">Renew</a>
                                 <?php endif; ?>
                             </div>
