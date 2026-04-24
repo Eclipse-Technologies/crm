@@ -726,9 +726,9 @@ $conn->close();
                         <th>Contract ID</th>
                         <th>Type</th>
                         <th>Status</th>
-                        <th>Monthly Fee</th>
+                        <th>Monthly Rental</th>
                         <th>Regen Fee</th>
-                        <th>Tank Sale</th>
+                        <th>Delivery Fee</th>
                         <th>Annual Value</th>
                         <th>Start Date</th>
                         <th>End Date</th>

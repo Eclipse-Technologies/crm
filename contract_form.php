@@ -440,11 +440,10 @@ require_once 'layout_start.php';
                     <div class="form-help" id="ownership_help"></div>
                 </div>
 
-                <!-- Rental: monthly fee + regen fee -->
                 <div class="form-group" id="row_monthly_fee">
-                    <label for="monthly_fee">Delivery Fee ($ / month) *</label>
+                    <label for="monthly_fee">Monthly Rental Fee ($ / month)</label>
                     <input type="number" name="monthly_fee" id="monthly_fee" step="0.01" min="0" onchange="calculateAnnualValue()">
-                    <div class="form-help">Recurring delivery/service fee</div>
+                    <div class="form-help">Fixed monthly rental fee (independent of delivery/regen volume)</div>
                 </div>
 
                 <div class="form-group" id="row_regen_fee">
@@ -453,17 +452,16 @@ require_once 'layout_start.php';
                     <div class="form-help">Fee charged per regeneration/exchange visit</div>
                 </div>
 
-                <!-- Purchased: one-time tank sale -->
-                <div class="form-group" id="row_tank_sale_price" style="display:none;">
-                    <label for="tank_sale_price">Tank Sale Price ($)</label>
+                <div class="form-group" id="row_tank_sale_price">
+                    <label for="tank_sale_price">Delivery Fee ($ / drop-off)</label>
                     <input type="number" name="tank_sale_price" id="tank_sale_price" step="0.01" min="0">
-                    <div class="form-help">One-time sale price for the tank</div>
+                    <div class="form-help">Fee charged each time tanks are delivered/exchanged</div>
                 </div>
 
                 <div class="form-group">
                     <label for="annual_value">Annual Contract Value ($)</label>
                     <div class="calculated-value" id="annual_value_display">$0.00</div>
-                    <div class="form-help">Calculated automatically from monthly fee × 12</div>
+                    <div class="form-help">Calculated automatically from monthly rental fee × 12</div>
                 </div>
             </div>
         </div>
@@ -618,9 +616,9 @@ const allEquipment = <?= json_encode(array_map(fn($e) => [
 ], $equipment)) ?>;
 
 const ownershipColors = {
-    'rental':          { bg:'#DBEAFE', color:'#1D4ED8', label:'Rental — Monthly Fee + Regen Fee' },
-    'customer-owned':  { bg:'#D1FAE5', color:'#065F46', label:'Customer-Owned — Regen Fee Only' },
-    'purchased':       { bg:'#FEF3C7', color:'#92400E', label:'Purchased — Tank Sale + Regen Fee' },
+    'rental':          { bg:'#DBEAFE', color:'#1D4ED8', label:'Rental' },
+    'customer-owned':  { bg:'#D1FAE5', color:'#065F46', label:'Customer-Owned' },
+    'purchased':       { bg:'#FEF3C7', color:'#92400E', label:'Purchased' },
 };
 
 function updateTankOptions() {
@@ -671,9 +669,9 @@ function setOwnershipUI(ownership) {
         badge.style.background = '#FEF3C7';
         badge.style.color = '#92400E';
         help.innerHTML = 'Go to <a href="equipment_list.php" target="_blank">Equipment</a> and set the ownership on this tank before creating a contract.';
-        rowMonthly.style.display = 'none';
-        rowRegen.style.display   = 'none';
-        rowSale.style.display    = 'none';
+        rowMonthly.style.display = '';
+        rowRegen.style.display   = '';
+        rowSale.style.display    = '';
         return;
     }
 
@@ -683,27 +681,14 @@ function setOwnershipUI(ownership) {
     badge.style.color = info.color;
     display.style.display = '';
 
-    // Show/hide fee fields based on ownership
-    if (ownership === 'rental') {
-        rowMonthly.style.display = '';
-        rowRegen.style.display   = '';
-        rowSale.style.display    = 'none';
-        document.getElementById('monthly_fee').required = true;
-    } else if (ownership === 'customer-owned') {
-        rowMonthly.style.display = 'none';
-        rowRegen.style.display   = '';
-        rowSale.style.display    = 'none';
-        document.getElementById('monthly_fee').required = false;
-        document.getElementById('monthly_fee').value = '';
-    } else if (ownership === 'purchased') {
-        rowMonthly.style.display = 'none';
-        rowRegen.style.display   = '';
-        rowSale.style.display    = '';
-        document.getElementById('monthly_fee').required = false;
-        document.getElementById('monthly_fee').value = '';
-    }
+    // Keep all fee inputs visible: rental fee, regeneration fee, delivery fee.
+    rowMonthly.style.display = '';
+    rowRegen.style.display   = '';
+    rowSale.style.display    = '';
     calculateAnnualValue();
 }
+
+function calculateAnnualValue() {
     const monthlyFee = parseFloat(document.getElementById('monthly_fee').value) || 0;
     const annualValue = monthlyFee * 12;
     document.getElementById('annual_value_display').textContent = '$' + annualValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');

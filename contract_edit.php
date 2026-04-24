@@ -370,7 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="monthly_fee">Delivery Fee ($ / month) *</label>
+                    <label for="monthly_fee">Monthly Rental Fee ($ / month)</label>
                     <input type="number" name="monthly_fee" id="monthly_fee" step="0.01" min="0" required value="<?= htmlspecialchars($contract['monthly_fee'] ?? '') ?>" onchange="calculateAnnualValue()">
                 </div>
                 <div class="form-group">
@@ -378,9 +378,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="number" name="regen_fee" id="regen_fee" step="0.01" min="0" value="<?= htmlspecialchars($contract['regen_fee'] ?? '') ?>">
                 </div>
                 <div class="form-group">
+                    <label for="tank_sale_price">Delivery Fee ($ / drop-off)</label>
+                    <input type="number" name="tank_sale_price" id="tank_sale_price" step="0.01" min="0" value="<?= htmlspecialchars($contract['tank_sale_price'] ?? '') ?>">
+                </div>
+                <div class="form-group">
                     <label for="annual_value">Annual Contract Value ($)</label>
                     <div class="calculated-value" id="annual_value_display">$<?= number_format((float)($contract['annual_value'] ?? 0), 2) ?></div>
-                    <div class="form-help">Calculated automatically</div>
+                    <div class="form-help">Calculated automatically from monthly rental fee</div>
                 </div>
                 <div class="form-group">
                     <label for="payment_frequency">Payment Frequency *</label>
