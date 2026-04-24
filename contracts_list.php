@@ -157,6 +157,7 @@ foreach ($contracts as &$contract) {
 .contracts-table tr:hover { background: #F9FAFB; }
 .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
 .status-active { background: #D1FAE5; color: #065F46; }
+.status-lost { background: #FEE2E2; color: #991B1B; }
 .status-expiring { background: #FEF3C7; color: #92400E; }
 .status-expired { background: #FEE2E2; color: #991B1B; }
 .status-cancelled { background: #E5E7EB; color: #374151; }
@@ -214,9 +215,8 @@ foreach ($contracts as &$contract) {
         <select id="statusFilter" onchange="filterContracts()">
             <option value="">All Status</option>
             <option value="Active">Active</option>
-            <option value="Expiring">Expiring</option>
+            <option value="Lost">Lost</option>
             <option value="Expired">Expired</option>
-            <option value="Cancelled">Cancelled</option>
         </select>
         <select id="typeFilter" onchange="filterContracts()">
             <option value="">All Types</option>
