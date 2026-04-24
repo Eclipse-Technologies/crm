@@ -370,8 +370,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="monthly_fee">Monthly Fee ($) *</label>
+                    <label for="monthly_fee">Delivery Fee ($ / month) *</label>
                     <input type="number" name="monthly_fee" id="monthly_fee" step="0.01" min="0" required value="<?= htmlspecialchars($contract['monthly_fee'] ?? '') ?>" onchange="calculateAnnualValue()">
+                </div>
+                <div class="form-group">
+                    <label for="regen_fee">Regeneration Fee ($ / service)</label>
+                    <input type="number" name="regen_fee" id="regen_fee" step="0.01" min="0" value="<?= htmlspecialchars($contract['regen_fee'] ?? '') ?>">
                 </div>
                 <div class="form-group">
                     <label for="annual_value">Annual Contract Value ($)</label>

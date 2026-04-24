@@ -442,9 +442,9 @@ require_once 'layout_start.php';
 
                 <!-- Rental: monthly fee + regen fee -->
                 <div class="form-group" id="row_monthly_fee">
-                    <label for="monthly_fee">Monthly Rental Fee ($) *</label>
+                    <label for="monthly_fee">Delivery Fee ($ / month) *</label>
                     <input type="number" name="monthly_fee" id="monthly_fee" step="0.01" min="0" onchange="calculateAnnualValue()">
-                    <div class="form-help">Charged monthly for tank rental</div>
+                    <div class="form-help">Recurring delivery/service fee</div>
                 </div>
 
                 <div class="form-group" id="row_regen_fee">
