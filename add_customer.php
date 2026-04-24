@@ -110,7 +110,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $db->close();
 
     if (empty($errors)) {
-      $success = true;
+      header('Location: customer_view.php?customer_id=' . urlencode($nextId));
+      exit;
     }
   }
   }
