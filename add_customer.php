@@ -132,13 +132,14 @@ if ($selectedContactId !== '') {
 // Display labels for item fields
 $fieldLabels = [
   'serial_number'    => 'Tank Serial #',
+  'ownership'        => 'Rent / Own',
   'tank_size'        => 'Tank Size',
+  'location'         => 'Location',
   'resin_type'       => 'Resin Type',
   'resin_qty_cuft'   => 'Resin Qty (cu ft)',
   'last_service_date'=> 'Last Service Date',
   'regeneration_id'  => 'Regeneration #',
   'purchase_order'   => 'Purchase Order',
-  'ownership'        => 'Ownership',
 ];
 ?>
 
@@ -201,6 +202,11 @@ $fieldLabels = [
     <!-- Tank / Equipment Line Items -->
     <fieldset>
       <legend><strong>Tanks</strong></legend>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <label><strong>Number of Tanks:</strong></label>
+        <input type="number" id="tankCount" min="1" max="20" value="1" style="width:70px;"
+               oninput="syncTankCount(this.value)">
+      </div>
       <div id="lineItems"></div>
       <button type="button" onclick="addLineItem()" class="btn-outline" style="margin-top:8px;">➕ Add Tank</button>
     </fieldset>
@@ -222,7 +228,7 @@ function addLineItem() {
   const wrapper = document.createElement('div');
   wrapper.style.cssText = 'margin-bottom:12px;border:1px solid #ccc;padding:12px;border-radius:6px;background:#f9f9f9;position:relative;';
 
-  let html = `<button type="button" onclick="this.closest('div').remove()"
+  let html = `<button type="button" onclick="this.closest('div').remove(); document.getElementById('tankCount').value = document.getElementById('lineItems').children.length;"
     style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:1.1em;cursor:pointer;color:#c00;" title="Remove tank">✕</button>`;
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;padding-right:24px;">';
 
@@ -233,8 +239,20 @@ function addLineItem() {
       input = `<select name="items[${index}][${f}]">
         <option value="">-- Select --</option>
         <option value="rental">Rental</option>
-        <option value="customer-owned">Customer-Owned</option>
-        <option value="purchased">Purchased</option>
+        <option value="customer-owned">Owned</option>
+      </select>`;
+    } else if (f === 'tank_size') {
+      input = `<select name="items[${index}][${f}]">
+        <option value="">-- Select --</option>
+        <option value="1">1 cu ft</option>
+        <option value="1.5">1.5 cu ft</option>
+        <option value="2">2 cu ft</option>
+        <option value="3">3 cu ft</option>
+        <option value="3.5">3.5 cu ft</option>
+        <option value="5">5 cu ft</option>
+        <option value="6">6 cu ft</option>
+        <option value="9">9 cu ft</option>
+        <option value="12">12 cu ft</option>
       </select>`;
     } else if (f === 'last_service_date') {
       input = `<input type="date" name="items[${index}][${f}]">`;
@@ -250,6 +268,17 @@ function addLineItem() {
   wrapper.innerHTML = html;
   container.appendChild(wrapper);
 }
+
+function syncTankCount(val) {
+  const count = Math.max(1, Math.min(20, parseInt(val) || 1));
+  const container = document.getElementById('lineItems');
+  while (container.children.length < count) addLineItem();
+  while (container.children.length > count) container.lastElementChild.remove();
+  document.getElementById('tankCount').value = container.children.length;
+}
+
+// Initialize with 1 tank on page load
+document.addEventListener('DOMContentLoaded', () => syncTankCount(1));
 </script>
 
 <?php include_once(__DIR__ . '/layout_end.php'); ?>
