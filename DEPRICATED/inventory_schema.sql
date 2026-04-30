@@ -1,0 +1,31 @@
+-- Table for inventory items (matches PHP schema)
+CREATE TABLE inventory (
+    item_id VARCHAR(64) PRIMARY KEY,
+    item_name VARCHAR(128),
+    description TEXT,
+    category VARCHAR(64),
+    brand VARCHAR(64),
+    model VARCHAR(64),
+    serial_number VARCHAR(64),
+    barcode VARCHAR(64),
+    rfid_tag VARCHAR(64),
+    supplier_id VARCHAR(64),
+    supplier_name VARCHAR(128),
+    purchase_date DATE,
+    cost_price DECIMAL(12,2),
+    margin DECIMAL(5,2),
+    selling_price DECIMAL(12,2),
+    currency VARCHAR(8),ye
+    quantity_in_stock INT,
+    reorder_level INT,
+    reorder_quantity INT,
+    unit VARCHAR(32),
+    warehouse VARCHAR(64),
+    location VARCHAR(128),
+    status VARCHAR(32),
+    created_at DATETIME,
+    updated_at DATETIME,
+    created_by VARCHAR(64),
+    updated_by VARCHAR(64),
+    notes TEXT
+);

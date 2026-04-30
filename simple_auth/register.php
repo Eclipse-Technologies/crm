@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($result['requires_verification']) {
                 $successMessage = 'Registration successful! Please check your email to verify your account.';
             } else {
-                $successMessage = 'Registration successful! You can now <a href="/simple_auth/login.php">login</a>.';
+                $successMessage = 'Registration successful! You can now <a href="login.php">login</a>.';
             }
         } else {
             $errors = $result['errors'] ?? ['Registration failed'];
@@ -268,7 +268,7 @@ $showDebug = ($_SERVER['SERVER_NAME'] ?? '') === 'localhost' || ($_SERVER['REMOT
         <?php endif; ?>
         
         <div class="auth-footer">
-            Already have an account? <a href="/simple_auth/login.php">Login here</a>
+            Already have an account? <a href="login.php">Login here</a>
         </div>
     </div>
 </body>

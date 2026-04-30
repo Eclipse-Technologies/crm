@@ -65,14 +65,32 @@ try {
     $conn->commit();
     $conn->close();
 
-    // Redirect to contacts_list.php (PHP header, JS, and HTML fallback)
+    // Build redirect URL with all relevant params from POST
+    $params = [];
+    $paramsToPropagate = ['page','query','sort','direction','per_page','field'];
+    foreach ($paramsToPropagate as $p) {
+        if (!empty($_POST[$p])) {
+            $params[$p] = $_POST[$p];
+        }
+    }
+    if (!empty($_POST['display'])) {
+        if (is_array($_POST['display'])) {
+            foreach ($_POST['display'] as $df) {
+                $params['display[]'][] = $df;
+            }
+        } else {
+            $params['display[]'][] = $_POST['display'];
+        }
+    }
+    $queryString = http_build_query($params);
+    $redirectUrl = 'contacts_list.php' . ($queryString ? ('?' . $queryString) : '');
     if (!headers_sent()) {
-        header('Location: contacts_list.php');
+        header('Location: ' . $redirectUrl);
         exit;
     } else {
-        echo '<meta http-equiv="refresh" content="0;url=contacts_list.php">';
-        echo '<script>window.location.href="contacts_list.php";</script>';
-        echo '<p>If you are not redirected, <a href="contacts_list.php">click here</a>.</p>';
+        echo '<meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirectUrl) . '">';
+        echo '<script>window.location.href="' . addslashes($redirectUrl) . '";</script>';
+        echo '<p>If you are not redirected, <a href="' . htmlspecialchars($redirectUrl) . '">click here</a>.</p>';
         exit;
     }
 } catch (Exception $e) {

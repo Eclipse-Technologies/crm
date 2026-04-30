@@ -4,7 +4,7 @@ header('Content-Type: text/html; charset=UTF-8');
 
 require_once 'layout_start.php';
 require_once 'tasks_mysql.php';
-require_once 'csrf_helper.php';
+// ...existing code...
 
 $tasks = fetch_tasks_mysql();
 
@@ -212,13 +212,17 @@ if ($nextMonth > 12) {
 </form>
 
 <form method="POST" action="add_task.php" class="calendar-add-form" onsubmit="return validateForm()">
-  <?php renderCSRFInput(); ?>
+  <div style="background:#ff0;color:#000;padding:8px 12px;margin-bottom:10px;font-weight:bold;">DEBUG: index.php add task form loaded (2026-04-27)</div>
   <input type="text" name="title" id="title" placeholder="Task Title" required>
   <input type="date" name="due_date" id="due_date" required>
-  <select name="status" id="status" required>
-    <option value="">Select Status</option>
-    <option value="pending">Pending</option>
+  <label for="task_status" style="margin-bottom:0;">Status:</label>
+  <select name="status" id="task_status" required>
+    <option value="not_started">Not Started</option>
+    <option value="in_progress">In Progress</option>
+    <option value="waiting">Waiting/Blocked</option>
+    <option value="review">Review</option>
     <option value="completed">Completed</option>
+    <option value="archived">Archived</option>
   </select>
   <button type="submit">Add Task</button>
 </form>
@@ -238,26 +242,32 @@ for ($i = 0; $i < $firstDayOfMonth; $i++) {
     $week[] = "<td></td>";
 }
 
+
 while ($day <= $daysInMonth) {
-    $dateStr = "$year-$month-" . str_pad($day, 2, '0', STR_PAD_LEFT);
-    if (isset($tasksByDate[$dateStr])) {
-        $taskTitles = '';
-        foreach ($tasksByDate[$dateStr] as $task) {
-            $taskTitles .= htmlspecialchars($task['title']) . " (Created: " . htmlspecialchars($task['timestamp']) . ")<br>";
-            $taskTitles .= "edit_task.php?timestamp=Edit</a> | ";
-            $taskTitles .= "delete_task.php?timestamp=Delete</a><br><br>";
-        }
-        $week[] = "<td class='has-task' onclick=\"showTasks('$dateStr')\">$day<div id='popup-$dateStr' class='task-popup'>$taskTitles</div></td>";
-    } else {
-        $week[] = "<td>$day</td>";
+  $dateStr = "$year-$month-" . str_pad($day, 2, '0', STR_PAD_LEFT);
+  if (isset($tasksByDate[$dateStr])) {
+    $taskBlocks = '';
+    foreach ($tasksByDate[$dateStr] as $task) {
+      // Color by status
+      $status = $task['status'];
+      $color = '#ffeeba'; // default
+      if ($status === 'pending') $color = '#fff3cd';
+      elseif ($status === 'completed') $color = '#d4edda';
+      elseif ($status === 'archived') $color = '#f8d7da';
+      elseif ($status === 'incomplete') $color = '#fbeee6';
+      $taskBlocks .= "<div style='background:$color;padding:4px 8px;margin-bottom:4px;border-radius:5px;font-weight:500;'>" . htmlspecialchars($task['title']) . "</div>";
     }
+    $week[] = "<td class='has-task' onclick=\"showTasks('$dateStr')\">$day<div id='popup-$dateStr' class='task-popup'>$taskBlocks</div></td>";
+  } else {
+    $week[] = "<td>$day</td>";
+  }
 
-    if (count($week) == 7) {
-        echo "<tr>" . implode('', $week) . "</tr>";
-        $week = [];
-    }
+  if (count($week) == 7) {
+    echo "<tr>" . implode('', $week) . "</tr>";
+    $week = [];
+  }
 
-    $day++;
+  $day++;
 }
 
 
@@ -292,7 +302,7 @@ function showTasks(date) {
 function validateForm() {
   const title = document.getElementById('title').value.trim();
   const dueDate = document.getElementById('due_date').value;
-  const status = document.getElementById('status').value;
+  const status = document.getElementById('task_status').value;
 
   if (title === '') {
     alert('Please enter a task title.');
@@ -304,7 +314,8 @@ function validateForm() {
     return false;
   }
 
-  if (status === '') {
+  // All statuses are valid, but still check for empty
+  if (!status) {
     alert('Please select a status.');
     return false;
   }

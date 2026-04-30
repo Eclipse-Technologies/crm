@@ -484,6 +484,11 @@ require_once 'layout_start.php';
 </style>
 
 <div class="eq-form-wrap">
+  <!-- ALERT: Customer assignment for rental tanks is pending RFID integration -->
+  <div class="eq-alert" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; margin-bottom:16px; padding:10px 16px;">
+    <strong>Note:</strong> Equipment module only tracks available tanks and their status.<br>
+    <strong>Clarification:</strong> <span style="color:#0d6efd;">Rental/ownership assignment is configured in the <b>Contract</b> module when creating or editing a contract.</span>
+  </div>
   <div class="eq-form-head">
     <h2><?= $edit_mode ? 'Edit Tank' : 'Add Tank' ?></h2>
     <div style="color:#6b7280;">This form now links tank components to product inventory and applies stock checks on save.</div>

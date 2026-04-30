@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/simple_auth/middleware.php';
 // Sidebar navbar code here
+$authPathPrefix = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+$authPathPrefix = $authPathPrefix === '' ? '' : '/' . $authPathPrefix;
 ?>
 <?php
 // Get current user info from session
@@ -45,18 +47,38 @@ $initials = strtoupper(substr($user_name, 0, 2));
             <span>Dashboard</span>
           </a>
         </li>
+      </ul>
+    </div>
+
+    <!-- ACTIVITY SECTION -->
+    <div class="nav-section">
+      <div class="nav-section-title">Activity & History</div>
+      <div style="font-size:12px;color:#666;padding:0 18px 6px 18px;">Linked Tasks, Opportunities, and Discussions</div>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a href="tasks.php" class="nav-link <?= $currentPage === 'tasks.php' ? 'active' : '' ?>">
+            <span class="nav-icon">🗂️</span>
+            <span>Tasks</span>
+          </a>
+        </li>
         <li class="nav-item">
           <a href="discussion.php" class="nav-link <?= $currentPage === 'discussion.php' ? 'active' : '' ?>">
             <span class="nav-icon">💬</span>
             <span>Discussion Log</span>
           </a>
         </li>
+        <li class="nav-item">
+          <a href="calendar.php" class="nav-link <?= $currentPage === 'calendar.php' ? 'active' : '' ?>">
+            <span class="nav-icon">📅</span>
+            <span>Calendar</span>
+          </a>
+        </li>
       </ul>
     </div>
     
-    <!-- CONTACTS SECTION -->
+    <!-- PEOPLE SECTION -->
     <div class="nav-section">
-      <div class="nav-section-title">Contacts</div>
+      <div class="nav-section-title">People</div>
       <ul class="nav-menu">
         <li class="nav-item">
           <a href="contacts_list.php" class="nav-link <?= $currentPage === 'contacts_list.php' ? 'active' : '' ?>">
@@ -98,13 +120,6 @@ $initials = strtoupper(substr($user_name, 0, 2));
             <span>Mass Email</span>
           </a>
         </li>
-      </ul>
-    </div>
-    
-    <!-- CUSTOMERS SECTION -->
-    <div class="nav-section">
-      <div class="nav-section-title">Customers</div>
-      <ul class="nav-menu">
         <li class="nav-item">
           <a href="customers_list.php" class="nav-link <?= $currentPage === 'customers_list.php' ? 'active' : '' ?>">
             <span class="nav-icon">📋</span>
@@ -119,6 +134,10 @@ $initials = strtoupper(substr($user_name, 0, 2));
         </li>
       </ul>
     </div>
+    <?php
+    require_once __DIR__ . '/simple_auth/middleware.php';
+    // Sidebar navbar code here
+    ?>
     
     <!-- SALES SECTION -->
     <div class="nav-section">
@@ -138,6 +157,35 @@ $initials = strtoupper(substr($user_name, 0, 2));
         </li>
         <li class="nav-item">
           <a href="contracts_list.php" class="nav-link <?= $currentPage === 'contracts_list.php' ? 'active' : '' ?>">
+      <style>
+        .sidebar .nav-section-title {
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          user-select: none;
+        }
+
+        .sidebar .nav-section-title::after {
+          content: '+';
+          font-weight: 700;
+          opacity: 0.7;
+          transition: transform 0.2s ease;
+        }
+
+        .sidebar .nav-section.expanded .nav-section-title::after {
+          content: '-';
+          opacity: 1;
+        }
+
+        .sidebar .nav-section .nav-menu {
+          display: none;
+        }
+
+        .sidebar .nav-section.expanded .nav-menu {
+          display: block;
+        }
+      </style>
             <span class="nav-icon">📄</span>
             <span>All Contracts</span>
             <?php 
@@ -153,6 +201,45 @@ $initials = strtoupper(substr($user_name, 0, 2));
             <?php endif; ?>
           </a>
         </li>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var sections = document.querySelectorAll('.sidebar .nav-section');
+        sections.forEach(function (section) {
+          var title = section.querySelector('.nav-section-title');
+          var activeLink = section.querySelector('.nav-link.active');
+          if (!title) {
+            return;
+          }
+
+          title.setAttribute('role', 'button');
+          title.setAttribute('tabindex', '0');
+
+          if (activeLink) {
+            section.classList.add('expanded');
+          }
+
+          var syncExpandedState = function () {
+            title.setAttribute('aria-expanded', section.classList.contains('expanded') ? 'true' : 'false');
+          };
+
+          syncExpandedState();
+
+          var toggleSection = function () {
+            section.classList.toggle('expanded');
+            syncExpandedState();
+          };
+
+          title.addEventListener('click', toggleSection);
+          title.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              toggleSection();
+            }
+          });
+        });
+      });
+    </script>
         <li class="nav-item">
           <a href="renewals.php" class="nav-link <?= $currentPage === 'renewals.php' ? 'active' : '' ?>">
             <span class="nav-icon">🔄</span>
@@ -181,12 +268,6 @@ $initials = strtoupper(substr($user_name, 0, 2));
           <a href="contract_form.php" class="nav-link <?= $currentPage === 'contract_form.php' ? 'active' : '' ?>">
             <span class="nav-icon">➕</span>
             <span>Add Contract</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="calendar.php" class="nav-link <?= $currentPage === 'calendar.php' ? 'active' : '' ?>">
-            <span class="nav-icon">📅</span>
-            <span>Calendar</span>
           </a>
         </li>
       </ul>
@@ -235,9 +316,27 @@ $initials = strtoupper(substr($user_name, 0, 2));
           </a>
         </li>
         <li class="nav-item">
+          <a href="supplier_directory.php" class="nav-link <?= $currentPage === 'supplier_directory.php' ? 'active' : '' ?>">
+            <span class="nav-icon">🏭</span>
+            <span>Suppliers</span>
+          </a>
+        </li>
+        <li class="nav-item">
           <a href="inventory_ledger.php" class="nav-link <?= $currentPage === 'inventory_ledger.php' ? 'active' : '' ?>">
             <span class="nav-icon">📊</span>
             <span>Ledger</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="inventory_movement_history.php" class="nav-link <?= $currentPage === 'inventory_movement_history.php' ? 'active' : '' ?>">
+            <span class="nav-icon">📋</span>
+            <span>Stock History</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="inventory_ledger_parity.php" class="nav-link <?= $currentPage === 'inventory_ledger_parity.php' ? 'active' : '' ?>">
+            <span class="nav-icon">🔍</span>
+            <span>Ledger Parity</span>
           </a>
         </li>
         <li class="nav-item">
@@ -256,13 +355,32 @@ $initials = strtoupper(substr($user_name, 0, 2));
     </div>
     
     <!-- ADMIN SECTION FULLY REMOVED -->
-    
+
+    <!-- TOOLS SECTION -->
+    <div class="nav-section">
+      <div class="nav-section-title">Tools</div>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a href="ai_settings.php" class="nav-link <?= $currentPage === 'ai_settings.php' ? 'active' : '' ?>">
+            <span class="nav-icon">🤖</span>
+            <span>AI Settings</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="ai_activity.php" class="nav-link <?= $currentPage === 'ai_activity.php' ? 'active' : '' ?>">
+            <span class="nav-icon">📈</span>
+            <span>AI Activity</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
     <!-- ACCOUNT SECTION -->
     <div class="nav-section">
       <div class="nav-section-title">Account</div>
       <ul class="nav-menu">
         <li class="nav-item">
-          <a href="simple_auth/logout.php" class="nav-link">
+          <a href="<?= htmlspecialchars(($authPathPrefix === '' ? '' : $authPathPrefix) . '/simple_auth/logout.php') ?>" class="nav-link">
             <span class="nav-icon">🚪</span>
             <span>Logout</span>
           </a>

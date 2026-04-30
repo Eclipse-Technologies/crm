@@ -1,4 +1,106 @@
 <?php
+
+// --- EXPORT BLOCK: must be first, before any output or includes ---
+if (isset($_GET['export']) && $_GET['export'] === '1') {
+  require_once __DIR__ . '/db_mysql.php';
+  $schema = require __DIR__ . '/contact_schema.php';
+  // Robust flatten helper (declare if not already defined)
+  if (!function_exists('flattenArray')) {
+    function flattenArray($arr) {
+      $flat = [];
+      foreach ($arr as $v) {
+        if (is_array($v)) {
+          foreach (flattenArray($v) as $vv) $flat[] = $vv;
+        } else {
+          $flat[] = $v;
+        }
+      }
+      return $flat;
+    }
+  }
+  $displayFields = ['contact_id', 'first_name', 'last_name', 'company', 'email'];
+  $displayFieldsFromGet = isset($_GET['display']) && is_array($_GET['display']) ? $_GET['display'] : (isset($_GET['display']) ? [$_GET['display']] : null);
+  if ($displayFieldsFromGet) {
+    $displayFields = flattenArray($displayFieldsFromGet);
+  }
+  $query = strtolower(trim($_GET['query'] ?? ''));
+  $field = $_GET['field'] ?? '';
+  $exportAllFields = isset($_GET['export_all_fields']) && $_GET['export_all_fields'] == '1';
+  $fieldsToExport = $exportAllFields ? $schema : $displayFields;
+  $fieldsToExport = flattenArray($fieldsToExport); // Always flatten before use
+  $conn = get_mysql_connection();
+  // Build WHERE clause for export using new logic
+  $where = '';
+  if ($query !== '') {
+    $words = preg_split('/\s+/', $query);
+    if ($field && in_array($field, $schema)) {
+      $searchConditions = [];
+      foreach ($words as $word) {
+        $searchConditions[] = "LOWER(`$field`) LIKE '%" . $conn->real_escape_string($word) . "%'";
+      }
+      $where = ' WHERE ' . implode(' AND ', $searchConditions);
+    } else {
+      $wordConds = [];
+      foreach ($words as $word) {
+        $fieldConds = [];
+        foreach ($schema as $f) {
+          $fieldConds[] = "LOWER(`$f`) LIKE '%" . $conn->real_escape_string($word) . "%'";
+        }
+        $wordConds[] = '(' . implode(' OR ', $fieldConds) . ')';
+      }
+      $where = ' WHERE ' . implode(' AND ', $wordConds);
+    }
+  }
+  $sortFields = explode(',', $_GET['sort'] ?? '');
+  $sortDirection = strtolower($_GET['direction'] ?? 'asc') === 'desc' ? 'DESC' : 'ASC';
+  $validSortFields = array_filter($sortFields, function($f) use ($schema) { return in_array($f, $schema); });
+  $orderBy = '';
+  if (!empty($validSortFields)) {
+    $orderBy = ' ORDER BY ' . implode(', ', array_map(function($f) use ($sortDirection) {
+      return "`$f` $sortDirection";
+    }, $validSortFields));
+  }
+  $fields_sql = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $fieldsToExport));
+  $sql = "SELECT $fields_sql FROM contacts$where$orderBy";
+  $result = $conn->query($sql);
+  if (!$result) {
+    header('Content-Type: text/html');
+    echo "<div class='alert alert-danger' style='margin:40px auto;max-width:600px;'>Error: Unable to export contacts. Please try again later.</div>";
+    $conn->close();
+    exit;
+  }
+  $filename = 'contacts_export_' . date('Ymd_His') . '.csv';
+  header('Content-Type: text/csv');
+  header('Content-Disposition: attachment; filename="' . $filename . '"');
+  $output = fopen('php://output', 'w');
+  if (!$output) {
+    header('Content-Type: text/html');
+    echo "<div class='alert alert-danger' style='margin:40px auto;max-width:600px;'>Error: Unable to open export stream.</div>";
+    $result->free();
+    $conn->close();
+    exit;
+  }
+  fputcsv($output, $fieldsToExport);
+  while ($contact = $result->fetch_assoc()) {
+    $row = [];
+    foreach ($fieldsToExport as $f) {
+      $row[] = $contact[$f] ?? '';
+    }
+    fputcsv($output, $row);
+  }
+  fclose($output);
+  $result->free();
+  $conn->close();
+  exit;
+}
+
+// --- Helper functions for main page logic ---
+
+function fetch_contacts_mysql($schema) {
+  // ...function body here...
+}
+
+// --- Main includes and initializations ---
 require_once __DIR__ . '/simple_auth/middleware.php';
 // Session initialization is now handled by Auth via middleware.php
 require_once __DIR__ . '/layout_start.php';
@@ -15,28 +117,41 @@ $total_contacts = 0;
 $offset = 0;
 $per_page = DEFAULT_CONTACTS_PER_PAGE;
 $total_pages = 1;
-$displayFields = ['contact_id', 'first_name', 'last_name', 'company', 'email'];
+$displayFields = ['first_name', 'last_name', 'company', 'email', 'phone', 'address', 'city', 'province', 'postal_code', 'country', 'notes', 'category', 'created_at', 'last_modified', 'is_customer', 'tank_number', 'delivery_date', 'tags']; // contact_id intentionally omitted from default
+
+// Helper to flatten display[] if nested (prevents 'Array' column bug)
+function flattenDisplayFields($arr) {
+  $flat = [];
+  foreach ($arr as $v) {
+    if (is_array($v)) {
+      foreach ($v as $vv) $flat[] = $vv;
+    } else {
+      $flat[] = $v;
+    }
+  }
+  return $flat;
+}
 
 $displayFieldsFromGet = isset($_GET['display']) && is_array($_GET['display']) ? $_GET['display'] : (isset($_GET['display']) ? [$_GET['display']] : null);
 if (isset($_POST['display']) && is_array($_POST['display'])) {
-  $displayFields = $_POST['display'];
+  $displayFields = flattenDisplayFields($_POST['display']);
   $_SESSION['displayFields'] = $displayFields;
 } elseif ($displayFieldsFromGet) {
-  $displayFields = $displayFieldsFromGet;
+  $displayFields = flattenDisplayFields($displayFieldsFromGet);
   $_SESSION['displayFields'] = $displayFields;
 } elseif (isset($_SESSION['displayFields']) && is_array($_SESSION['displayFields'])) {
-  $displayFields = $_SESSION['displayFields'];
+  $displayFields = flattenDisplayFields($_SESSION['displayFields']);
 }
 // If POST or session provides displayFields, override default
 $displayFieldsFromGet = isset($_GET['display']) && is_array($_GET['display']) ? $_GET['display'] : (isset($_GET['display']) ? [$_GET['display']] : null);
 if (isset($_POST['display']) && is_array($_POST['display'])) {
-  $displayFields = $_POST['display'];
+  $displayFields = flattenDisplayFields($_POST['display']);
   $_SESSION['displayFields'] = $displayFields;
 } elseif ($displayFieldsFromGet) {
-  $displayFields = $displayFieldsFromGet;
+  $displayFields = flattenDisplayFields($displayFieldsFromGet);
   $_SESSION['displayFields'] = $displayFields;
 } elseif (isset($_SESSION['displayFields']) && is_array($_SESSION['displayFields'])) {
-  $displayFields = $_SESSION['displayFields'];
+  $displayFields = flattenDisplayFields($_SESSION['displayFields']);
 }
 
 // ✅ PAGINATION: Get current page and per-page setting
@@ -53,109 +168,35 @@ $sortFields = explode(',', $_GET['sort'] ?? '');
 $sortDirection = $_GET['direction'] ?? 'asc';
 $activeSort = array_flip($sortFields);
 
-// Load contacts from MySQL
 
-function build_contacts_search_where(mysqli $conn, array $schema, string $query, string $field): string {
-  if ($query === '') {
-    return '';
-  }
 
+
+// Build WHERE clause for both count and data queries
+$conn = get_mysql_connection();
+$where = '';
+if ($query !== '') {
   $words = preg_split('/\s+/', $query);
-  if ($field !== '' && in_array($field, $schema, true)) {
+  if ($field && in_array($field, $schema)) {
     $searchConditions = [];
     foreach ($words as $word) {
       $searchConditions[] = "LOWER(`$field`) LIKE '%" . $conn->real_escape_string($word) . "%'";
     }
-    return ' WHERE ' . implode(' AND ', $searchConditions);
-  }
-
-  $wordConds = [];
-  foreach ($words as $word) {
-    $fieldConds = [];
-    foreach ($schema as $f) {
-      $fieldConds[] = "LOWER(`$f`) LIKE '%" . $conn->real_escape_string($word) . "%'";
+    $where = ' WHERE ' . implode(' AND ', $searchConditions);
+  } else {
+    $wordConds = [];
+    foreach ($words as $word) {
+      $fieldConds = [];
+      foreach ($schema as $f) {
+        $fieldConds[] = "LOWER(`$f`) LIKE '%" . $conn->real_escape_string($word) . "%'";
+      }
+      $wordConds[] = '(' . implode(' OR ', $fieldConds) . ')';
     }
-    $wordConds[] = '(' . implode(' OR ', $fieldConds) . ')';
+    $where = ' WHERE ' . implode(' AND ', $wordConds);
   }
-
-  return ' WHERE ' . implode(' AND ', $wordConds);
 }
-
-function fetch_contacts_mysql($schema) {
-  $conn = get_mysql_connection();
-  $fields = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $schema));
-  // Sorting
-  $sortFields = explode(',', $_GET['sort'] ?? '');
-  $sortDirection = strtolower($_GET['direction'] ?? 'asc') === 'desc' ? 'DESC' : 'ASC';
-  $validSortFields = array_filter($sortFields, function($f) use ($schema) {
-    return in_array($f, $schema);
-  });
-  $orderBy = '';
-  if (!empty($validSortFields)) {
-    $orderBy = ' ORDER BY ' . implode(', ', array_map(function($f) use ($sortDirection) {
-      return "`$f` $sortDirection";
-    }, $validSortFields));
-  }
-  // Pagination
-  $per_page = isset($_GET['per_page']) && in_array((int)$_GET['per_page'], ALLOWED_PER_PAGE_OPTIONS)
-    ? (int)$_GET['per_page']
-    : DEFAULT_CONTACTS_PER_PAGE;
-  $current_page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-  $offset = ($current_page - 1) * $per_page;
-  $limit = $per_page;
-
-  // Search logic
-  $query = strtolower(trim($_GET['query'] ?? ''));
-  $field = $_GET['field'] ?? '';
-  $where = build_contacts_search_where($conn, $schema, $query, $field);
-  $sql = "SELECT $fields FROM contacts$where$orderBy LIMIT $limit OFFSET $offset";
-  global $debugMode;
-  global $debugOutput;
-  if ($debugMode) {
-    $debugOutput[] = '<pre style="background:#222;color:#bada55;padding:10px;">CONTACTS DEBUG - SQL: ' . htmlspecialchars($sql) . '</pre>';
-  }
-  $result = $conn->query($sql);
-  if (!$result) {
-    if ($debugMode) {
-      $debugOutput[] = '<pre style="background:#222;color:#ff5555;padding:10px;">CONTACTS DEBUG - MySQL Error: ' . htmlspecialchars($conn->error) . '</pre>';
-    }
-    return [];
-  }
-  $contacts = [];
-  while ($row = $result->fetch_assoc()) {
-    $contacts[] = $row;
-  }
-  if ($debugMode) {
-    $debugOutput[] = '<pre style="background:#222;color:#bada55;padding:10px;">CONTACTS DEBUG - Rows fetched: ' . count($contacts) . '</pre>';
-    $debugOutput[] = '<pre style="background:#222;color:#bada55;padding:10px;">CONTACTS DEBUG - First row: ' . htmlspecialchars(print_r($contacts[0] ?? [], true)) . '</pre>';
-  }
-  $result->free();
-  $conn->close();
-  return $contacts;
-}
-
-$contacts = fetch_contacts_mysql($schema);
-if (!is_array($contacts)) {
-  $contacts = [];
-}
-
-// Only keep the debug output logic in pure PHP, not as a mixed PHP/HTML block at this location
-$showDebug = $debugMode && !empty($debugOutput);
-
-// Detect duplicates
-$emailCount = [];
-foreach ($contacts as $c) {
-    $email = strtolower(trim($c['email'] ?? ''));
-    if (!empty($email)) {
-        $emailCount[$email] = ($emailCount[$email] ?? 0) + 1;
-    }
-}
-
-// Pagination calculations
+// Count query
+$count_result = $conn->query("SELECT COUNT(*) as cnt FROM contacts$where");
 $total_contacts = 0;
-$conn = get_mysql_connection();
-$countWhere = build_contacts_search_where($conn, $schema, $query, $field);
-$count_result = $conn->query("SELECT COUNT(*) as cnt FROM contacts$countWhere");
 if ($count_result) {
   $row = $count_result->fetch_assoc();
   $total_contacts = (int)($row['cnt'] ?? 0);
@@ -164,42 +205,61 @@ if ($count_result) {
 $total_pages = max(1, ceil($total_contacts / $per_page));
 $current_page = min($current_page, $total_pages); // Ensure current page doesn't exceed total pages
 $offset = ($current_page - 1) * $per_page;
-// $contacts is already paginated from SQL, so use it directly for display
+// Data query (paginated)
+// Always flatten $displayFields before using for SQL
+// Always flatten $displayFields before using for SQL (prevents 'Array' bug)
+if (function_exists('flattenArray')) {
+  $fieldsForSelect = flattenArray($displayFields);
+} else if (function_exists('flattenDisplayFields')) {
+  $fieldsForSelect = flattenDisplayFields($displayFields);
+} else {
+  $fieldsForSelect = $displayFields;
+}
+if (!in_array('contact_id', $fieldsForSelect, true)) {
+  array_unshift($fieldsForSelect, 'contact_id'); // Always include contact_id as first field
+}
+$fields_sql = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $fieldsForSelect));
+$sortFields = array_filter($sortFields, function($f) use ($schema) { return in_array($f, $schema); });
+$orderBy = '';
+if (!empty($sortFields)) {
+  $orderBy = ' ORDER BY ' . implode(', ', array_map(function($f) use ($sortDirection) {
+    return "`$f` $sortDirection";
+  }, $sortFields));
+}
+$sql = "SELECT $fields_sql FROM contacts$where$orderBy LIMIT $per_page OFFSET $offset";
+$contacts = [];
+$result = $conn->query($sql);
+if ($result) {
+  while ($row = $result->fetch_assoc()) {
+    $contacts[] = $row;
+  }
+  $result->free();
+}
+$conn->close();
+// Only keep the debug output logic in pure PHP, not as a mixed PHP/HTML block at this location
+$showDebug = $debugMode && !empty($debugOutput);
+// Detect duplicates
+$emailCount = [];
+foreach ($contacts as $c) {
+    $email = strtolower(trim($c['email'] ?? ''));
+    if (!empty($email)) {
+        $emailCount[$email] = ($emailCount[$email] ?? 0) + 1;
+    }
+}
 $page_contacts = $contacts;
 
-// Export logic (exports filtered results, not just current page)
-if (isset($_GET['export']) && $_GET['export'] === '1') {
-    $filename = 'contacts_export_' . date('Ymd_His') . '.csv';
-    header('Content-Type: text/csv');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
-    $output = fopen('php://output', 'w');
-    if (!$output) {
-      die('Error: Unable to open export stream.');
-    }
-    fputcsv($output, $displayFields);
-    foreach ($contacts as $contact) {
-      $row = [];
-      foreach ($displayFields as $f) {
-        $row[] = $contact[$f] ?? '';
-      }
-      fputcsv($output, $row);
-    }
-    fclose($output);
-    exit;
-}
 
 ?>
 
 <div class="container-fluid px-0">
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white rounded shadow-sm p-3">
     <div class="d-flex flex-column">
+      <button type="button" class="btn btn-outline-secondary mb-2" onclick="document.getElementById('fieldPanel').style.display = (document.getElementById('fieldPanel').style.display === 'none' ? 'block' : 'none');">
+        <i class="bi bi-sliders"></i> Customize Visible Columns
+      </button>
 
       <span class="text-muted mb-0" style="font-size:16px;">Total: <strong><?= $total_contacts ?></strong></span>
-    </div>
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-      <button type="button" class="btn btn-outline-secondary js-toggle-panel" data-target="fieldPanel">
-        <i class="bi bi-sliders"></i> <span style="font-weight:500;">Customize Columns</span>
-      </button>
+      <!-- Removed the fetch_contacts_mysql function call and related code -->
       <a href="import_contacts.php" class="btn btn-outline-secondary">
         <i class="bi bi-upload"></i> <span style="font-weight:500;">Import</span>
       </a>
@@ -210,7 +270,7 @@ if (isset($_GET['export']) && $_GET['export'] === '1') {
   </div>
 
   <div class="d-flex flex-wrap align-items-center mb-3 gap-2 bg-light rounded p-3 border">
-    <form method="GET" action="contacts_list.php" class="d-flex flex-wrap gap-2 align-items-center mb-0">
+    <form method="GET" action="contacts_list.php" class="d-flex flex-wrap gap-2 align-items-center mb-0" id="contacts-search-form">
       <input type="text" name="query" class="form-control" placeholder="Search" value="<?= htmlspecialchars($_GET['query'] ?? '') ?>" style="min-width:220px;">
       <?php if ($field !== ''): ?>
         <input type="hidden" name="field" value="<?= e($field) ?>">
@@ -221,11 +281,38 @@ if (isset($_GET['export']) && $_GET['export'] === '1') {
       <?php foreach ($displayFields as $df): ?>
         <input type="hidden" name="display[]" value="<?= e($df) ?>">
       <?php endforeach; ?>
+      <div class="form-check ms-2" style="margin-bottom:0;">
+        <input type="checkbox" class="form-check-input" id="exportAllFields" name="export_all_fields" value="1">
+        <label class="form-check-label" for="exportAllFields" style="font-weight:400;font-size:15px;">Export all fields</label>
+      </div>
       <button type="submit" class="btn btn-primary">Search</button>
+      <button type="button" class="btn btn-success" onclick="exportContacts()">Export</button>
       <?php if ($query !== ''): ?>
         <a href="contacts_list.php" class="btn btn-outline-secondary">Clear</a>
       <?php endif; ?>
     </form>
+    <script>
+    function exportContacts() {
+      const form = document.getElementById('contacts-search-form');
+      const url = new URL(form.action, window.location.origin);
+      const formData = new FormData(form);
+      // Add all form fields except export button
+      for (const [key, value] of formData.entries()) {
+        if (key !== 'export') {
+          url.searchParams.set(key, value);
+        }
+      }
+      // Always set export=1
+      url.searchParams.set('export', '1');
+      // Handle export all fields checkbox
+      if (document.getElementById('exportAllFields').checked) {
+        url.searchParams.set('export_all_fields', '1');
+      } else {
+        url.searchParams.delete('export_all_fields');
+      }
+      window.location.href = url.toString();
+    }
+    </script>
     <span class="ms-3 text-muted" style="font-size:15px;">Showing <strong><?= $total_contacts > 0 ? ($offset + 1) : 0 ?></strong>–<strong><?= min($offset + $per_page, $total_contacts) ?></strong> of <strong><?= $total_contacts ?></strong> contacts</span>
     <?php if ($total_pages > 1): ?>
       <span class="ms-3 text-muted" style="font-size:15px;">Page <strong><?= $current_page ?></strong> of <strong><?= $total_pages ?></strong></span>
@@ -266,9 +353,7 @@ if (isset($_GET['export']) && $_GET['export'] === '1') {
 
 <!-- Field Visibility Panel -->
 <?php
-$openFieldPanel = !empty($fieldSaveError) ||
-  ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply'])) ||
-  (isset($_GET['openPanel']) && $_GET['openPanel'] == '1');
+$openFieldPanel = false; // Hide the Customize Visible Columns panel by default
 ?>
 <div id="fieldPanel" class="card shadow-sm mb-4" style="display:<?= $openFieldPanel ? 'block' : 'none' ?>; max-width: 600px;">
   <form method="POST" class="p-3">
@@ -281,8 +366,8 @@ $openFieldPanel = !empty($fieldSaveError) ||
       <?php foreach ($schema as $f): ?>
         <div class="col-6 col-md-4">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="display[]" value="<?= $f ?>" id="field-<?= $f ?>" <?= in_array($f, $displayFields) ? 'checked' : '' ?>>
-            <label class="form-check-label" for="field-<?= $f ?>">
+            <input class="form-check-input" type="checkbox" name="display[]" value="<?= $f ?>" id="field-<?= $f ?>" <?= in_array($f, $displayFields) ? 'checked' : '' ?><?= $f === 'contact_id' ? ' style="display:none;"' : '' ?>>
+            <label class="form-check-label" for="field-<?= $f ?>"<?= $f === 'contact_id' ? ' style="display:none;"' : '' ?>>
               <?= ucfirst(str_replace('_', ' ', $f)) ?>
             </label>
           </div>
@@ -351,10 +436,68 @@ $openFieldPanel = !empty($fieldSaveError) ||
                 <td>
                   <div class="btn-group" role="group">
                     <a href="contact_view.php?id=<?= escapeAttr($id) ?>" class="btn btn-sm btn-outline-primary" title="View contact"><i class="bi bi-person-lines-fill"></i></a>
-                    <a href="contact_view.php?id=<?= escapeAttr($id) ?>#edit" class="btn btn-sm btn-outline-secondary" title="Edit contact"><i class="bi bi-pencil"></i></a>
+                    <?php
+                      // Build edit link with all current GET params for redirect after save
+                      $editParams = [
+                        'id' => $id,
+                        'edit' => 1
+                      ];
+                      $paramsToPropagate = ['page','query','sort','direction','per_page','field'];
+                      foreach ($paramsToPropagate as $p) {
+                        if (isset($_GET[$p])) {
+                          $editParams[$p] = $_GET[$p];
+                        }
+                      }
+                      if (isset($_GET['display']) && is_array($_GET['display'])) {
+                        foreach ($_GET['display'] as $df) {
+                          $editParams['display[]'][] = $df;
+                        }
+                      } elseif (isset($_GET['display'])) {
+                        $editParams['display[]'][] = $_GET['display'];
+                      }
+                      $editUrl = 'contact_view.php?' . http_build_query($editParams) . '#edit';
+                    ?>
+                    <a href="<?= htmlspecialchars($editUrl) ?>" class="btn btn-sm btn-outline-secondary" title="Edit contact"><i class="bi bi-pencil"></i></a>
                     <form method="POST" action="delete_contact.php" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this contact?');">
                       <?php renderCSRFInput(); ?>
                       <input type="hidden" name="contact_id" value="<?= escapeAttr($id) ?>">
+                      <?php
+                        // Propagate all relevant GET params as hidden fields for redirect after delete
+                        $paramsToPropagate = ['page','query','sort','direction','per_page','field'];
+                        // Helper to recursively flatten arrays (declare only if not already defined)
+                        if (!function_exists('flattenArray')) {
+                          function flattenArray($arr) {
+                            $flat = [];
+                            foreach ($arr as $v) {
+                              if (is_array($v)) {
+                                foreach (flattenArray($v) as $vv) $flat[] = $vv;
+                              } else {
+                                $flat[] = $v;
+                              }
+                            }
+                            return $flat;
+                          }
+                        }
+                        foreach ($paramsToPropagate as $p) {
+                          if (isset($_GET[$p])) {
+                            $val = $_GET[$p];
+                            if (is_array($val)) {
+                              foreach (flattenArray($val) as $v) {
+                                echo '<input type="hidden" name="' . htmlspecialchars($p) . '[]" value="' . htmlspecialchars($v) . '">';
+                              }
+                            } else {
+                              echo '<input type="hidden" name="' . htmlspecialchars($p) . '" value="' . htmlspecialchars($val) . '">';
+                            }
+                          }
+                        }
+                        if (isset($_GET['display']) && is_array($_GET['display'])) {
+                          foreach (flattenArray($_GET['display']) as $df) {
+                            echo '<input type="hidden" name="display[]" value="' . htmlspecialchars($df) . '">';
+                          }
+                        } elseif (isset($_GET['display'])) {
+                          echo '<input type="hidden" name="display[]" value="' . htmlspecialchars($_GET['display']) . '">';
+                        }
+                      ?>
                       <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete contact"><i class="bi bi-trash"></i></button>
                     </form>
                     <?php if (!empty($contact['company'])): ?>

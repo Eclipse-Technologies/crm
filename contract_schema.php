@@ -10,6 +10,7 @@ return [
     'contract_type',        // New / Renewal / Upsell
     'contract_status',      // Draft / Active / Expiring / Expired / Cancelled
     'equipment_type',       // Softener / RO System / Filtration / DI System / Other
+    'tank_ownership',       // Owned / Rented
     'monthly_fee',          // Monthly recurring revenue (rental)
     'regen_fee',            // Per-service regeneration fee
     'tank_sale_price',      // One-time tank sale price (purchased tanks only)
@@ -23,6 +24,8 @@ return [
     'notice_period',       // Cancellation notice period (days)
     'evoqua_account',      // Evoqua account number
     'evoqua_contract',     // Evoqua contract number
+    'tank_quantity',       // Number of tanks assigned (direct field)
+    'tank_size',           // Size of tanks assigned (direct field)
     'equipment_ids',       // Comma-separated equipment IDs
     'service_frequency',   // Weekly / Bi-weekly / Monthly / Quarterly
     'last_service_date',   // Most recent service visit

@@ -17,5 +17,6 @@ return [
         'is_customer',
         'tank_number',
         'delivery_date',
-        'tags'
+        'tags',
+        'status'
 ];

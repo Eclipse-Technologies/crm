@@ -1,4 +1,12 @@
+<!-- markdownlint-disable MD031 MD032 MD040 -->
+
 # Simple Auth
+
+## Repository Note (Canonical Location)
+
+For this repository, `CRM/simple_auth/` is the canonical auth implementation.
+
+Root `simple_auth/` exists only as a compatibility surface for legacy includes and URLs.
 
 A lightweight, secure, CSV-based authentication system for PHP applications. **No database required!**
 

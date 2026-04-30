@@ -1,0 +1,59 @@
+/* CRM Default Stylesheet */
+body {
+    font-family: Arial, sans-serif;
+    background: #f7f7f7;
+    color: #222;
+    margin: 0;
+    padding: 0;
+}
+.auth-container {
+    max-width: 450px;
+    margin: 60px auto;
+    padding: 40px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+.btn-auth {
+    width: 100%;
+    padding: 14px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+.btn-auth:hover {
+    background: #45a049;
+}
+.error-msg {
+    background: #fee;
+    border: 1px solid #fcc;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+    color: #c33;
+}
+.success-msg {
+    background: #efe;
+    border: 1px solid #cfc;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+    color: #363;
+}
+.auth-footer {
+    margin-top: 20px;
+    text-align: center;
+    color: #666;
+}
+.auth-footer a {
+    color: #4CAF50;
+    text-decoration: none;
+}
+.auth-footer a:hover {
+    text-decoration: underline;
+}

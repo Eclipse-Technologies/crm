@@ -1,4 +1,5 @@
 <?php
+// Added tank_size for tank inventory automation (April 2026)
 return [
     'item_id',
     'item_name',
@@ -17,6 +18,7 @@ return [
     'selling_price',
     'currency',
     'quantity_in_stock',
+    'tank_size', // NEW: cuft or gallons (string/number)
     'reorder_level',
     'reorder_quantity',
     'unit',

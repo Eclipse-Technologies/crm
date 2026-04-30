@@ -1,0 +1,44 @@
+-- CRM Database Schema (crmdb.sql)
+-- Extracted on 2026-02-26
+
+-- Full schema for migration to Zim Databases
+
+-- --------------------------------------------------------
+-- Table structure for table `audit_log`
+CREATE TABLE `audit_log` (
+  `id` int NOT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  `user_id` varchar(100) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `action` varchar(50) DEFAULT NULL,
+  `entity_type` varchar(50) DEFAULT NULL,
+  `entity_id` varchar(100) DEFAULT NULL,
+  `changes` text,
+  `summary` varchar(255) DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `error_msg` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `contacts`
+CREATE TABLE `contacts` (
+  `contact_id` int NOT NULL,
+  `first_name` varchar(100) DEFAULT NULL,
+  `last_name` varchar(100) DEFAULT NULL,
+  `company` varchar(150) DEFAULT NULL,
+  `email` varchar(150) DEFAULT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `address` varchar(255) DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `province` varchar(100) DEFAULT NULL,
+  `postal_code` varchar(20) DEFAULT NULL,
+  `country` varchar(100) DEFAULT NULL,
+  `notes` text,
+  `created_at` datetime DEFAULT NULL,
+  `last_modified` datetime DEFAULT NULL,
+  `is_customer` tinyint(1) DEFAULT NULL,
+  `tank_number` varchar(50) DEFAULT NULL,
+  `delivery_date` date DEFAULT NULL,
+  `tags` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Additional tables are present in the schema. If you need the full schema for all tables, please specify or request the complete file.

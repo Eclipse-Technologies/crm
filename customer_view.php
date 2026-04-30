@@ -1,4 +1,41 @@
+    <!-- ── TANK QUANTITY ASSIGNMENT ─────────────────────────────────────────── -->
+    <div class="section-header">🛢️ Assign Tank Quantities (Bulk)</div>
+    <form method="post">
+        <?php renderCSRFInput(); ?>
+        <input type="hidden" name="action" value="assign_tank_quantities">
+        <div class="form-grid">
+            <table style="width:100%;background:white;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:16px;">
+                <thead>
+                    <tr>
+                        <th style="padding:8px 12px;">Tank Type</th>
+                        <th style="padding:8px 12px;">Size</th>
+                        <th style="padding:8px 12px;">Quantity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($inventory as $item): ?>
+                        <tr>
+                            <td style="padding:8px 12px;"><?= htmlspecialchars($item['item_name']) ?></td>
+                            <td style="padding:8px 12px;"><?= htmlspecialchars($item['tank_size'] ?? ($item['description'] ?? '')) ?></td>
+                            <td style="padding:8px 12px;">
+                                <input type="number" min="0" name="tank_quantity[<?= htmlspecialchars($item['item_id']) ?>]" value="0" style="width:60px;">
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Save Tank Quantities</button>
+        </div>
+    </form>
+
 <?php
+require_once(__DIR__ . '/csrf_helper.php');
+// Debug: Show all errors during development
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 header('Content-Type: text/html; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
@@ -49,27 +86,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         echo '<div class="alert alert-danger">CSRF validation failed</div>';
     } else {
-    $conn = get_mysql_connection();
-    
-    if ($_POST['action'] === 'update_customer') {
-        $fields = [];
-        $values = [];
-        foreach ($customerSchema as $field) {
-            if ($field === 'customer_id') continue;
-            $fields[] = "`$field` = ?";
-            $values[] = $_POST[$field] ?? null;
+        try {
+            $conn = get_mysql_connection();
+            if ($_POST['action'] === 'update_customer') {
+                // ...existing code...
+                $stmt->close();
+            } elseif ($_POST['action'] === 'assign_tanks') {
+                // ...existing code...
+                $stmt->close();
+            } elseif ($_POST['action'] === 'assign_tank_quantities') {
+                // Save tank quantities for this customer
+                $quantities = $_POST['tank_quantity'] ?? [];
+                foreach ($quantities as $itemId => $qty) {
+                    $qty = (int)$qty;
+                    if ($qty > 0) {
+                        // Insert or update customer_tank_quantities
+                        $stmt = $conn->prepare("INSERT INTO customer_tank_quantities (customer_id, item_id, quantity) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+                        $stmt->bind_param('isi', $customerId, $itemId, $qty);
+                        $stmt->execute();
+                        $stmt->close();
+                        // Optionally: auto-generate unique tank assignments (pseudo-IDs)
+                        // This can be expanded to create inventory records if needed
+                    } else {
+                        // Remove entry if quantity is zero
+                        $stmt = $conn->prepare("DELETE FROM customer_tank_quantities WHERE customer_id = ? AND item_id = ?");
+                        $stmt->bind_param('is', $customerId, $itemId);
+                        $stmt->execute();
+                        $stmt->close();
+                    }
+                }
+            }
+            $conn->close();
+            if (!headers_sent()) {
+                header("Location: customer_view.php?id=" . urlencode($customerId));
+                exit;
+            } else {
+                echo '<div class="alert alert-warning">Redirect failed: headers already sent.</div>';
+            }
+        } catch (Throwable $e) {
+            echo '<div class="alert alert-danger">Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
         }
-        $values[] = $customerId;
-        $sql = "UPDATE customers SET " . implode(', ', $fields) . " WHERE customer_id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param(str_repeat('s', count($values)), ...$values);
-        $stmt->execute();
-        $stmt->close();
-    }
-    
-    $conn->close();
-    header("Location: customer_view.php?id=" . urlencode($customerId));
-    exit;
     }
 }
 
@@ -453,9 +509,37 @@ $conn->close();
     color: white;
 }
 
+/* AI Panel */
+.ai-panel { background: white; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 0 0 20px 0; display: none; }
+.ai-panel.visible { display: block; }
+.ai-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.ai-panel-title { font-size: 13px; font-weight: 700; color: #1d4ed8; }
+.ai-panel-close { background: none; border: none; cursor: pointer; color: #9ca3af; font-size: 18px; padding: 0; line-height: 1; }
+.ai-panel-body { font-size: 13px; color: #1f2937; line-height: 1.7; white-space: pre-wrap; background: #f8faff; border-radius: 6px; padding: 12px; }
+.ai-panel-meta { font-size: 11px; color: #9ca3af; margin-top: 6px; }
+.ai-panel-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.ai-copy-btn { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 4px; padding: 5px 12px; font-size: 11px; cursor: pointer; font-weight: 600; }
+.ai-btn { background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: opacity 0.2s; }
+.ai-btn:hover { opacity: 0.85; }
+.ai-btn:disabled { opacity: 0.5; cursor: default; }
+.ai-spinner { display: inline-block; width: 11px; height: 11px; border: 2px solid rgba(255,255,255,0.35); border-top-color: white; border-radius: 50%; animation: ai-spin 0.7s linear infinite; margin-right: 4px; vertical-align: middle; }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
 </style>
 
 <div class="container">
+    <!-- AI Panel -->
+    <div class="ai-panel" id="aiPanel">
+      <div class="ai-panel-header">
+        <div class="ai-panel-title" id="aiPanelTitle">🤖 AI</div>
+        <button class="ai-panel-close" onclick="closeAiPanel()" title="Close">✕</button>
+      </div>
+      <div class="ai-panel-body" id="aiPanelBody"></div>
+      <div class="ai-panel-meta" id="aiPanelMeta"></div>
+      <div class="ai-panel-actions">
+        <button class="ai-copy-btn" onclick="copyAiResult()">📋 Copy</button>
+      </div>
+    </div>
+
     <!-- Header -->
     <div class="customer-header">
         <h1>🏢 <?= htmlspecialchars($customer['address'] ?? 'Customer ' . $customerId) ?></h1>
@@ -463,6 +547,10 @@ $conn->close();
         <?php if ($contact): ?>
             <p><strong>Contact:</strong> <?= htmlspecialchars($contact['company'] ?? 'N/A') ?></p>
         <?php endif; ?>
+        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="ai-btn" onclick="aiAction('summarise_contact', this, 'Customer Summary')">🤖 AI Summary</button>
+          <button class="ai-btn" onclick="aiAction('suggest_followup', this, 'Follow-up Draft')">✉ AI Follow-up</button>
+        </div>
     </div>
 
     <!-- ── CUSTOMER INFO FORM (Editable inline) ────────────────────────────────── -->
@@ -498,6 +586,61 @@ $conn->close();
         </div>
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">💾 Save Customer Info</button>
+        </div>
+    </form>
+
+    <!-- ── RENTED TANKS SUMMARY ───────────────────────────────────────────── -->
+    <?php
+    require_once 'inventory_mysql.php';
+    $inventory = fetch_inventory_mysql(require __DIR__ . '/inventory_schema.php');
+    $rentedTankIds = array_filter(array_map('trim', explode(',', $customer['rented_tanks'] ?? '')));
+    $rentedTanks = array_filter($inventory, function($item) use ($rentedTankIds) {
+        return in_array($item['item_id'], $rentedTankIds);
+    });
+    $rentedCount = count($rentedTanks);
+    $rentedSizes = array_map(function($item) {
+        return $item['tank_size'] ?? ($item['item_name'] ?? '');
+    }, $rentedTanks);
+    ?>
+    <div class="section-header">🛢️ Rented Tanks Summary</div>
+    <div style="margin-bottom:16px;">
+        <strong>Number of Rented Tanks:</strong> <?= $rentedCount ?><br>
+        <strong>Sizes:</strong> <?= $rentedCount > 0 ? htmlspecialchars(implode(', ', $rentedSizes)) : 'N/A' ?>
+    </div>
+
+    <!-- ── TANK ASSIGNMENT ───────────────────────────────────────────────────── -->
+    <div class="section-header">🛢️ Assign Tanks</div>
+    <form method="post">
+        <?php renderCSRFInput(); ?>
+        <input type="hidden" name="action" value="assign_tanks">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="customer_owned_tanks">Customer-Owned Tanks</label>
+                <select name="customer_owned_tanks[]" id="customer_owned_tanks" multiple size="6">
+                    <?php
+                    foreach ($inventory as $item) {
+                        $selected = in_array($item['item_id'], (array)($customer['customer_owned_tanks'] ?? [])) ? 'selected' : '';
+                        echo "<option value='" . htmlspecialchars($item['item_id']) . "' $selected>" . htmlspecialchars($item['item_name']) . " (" . htmlspecialchars($item['serial_number']) . ")</option>";
+                    }
+                    ?>
+                </select>
+                <div class="form-help">Hold Ctrl/Cmd to select multiple tanks</div>
+            </div>
+            <div class="form-group">
+                <label for="rented_tanks">Rented Tanks</label>
+                <select name="rented_tanks[]" id="rented_tanks" multiple size="6">
+                    <?php
+                    foreach ($inventory as $item) {
+                        $selected = in_array($item['item_id'], (array)($customer['rented_tanks'] ?? [])) ? 'selected' : '';
+                        echo "<option value='" . htmlspecialchars($item['item_id']) . "' $selected>" . htmlspecialchars($item['item_name']) . " (" . htmlspecialchars($item['serial_number']) . ")</option>";
+                    }
+                    ?>
+                </select>
+                <div class="form-help">Hold Ctrl/Cmd to select multiple tanks</div>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Save Tank Assignments</button>
         </div>
     </form>
 
@@ -775,5 +918,62 @@ $conn->close();
         <a href="index.php" class="btn btn-outline">⬅ Back to Home</a>
     </div>
 </div>
+
+<script>
+// ── AI Integration ──────────────────────────────────────────────────────────
+const AI_CONTACT_ID  = <?= json_encode($customer['contact_id'] ?? '') ?>;
+const AI_CSRF_TOKEN  = <?= json_encode(getCSRFToken()) ?>;
+
+function aiAction(action, btn, label) {
+  const panel = document.getElementById('aiPanel');
+  const body  = document.getElementById('aiPanelBody');
+  const meta  = document.getElementById('aiPanelMeta');
+  const title = document.getElementById('aiPanelTitle');
+
+  title.textContent = '🤖 AI: ' + label;
+  body.textContent  = 'Thinking…';
+  meta.textContent  = '';
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  const origLabel = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ai-spinner"></span> Thinking…'; }
+
+  const fd = new FormData();
+  fd.append('action',     action);
+  fd.append('contact_id', AI_CONTACT_ID);
+  fd.append('csrf_token', AI_CSRF_TOKEN);
+
+  fetch('ai_endpoint.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        body.textContent = '⚠️ ' + data.error;
+      } else {
+        body.textContent = data.text || '(no response)';
+                if (data.provider && data.model) {
+                    var selectionLabel = data.selection_mode === 'cheapest' ? ' · chosen by cost' : ' · manual selection';
+                    meta.textContent = 'via ' + data.provider + ' / ' + data.model + selectionLabel;
+                }
+      }
+    })
+    .catch(err => { body.textContent = '⚠️ Network error: ' + err.message; })
+    .finally(() => { if (btn) { btn.disabled = false; btn.innerHTML = origLabel; } });
+}
+
+function closeAiPanel() {
+  document.getElementById('aiPanel').classList.remove('visible');
+}
+
+function copyAiResult() {
+  const text = document.getElementById('aiPanelBody').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.ai-copy-btn');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  });
+}
+</script>
 
 <?php include_once(__DIR__ . '/layout_end.php'); ?>

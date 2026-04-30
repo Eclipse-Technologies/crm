@@ -74,6 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           'probability' => $_POST['probability'],
           'expected_close' => $_POST['expected_close'],
         ];
+        // Add description if present
+        if (isset($_POST['description'])) {
+          $fields['description'] = $_POST['description'];
+        }
         // If company is changed, update it in the contacts table for all contacts linked to this opportunity
         if (!empty($_POST['company_id'])) {
           $conn = get_mysql_connection();
@@ -555,7 +559,6 @@ function update_opportunity_mysql($id, $fields, $idColumn = 'opportunity_id') {
         <span>💰</span>
         <span>Deal Details</span>
       </div>
-      
       <div class="form-grid">
         <div class="form-group">
           <label for="value">Opportunity Value *</label>
@@ -571,7 +574,6 @@ function update_opportunity_mysql($id, $fields, $idColumn = 'opportunity_id') {
           >
           <div class="form-help">Enter the total value in dollars</div>
         </div>
-        
         <div class="form-group">
           <label for="expected_close">Expected Close Date *</label>
           <input 
@@ -582,6 +584,11 @@ function update_opportunity_mysql($id, $fields, $idColumn = 'opportunity_id') {
             required
           >
           <div class="form-help">When do you expect to close this deal?</div>
+        </div>
+        <div class="form-group full-width">
+          <label for="description">Description</label>
+          <textarea name="description" id="description" class="form-control" rows="3" placeholder="Describe what is being sold..."><?= isset($opportunity['description']) ? htmlspecialchars($opportunity['description']) : '' ?></textarea>
+          <div class="form-help">Provide details about the product/service being sold.</div>
         </div>
       </div>
     </div>

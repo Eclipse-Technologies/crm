@@ -1,3 +1,6 @@
+<?php if (isset($contactOpportunities)) {
+  echo '<pre style="background:#fffbe6;color:#b45309;border:1px solid #fde68a;padding:8px;">$contactOpportunities = ' . htmlspecialchars(var_export($contactOpportunities, true)) . '</pre>';
+} ?>
 
 <?php
 // Security headers
@@ -27,11 +30,43 @@ function redirect_safely(string $url): void {
 }
 
 // Handle contact update form submission
+
+// Handle discussion log form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
+  if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    echo '<div class="alert alert-danger m-3">Security validation failed. Please refresh and try again.</div>';
+  } else {
+    $contactId = trim((string) ($_POST['contact_id'] ?? ''));
+    $author = trim((string) ($_POST['author'] ?? ''));
+    $entryText = trim((string) ($_POST['entry_text'] ?? ''));
+    $linkedOppId = trim((string) ($_POST['linked_opportunity_id'] ?? ''));
+    $visibility = 'private';
+    if ($contactId && $author && $entryText) {
+      $conn = get_mysql_connection();
+      $sql = "INSERT INTO discussion_log (contact_id, author, entry_text, linked_opportunity_id, visibility, timestamp) VALUES (?, ?, ?, ?, ?, NOW())";
+      $stmt = $conn->prepare($sql);
+      if ($stmt) {
+        $linkedOppIdNull = ($linkedOppId === '') ? null : $linkedOppId;
+        $stmt->bind_param('sssss', $contactId, $author, $entryText, $linkedOppIdNull, $visibility);
+        $stmt->execute();
+        $stmt->close();
+        $conn->close();
+        // Redirect to avoid resubmission
+        header('Location: contact_view.php?id=' . urlencode($contactId) . '&log_added=1');
+        exit;
+      } else {
+        echo '<div class="alert alert-danger m-3">Failed to save discussion log. Please try again.</div>';
+      }
+    } else {
+      echo '<div class="alert alert-danger m-3">All required fields must be filled out.</div>';
+    }
+  }
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id'])) {
     $contactId = trim((string) ($_POST['contact_id'] ?? ''));
     $fields = [
-        'first_name', 'last_name', 'company', 'email', 'phone', 'address',
-        'city', 'province', 'postal_code', 'country', 'notes', 'tags', 'is_customer'
+      'first_name', 'last_name', 'company', 'email', 'phone', 'address',
+      'city', 'province', 'postal_code', 'country', 'notes', 'tags', 'is_customer', 'status'
     ];
     $updates = [];
     $params = [];
@@ -266,7 +301,19 @@ if (isset($stmtDisc) && $stmtDisc) {
   $stmtDisc->close();
 }
 if (!is_array($discussions)) $discussions = [];
+
 $contactDiscussions = $discussions;
+
+// Ensure $contactOpportunities is defined for forms and dropdowns
+
+$contactOpportunities = getContactOpportunities($contact, $opportunities);
+// Calculate total opportunity value for this contact
+$opportunityValue = 0;
+if (is_array($contactOpportunities)) {
+  foreach ($contactOpportunities as $opp) {
+    $opportunityValue += (float)($opp['value'] ?? 0);
+  }
+}
 
 // Helper: resolve customer by ID
 function findCustomerById($customers, $cid) {
@@ -414,6 +461,23 @@ function getContactOpportunities($contact, $opportunities) {
     overflow: hidden;
     resize: none;
   }
+
+  /* AI Panel */
+  .ai-panel { background: white; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 0 0 16px 0; display: none; }
+  .ai-panel.visible { display: block; }
+  .ai-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .ai-panel-title { font-size: 13px; font-weight: 700; color: #1d4ed8; }
+  .ai-panel-close { background: none; border: none; cursor: pointer; color: #9ca3af; font-size: 18px; padding: 0; line-height: 1; }
+  .ai-panel-body { font-size: 13px; color: #1f2937; line-height: 1.7; white-space: pre-wrap; background: #f8faff; border-radius: 6px; padding: 12px; }
+  .ai-panel-meta { font-size: 11px; color: #9ca3af; margin-top: 6px; }
+  .ai-panel-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .ai-copy-btn { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 4px; padding: 5px 12px; font-size: 11px; cursor: pointer; font-weight: 600; }
+  .ai-use-btn  { background: #ecfdf5; border: 1px solid #6ee7b7; color: #065f46; border-radius: 4px; padding: 5px 12px; font-size: 11px; cursor: pointer; font-weight: 600; }
+  .ai-btn { background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; transition: opacity 0.2s; }
+  .ai-btn:hover { opacity: 0.85; }
+  .ai-btn:disabled { opacity: 0.5; cursor: default; }
+  .ai-spinner { display: inline-block; width: 11px; height: 11px; border: 2px solid rgba(255,255,255,0.35); border-top-color: white; border-radius: 50%; animation: ai-spin 0.7s linear infinite; margin-right: 4px; vertical-align: middle; }
+  @keyframes ai-spin { to { transform: rotate(360deg); } }
 </style>
 
 <div class="contact-header">
@@ -421,24 +485,38 @@ function getContactOpportunities($contact, $opportunities) {
     <a href="contacts_list.php" style="color: #3B82F6; text-decoration: none; font-weight: 600;">← Back to Contacts</a>
   </div>
 
-  <!-- Contact Banner -->
+  <!-- Optimized Contact Banner -->
   <div class="contact-banner">
     <div class="contact-avatar"><?= $initials ?></div>
     <div class="contact-header-info">
       <h1><?= htmlspecialchars(trim(($contact['first_name'] ?? '') . ' ' . ($contact['last_name'] ?? ''))) ?: 'Unknown Contact' ?></h1>
-      <p><?= htmlspecialchars($contact['company'] ?? 'Company not assigned') ?></p>
-      <?php if ($contact['phone']): ?>
-        <p>☎ <?= htmlspecialchars($contact['phone']) ?></p>
-      <?php endif; ?>
-      <?php if ($contact['email']): ?>
-        <p><a href="mailto:<?= htmlspecialchars($contact['email']) ?>">✉ <?= htmlspecialchars($contact['email']) ?></a></p>
-      <?php endif; ?>
-      <span class="contact-status" style="background-color: <?= $statusColor ?>;">✓ <?= $status ?></span>
-      <div class="quick-actions">
-        <button onclick="alert('Email: <?= htmlspecialchars($contact['email'] ?? 'no email') ?>')">✉ Email</button>
-        <button onclick="alert('Call: <?= htmlspecialchars($contact['phone'] ?? 'no phone') ?>')">☎ Call</button>
-        <button onclick="alert('Add task for <?= htmlspecialchars($contact['first_name'] ?? 'Contact') ?>')">+ Task</button>
-        <button onclick="alert('Create opportunity for <?= htmlspecialchars($contact['company'] ?? 'this contact') ?>')">💼 Opp</button>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+        <span style="font-size:13px;color:#fff;opacity:0.9;">
+          <?= htmlspecialchars($contact['company'] ?? 'No Company') ?>
+        </span>
+        <span class="contact-status" style="background-color: <?= $statusColor ?>;margin-left:0;">✓ <?= $status ?></span>
+        <?php if ($isCustomer): ?>
+          <span style="background:#10B981;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;">Customer</span>
+        <?php endif; ?>
+      </div>
+      <div style="margin:8px 0 0 0;display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+        <?php if ($contact['phone']): ?>
+          <span>☎ <a href="tel:<?= htmlspecialchars($contact['phone']) ?>" style="color:#fff;"><?= htmlspecialchars($contact['phone']) ?></a></span>
+        <?php endif; ?>
+        <?php if ($contact['email']): ?>
+          <span>✉ <a href="mailto:<?= htmlspecialchars($contact['email']) ?>" style="color:#fff;"><?= htmlspecialchars($contact['email']) ?></a></span>
+        <?php endif; ?>
+        <?php if (!empty($tags)): ?>
+          <span style="color:#fff;opacity:0.8;">🔖 <?= htmlspecialchars(implode(', ', $tags)) ?></span>
+        <?php endif; ?>
+      </div>
+      <div class="quick-actions" style="margin-top:10px;">
+        <a href="mailto:<?= htmlspecialchars($contact['email'])?>"><button <?= empty($contact['email']) ? 'disabled' : '' ?>>✉ Email</button></a>
+        <a href="tel:<?= htmlspecialchars($contact['phone'])?>"><button <?= empty($contact['phone']) ? 'disabled' : '' ?>>☎ Call</button></a>
+        <button onclick="window.location.href='add_task.php?contact_id=<?= urlencode($contact['contact_id']) ?>'">+ Task</button>
+        <button onclick="window.location.href='add_opportunity.php?contact_id=<?= urlencode($contact['contact_id']) ?>'">💼 Opp</button>
+        <button class="ai-btn" onclick="aiAction('summarise_contact', this, 'Summary')">🤖 Summary</button>
+        <button class="ai-btn" onclick="aiAction('suggest_followup', this, 'Follow-up Draft')">✉ Follow-up</button>
       </div>
     </div>
   </div>
@@ -447,11 +525,12 @@ function getContactOpportunities($contact, $opportunities) {
     <div class="success-alert">✓ Changes saved successfully.</div>
   <?php endif; ?>
 
+
   <!-- Stats Bar -->
   <div class="stats-bar">
     <div class="stat-card">
       <div class="stat-label">Status</div>
-      <div class="stat-value"><?= $status ?></div>
+      <div class="stat-value"><?= htmlspecialchars($contact['status'] ?? '—') ?></div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Created</div>
@@ -464,6 +543,54 @@ function getContactOpportunities($contact, $opportunities) {
     <div class="stat-card">
       <div class="stat-label">Total Value</div>
       <div class="stat-value"><?= $opportunityValue > 0 ? formatCurrency($opportunityValue) : '—' ?></div>
+    </div>
+  </div>
+
+  <!-- Discussion Log Entry Form -->
+  <div class="form-section" style="margin-bottom:32px;">
+    <h3>Add Communication / Discussion Log</h3>
+    <form method="post" action="">
+      <?php renderCSRFInput(); ?>
+      <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
+      <div class="form-group">
+        <label for="entry_text">Notes / Communication</label>
+        <textarea id="entry_text" name="entry_text" class="form-control" rows="4" required placeholder="Enter details of your call, meeting, email, or note..."></textarea>
+      </div>
+      <div class="form-group">
+        <label for="linked_opportunity_id">Linked Opportunity (Optional)</label>
+        <select id="linked_opportunity_id" name="linked_opportunity_id" class="form-control">
+          <option value="">-- None --</option>
+          <?php foreach ($contactOpportunities as $opp): ?>
+            <option value="<?= htmlspecialchars($opp['opportunity_id']) ?>">
+              <?= htmlspecialchars($opp['name'] ?? $opp['opportunity_id']) ?> (<?= htmlspecialchars($opp['stage'] ?? '') ?>)
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="author">Your Name</label>
+        <input type="text" id="author" name="author" class="form-control" value="<?= htmlspecialchars($_SESSION['username'] ?? '') ?>" required>
+      </div>
+      <div class="submit-actions">
+        <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
+      </div>
+    </form>
+    <div style="font-size:12px;color:#888;margin-top:8px;">
+      <strong>Tip:</strong> You can log communications before, during, or after an opportunity. Link to an opportunity if relevant, or leave blank for general notes.
+    </div>
+  </div>
+
+  <!-- AI Panel -->
+  <div class="ai-panel" id="aiPanel">
+    <div class="ai-panel-header">
+      <div class="ai-panel-title" id="aiPanelTitle">🤖 AI</div>
+      <button class="ai-panel-close" onclick="closeAiPanel()" title="Close">✕</button>
+    </div>
+    <div class="ai-panel-body" id="aiPanelBody"></div>
+    <div class="ai-panel-meta" id="aiPanelMeta"></div>
+    <div class="ai-panel-actions">
+      <button class="ai-copy-btn" onclick="copyAiResult()">📋 Copy</button>
+      <button class="ai-use-btn" id="aiUseBtn" onclick="useAiAsDiscussion()" style="display:none;">📝 Paste into discussion</button>
     </div>
   </div>
 
@@ -532,7 +659,15 @@ function getContactOpportunities($contact, $opportunities) {
             <div class="field">
               <div class="field-label">Total Value</div>
               <div class="field-value" style="color: #28a745; font-weight: 600; font-size: 16px;">
-                <?= formatCurrency($opportunityValue) ?>
+                <?php
+                  $totalValue = 0;
+                  if (is_array($contactOpportunities)) {
+                    foreach ($contactOpportunities as $opp) {
+                      $totalValue += (float)($opp['value'] ?? 0);
+                    }
+                  }
+                  echo formatCurrency($totalValue);
+                ?>
               </div>
             </div>
             <div class="field">
@@ -545,12 +680,6 @@ function getContactOpportunities($contact, $opportunities) {
               <div class="field-label">Discussions</div>
               <div class="field-value" style="color: #8B5CF6; font-weight: 600; font-size: 16px;">
                 <?= is_array($contactDiscussions) ? count($contactDiscussions) : 0 ?>
-              </div>
-            </div>
-            <div class="field">
-              <div class="field-label">Member Since</div>
-              <div class="field-value" style="color: #666; font-size: 13px;">
-                <?= date('M d, Y', strtotime($createdAt)) ?>
               </div>
             </div>
           </div>
@@ -603,8 +732,10 @@ function getContactOpportunities($contact, $opportunities) {
             </div>
           </div>
 
+
+          <!-- Optimized Contact Info Section -->
           <div class="form-section">
-            <h3>👤 Personal Information</h3>
+            <h3>Contact Information</h3>
             <div class="form-grid">
               <div class="form-group">
                 <label>First Name</label>
@@ -622,16 +753,9 @@ function getContactOpportunities($contact, $opportunities) {
                 <label>Phone</label>
                 <input type="tel" name="phone" value="<?= htmlspecialchars($contact['phone'] ?? '') ?>">
               </div>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <h3>🏢 Company Information</h3>
-            <div class="form-grid">
-              <div class="form-group" style="grid-column: 1 / -1;">
+              <div class="form-group">
                 <label>Company</label>
                 <?php
-                // Fetch all unique companies for the dropdown
                 $companyOptions = [];
                 $companyResult = mysqli_query($conn, "SELECT DISTINCT company FROM contacts WHERE company IS NOT NULL AND company != '' ORDER BY LOWER(company)");
                 if ($companyResult) {
@@ -652,14 +776,6 @@ function getContactOpportunities($contact, $opportunities) {
                 </select>
               </div>
               <div class="form-group">
-                <label>Tank Number</label>
-                <input type="text" name="tank_number" value="<?= htmlspecialchars($contact['tank_number'] ?? '') ?>">
-              </div>
-              <div class="form-group">
-                <label>Delivery Date</label>
-                <input type="text" name="delivery_date" placeholder="YYYY-MM-DD" value="<?= htmlspecialchars($contact['delivery_date'] ?? '') ?>">
-              </div>
-              <div class="form-group">
                 <label>Status</label>
                 <select name="status" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                   <option value=""></option>
@@ -668,16 +784,34 @@ function getContactOpportunities($contact, $opportunities) {
                   <option value="Prospect" <?= ($contact['status'] ?? '') === 'Prospect' ? 'selected' : '' ?>>Prospect</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Tags</label>
+                <div class="tags-container" style="margin-bottom: 10px;">
+                  <?php foreach ($tags as $tag): ?>
+                    <span class="tag"><?= htmlspecialchars($tag) ?> <span class="tag-remove" onclick="removeTag(this)">✕</span></span>
+                  <?php endforeach; ?>
+                  <span class="tag-new" onclick="addNewTag(this)">+ Add tag</span>
+                </div>
+                <input type="hidden" name="tags" id="tags_input" value="<?= htmlspecialchars($contact['tags'] ?? '') ?>">
+              </div>
+              <div class="form-group">
+                <label>Customer</label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                  <input type="checkbox" name="is_customer" value="1" <?= ($isCustomer ? 'checked' : '') ?> style="width: 16px; height: 16px; cursor: pointer;">
+                  <span>Is an Active Customer</span>
+                </label>
+              </div>
             </div>
           </div>
 
+          <!-- Address Section -->
           <div class="form-section">
-            <h3>📍 Address</h3>
-            <div class="form-group" style="margin-bottom: 12px;">
-              <label>Address</label>
-              <input type="text" name="address" value="<?= htmlspecialchars($contact['address'] ?? '') ?>">
-            </div>
+            <h3>Address</h3>
             <div class="form-grid">
+              <div class="form-group">
+                <label>Address</label>
+                <input type="text" name="address" value="<?= htmlspecialchars($contact['address'] ?? '') ?>">
+              </div>
               <div class="form-group">
                 <label>City</label>
                 <input type="text" name="city" value="<?= htmlspecialchars($contact['city'] ?? '') ?>">
@@ -697,31 +831,24 @@ function getContactOpportunities($contact, $opportunities) {
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%;">
-            <div class="form-section">
-              <h3>🔖 Tags</h3>
-              <div class="tags-container" style="margin-bottom: 10px;">
-                <?php foreach ($tags as $tag): ?>
-                  <span class="tag"><?= htmlspecialchars($tag) ?> <span class="tag-remove" onclick="removeTag(this)">✕</span></span>
-                <?php endforeach; ?>
-                <span class="tag-new" onclick="addNewTag(this)">+ Add tag</span>
+          <!-- Business/Logistics Section -->
+          <div class="form-section">
+            <h3>Business / Logistics</h3>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Tank Number</label>
+                <input type="text" name="tank_number" value="<?= htmlspecialchars($contact['tank_number'] ?? '') ?>">
               </div>
-              <input type="hidden" name="tags" id="tags_input" value="<?= htmlspecialchars($contact['tags'] ?? '') ?>">
-            </div>
-
-            <div class="form-section">
-              <h3>⭐ Customer Status</h3>
-              <div style="padding: 10px 0;">
-                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
-                  <input type="checkbox" name="is_customer" value="1" <?= ($isCustomer ? 'checked' : '') ?> style="width: 16px; height: 16px; cursor: pointer;">
-                  <span>Is an Active Customer</span>
-                </label>
+              <div class="form-group">
+                <label>Delivery Date</label>
+                <input type="text" name="delivery_date" placeholder="YYYY-MM-DD" value="<?= htmlspecialchars($contact['delivery_date'] ?? '') ?>">
               </div>
             </div>
           </div>
 
+          <!-- Notes Section -->
           <div class="form-section">
-            <h3>📝 Notes</h3>
+            <h3>Notes</h3>
             <div class="form-group">
               <label>Additional Notes</label>
               <textarea name="notes" rows="5"><?= htmlspecialchars($contact['notes'] ?? '') ?></textarea>
@@ -754,7 +881,10 @@ function getContactOpportunities($contact, $opportunities) {
             <?php foreach ($contactOpportunities as $opp): ?>
               <?php $oppId = $opp['opportunity_id'] ?? $opp['id'] ?? ''; ?>
               <div class="opportunity">
-                <div class="opportunity-title">Opportunity #<?= htmlspecialchars($oppId) ?></div>
+                <div class="opportunity-title">
+                  <?= htmlspecialchars($opp['name'] ?? 'Opportunity #' . $oppId) ?>
+                  <span style="color:#888;font-size:12px;">#<?= htmlspecialchars($oppId) ?></span>
+                </div>
                 <div class="opportunity-details">
                   <strong>Stage:</strong> <?= htmlspecialchars($opp['stage'] ?? '—') ?> 
                   (<?= htmlspecialchars($opp['probability'] ?? '0') ?>%)
@@ -786,7 +916,10 @@ function getContactOpportunities($contact, $opportunities) {
             <form method="post" style="margin-bottom:10px;display:inline-block;">
               <input type="hidden" name="link_opportunity_id" value="<?= htmlspecialchars($oppId) ?>">
               <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
-              <span style="font-weight:600;">Opportunity #<?= htmlspecialchars($oppId) ?></span> - <?= htmlspecialchars($opp['stage']) ?> ($<?= htmlspecialchars($opp['value']) ?>)
+              <span style="font-weight:600;">
+                <?= htmlspecialchars($opp['name'] ?? 'Opportunity #' . $oppId) ?>
+                <span style="color:#888;font-size:12px;">#<?= htmlspecialchars($oppId) ?></span>
+              </span> - <?= htmlspecialchars($opp['stage']) ?> ($<?= htmlspecialchars($opp['value']) ?>)
               <button type="submit" class="btn-primary" style="margin-left:10px;">Link to this Contact</button>
             </form>
           <?php endforeach; ?>
@@ -808,50 +941,12 @@ function getContactOpportunities($contact, $opportunities) {
     </div>
     <div class="accordion-content">
       <div class="accordion-body">
-        <!-- Add Discussion Form -->
-        <div class="section">
-          <div class="section-title">➕ Log Discussion</div>
-          <form method="post" action="discussion_logger.php" style="background: #f8f9fa; padding: 15px; border-radius: 6px;">
-            <?php renderCSRFInput(); ?>
-            <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
-            
-            <div class="form-group" style="margin-bottom: 12px;">
-              <label>Author</label>
-              <input type="text" name="author" placeholder="Your name" value="<?= isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : '' ?>" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%;">
-            </div>
-
-            <div class="form-group" style="margin-bottom: 12px;">
-              <label>Discussion Notes</label>
-              <textarea name="entry_text" placeholder="What was discussed?" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-family: inherit; font-size: 13px;" rows="4"></textarea>
-            </div>
-
-            <div class="form-group" style="margin-bottom: 12px;">
-              <label>Visibility</label>
-              <select name="visibility" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-family: inherit; font-size: 13px;">
-                <option value="public">Public (Visible to all)</option>
-                <option value="internal">Internal (Team only)</option>
-                <option value="private">Private (Only me)</option>
-              </select>
-            </div>
-
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Linked Opportunity (Optional)</label>
-              <select name="linked_opportunity_id" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-family: inherit; font-size: 13px;">
-                <option value="">— No opportunity</option>
-                <?php foreach ($contactOpportunities as $opp): ?>
-                  <?php $oppId = $opp['opportunity_id'] ?? $opp['id'] ?? ''; ?>
-                  <option value="<?= htmlspecialchars($oppId) ?>">Opportunity #<?= htmlspecialchars($oppId) ?> (<?= htmlspecialchars($opp['stage']) ?>)</option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-
-            <button type="submit" style="margin-top: 12px; background: #3B82F6; color: white; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px;">💬 Log Discussion</button>
-          </form>
-        </div>
-
         <!-- Discussion History -->
         <div class="section">
-          <div class="section-title">📝 Discussion History</div>
+          <div class="section-title">📒 Activity & History</div>
+          <div style="font-size:12px;color:#666;margin-bottom:10px;">
+            Linked Tasks, Opportunities, and Discussions for this Contact
+          </div>
           <?php if (!empty($contactDiscussions)): ?>
             <?php foreach ($contactDiscussions as $disc): ?>
               <div class="timeline-item" style="padding: 15px; margin-bottom: 12px; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #3B82F6;">
@@ -872,8 +967,23 @@ function getContactOpportunities($contact, $opportunities) {
                     <?= nl2br(htmlspecialchars($disc['entry_text'] ?? '')) ?>
                   </div>
                   <?php if (!empty($disc['linked_opportunity_id'])): ?>
+                    <?php
+                      $linkedOpp = null;
+                      foreach ($contactOpportunities as $opp) {
+                        if (($opp['opportunity_id'] ?? '') == $disc['linked_opportunity_id']) {
+                          $linkedOpp = $opp;
+                          break;
+                        }
+                      }
+                    ?>
                     <div style="margin-top: 8px; padding: 8px; background: white; border-left: 3px solid #10B981; border-radius: 3px; font-size: 11px; color: #666;">
-                      <strong>📎 Linked to Opportunity #<?= htmlspecialchars($disc['linked_opportunity_id']) ?></strong>
+                      <strong>📎 Linked to Opportunity:
+                        <?= htmlspecialchars($linkedOpp['name'] ?? ('#' . $disc['linked_opportunity_id'])) ?>
+                        <span style="color:#888;font-size:11px;">#<?= htmlspecialchars($disc['linked_opportunity_id']) ?></span>
+                        <?php if (!empty($linkedOpp['value'])): ?>
+                          — <?= formatCurrency($linkedOpp['value']) ?>
+                        <?php endif; ?>
+                      </strong>
                     </div>
                   <?php endif; ?>
                 </div>
@@ -947,6 +1057,84 @@ function getContactOpportunities($contact, $opportunities) {
     input.addEventListener('change', adjustWidth);
     adjustWidth(); // Initial adjustment
   });
+
+  // ── AI Integration ────────────────────────────────────────────────────────
+  const AI_CONTACT_ID  = <?= json_encode($contact['contact_id'] ?? '') ?>;
+  const AI_CSRF_TOKEN  = <?= json_encode(getCSRFToken()) ?>;
+
+  const AI_BTN_LABELS = {
+    'summarise_contact': '🤖 Summary',
+    'suggest_followup':  '✉ Follow-up',
+  };
+
+  function aiAction(action, btn, label, showUse) {
+    const panel = document.getElementById('aiPanel');
+    const body  = document.getElementById('aiPanelBody');
+    const meta  = document.getElementById('aiPanelMeta');
+    const title = document.getElementById('aiPanelTitle');
+    const useBtn = document.getElementById('aiUseBtn');
+
+    title.textContent = '🤖 AI: ' + label;
+    body.textContent  = 'Thinking…';
+    meta.textContent  = '';
+    if (useBtn) useBtn.style.display = 'none';
+    panel.classList.add('visible');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    const origLabel = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ai-spinner"></span> Thinking…'; }
+
+    const fd = new FormData();
+    fd.append('action',     action);
+    fd.append('contact_id', AI_CONTACT_ID);
+    fd.append('csrf_token', AI_CSRF_TOKEN);
+
+    fetch('ai_endpoint.php', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          body.textContent = '⚠️ ' + data.error;
+        } else {
+          body.textContent = data.text || '(no response)';
+          if (data.provider && data.model) {
+            var selectionLabel = data.selection_mode === 'cheapest' ? ' · chosen by cost' : ' · manual selection';
+            meta.textContent = 'via ' + data.provider + ' / ' + data.model + selectionLabel;
+          }
+          if (showUse && useBtn) useBtn.style.display = 'inline-block';
+        }
+      })
+      .catch(err => {
+        body.textContent = '⚠️ Network error: ' + err.message;
+      })
+      .finally(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = origLabel; }
+      });
+  }
+
+  function closeAiPanel() {
+    document.getElementById('aiPanel').classList.remove('visible');
+  }
+
+  function copyAiResult() {
+    const text = document.getElementById('aiPanelBody').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.ai-copy-btn');
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 2000);
+    });
+  }
+
+  function useAiAsDiscussion() {
+    const text = document.getElementById('aiPanelBody').textContent;
+    const ta   = document.querySelector('textarea[name="entry_text"]');
+    if (ta) {
+      ta.value = text;
+      ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      ta.focus();
+      closeAiPanel();
+    }
+  }
 </script>
 
 </body>

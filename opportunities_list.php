@@ -704,6 +704,7 @@ function getStageColor($stage) {
           <th class="sortable <?= $sortBy === 'id' ? 'sorted-' . $sortOrder : '' ?>" onclick="sortTable('id')">ID</th>
           <th class="sortable <?= $sortBy === 'contact_id' ? 'sorted-' . $sortOrder : '' ?>" onclick="sortTable('contact_id')">Contact</th>
           <th>Company</th>
+          <th>Description</th>
           <th class="sortable <?= $sortBy === 'value' ? 'sorted-' . $sortOrder : '' ?>" onclick="sortTable('value')">Value</th>
           <th class="sortable <?= $sortBy === 'probability' ? 'sorted-' . $sortOrder : '' ?>" onclick="sortTable('probability')">Probability</th>
           <th>Weighted Value</th>
@@ -737,6 +738,7 @@ function getStageColor($stage) {
             <td class="cell-id">#<?= htmlspecialchars($oppId) ?></td>
             <td class="cell-contact"><?= htmlspecialchars($contactInfo['name']) ?></td>
             <td class="cell-company"><strong><?= htmlspecialchars($company ?: '—') ?></strong></td>
+            <td><?= htmlspecialchars($opp['description'] ?? '') ?></td>
             <td class="cell-value"><?= formatCurrency($value) ?></td>
             <td class="cell-probability"><?= htmlspecialchars($probability) ?>%</td>
             <td class="cell-weighted"><?= formatCurrency($weightedValue) ?></td>

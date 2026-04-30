@@ -45,15 +45,17 @@ class Auth {
     private function initSession() {
         if (session_status() === PHP_SESSION_NONE) {
             $security = $this->config['security'];
+            $sessionLifetime = (int) ($security['session_lifetime'] ?? 86400);
             // Use a portable, local session directory
             $localSessionDir = __DIR__ . '/sessions';
             if (!is_dir($localSessionDir)) {
                 mkdir($localSessionDir, 0755, true);
             }
             session_save_path($localSessionDir);
+            ini_set('session.gc_maxlifetime', (string) $sessionLifetime);
             // Set session cookie parameters before starting session
             session_set_cookie_params([
-                'lifetime' => $security['session_lifetime'] ?? 86400,
+                'lifetime' => $sessionLifetime,
                 'path' => '/',
                 'domain' => '',  // Empty for localhost
                 'secure' => $security['session_cookie_secure'] ?? false,
@@ -75,12 +77,17 @@ class Auth {
                     $_SESSION['created'] = time();
                     // Always sync session_token to session_id on session creation
                     $_SESSION['session_token'] = session_id();
+                    $_SESSION['session_lifetime'] = $sessionLifetime;
                 } else if (time() - $_SESSION['created'] > 1800) {
+                    $oldSessionToken = $_SESSION['session_token'] ?? session_id();
                     session_regenerate_id(true);
                     $_SESSION['created'] = time();
                     // Always sync session_token to session_id after regeneration
                     $_SESSION['session_token'] = session_id();
-                    // Optionally update DB session_token here if needed
+                    $_SESSION['session_lifetime'] = $_SESSION['session_lifetime'] ?? $sessionLifetime;
+                    if (isset($_SESSION['user_id']) && $oldSessionToken !== $_SESSION['session_token']) {
+                        $this->refreshSessionRecord((int) $_SESSION['user_id'], $oldSessionToken, $_SESSION['session_token']);
+                    }
                 }
             }
         }
@@ -212,6 +219,7 @@ class Auth {
         $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'] ?? 'user';
         $_SESSION['session_token'] = session_id();
+        $_SESSION['session_lifetime'] = $rememberMe ? 30 * 24 * 3600 : (int) $this->config['security']['session_lifetime'];
         $_SESSION['ip_address'] = $ip;
         
         // Log activity
@@ -261,6 +269,7 @@ class Auth {
         if (isset($session['expires_at']) && strtotime($session['expires_at']) <= time()) {
             return false;
         }
+        $this->refreshSessionRecord((int) $_SESSION['user_id'], trim((string) $_SESSION['session_token']));
         // Optionally check IP address here
         return true;
     }
@@ -468,6 +477,7 @@ class Auth {
         // Use PHP session_id as the session_token for DB and $_SESSION
         $sessionToken = session_id();
         $lifetime = $rememberMe ? 30 * 24 * 3600 : $this->config['security']['session_lifetime'];
+        $_SESSION['session_lifetime'] = $lifetime;
         $expiresAt = date('Y-m-d H:i:s', time() + $lifetime);
         $ip = $this->getIpAddress();
         $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
@@ -504,6 +514,18 @@ class Auth {
         }
         
         return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    }
+
+    private function refreshSessionRecord($userId, $currentToken, $newToken = null) {
+        $lifetime = max(300, (int) ($_SESSION['session_lifetime'] ?? $this->config['security']['session_lifetime'] ?? 86400));
+        $expiresAt = date('Y-m-d H:i:s', time() + $lifetime);
+
+        if ($newToken !== null && $newToken !== $currentToken) {
+            $this->sessionStore->rotateToken($currentToken, $newToken, $userId, $expiresAt);
+            return;
+        }
+
+        $this->sessionStore->refresh($currentToken, $userId, $expiresAt);
     }
     
     /**

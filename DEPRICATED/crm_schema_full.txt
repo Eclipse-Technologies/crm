@@ -1,0 +1,280 @@
+-- CRM Database Full Schema (crmdb.sql)
+-- Extracted on 2026-02-26
+
+-- This file contains the complete MySQL schema for the CRM system, including all tables, indexes, and constraints. Use this for migration to Zim Databases.
+
+-- --------------------------------------------------------
+-- Table structure for table `audit_log`
+CREATE TABLE `audit_log` (
+  `id` int NOT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  `user_id` varchar(100) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `action` varchar(50) DEFAULT NULL,
+  `entity_type` varchar(50) DEFAULT NULL,
+  `entity_id` varchar(100) DEFAULT NULL,
+  `changes` text,
+  `summary` varchar(255) DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `error_msg` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `contacts`
+CREATE TABLE `contacts` (
+  `contact_id` int NOT NULL,
+  `first_name` varchar(100) DEFAULT NULL,
+  `last_name` varchar(100) DEFAULT NULL,
+  `company` varchar(150) DEFAULT NULL,
+  `email` varchar(150) DEFAULT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `address` varchar(255) DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `province` varchar(100) DEFAULT NULL,
+  `postal_code` varchar(20) DEFAULT NULL,
+  `country` varchar(100) DEFAULT NULL,
+  `notes` text,
+  `created_at` datetime DEFAULT NULL,
+  `last_modified` datetime DEFAULT NULL,
+  `is_customer` tinyint(1) DEFAULT NULL,
+  `tank_number` varchar(50) DEFAULT NULL,
+  `delivery_date` date DEFAULT NULL,
+  `tags` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `contact_field_visibility`
+CREATE TABLE `contact_field_visibility` (
+  `id` int NOT NULL,
+  `field_name` varchar(64) NOT NULL,
+  `is_visible` tinyint(1) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `contracts`
+CREATE TABLE `contracts` (
+  `contract_id` varchar(32) NOT NULL,
+  `contact_id` int DEFAULT NULL,
+  `customer_id` int DEFAULT NULL,
+  `contract_type` varchar(50) DEFAULT NULL,
+  `contract_status` varchar(50) DEFAULT NULL,
+  `equipment_type` varchar(100) DEFAULT NULL,
+  `monthly_fee` decimal(10,2) DEFAULT NULL,
+  `annual_value` decimal(12,2) DEFAULT NULL,
+  `payment_frequency` varchar(20) DEFAULT NULL,
+  `contract_term` int DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `renewal_date` date DEFAULT NULL,
+  `auto_renew` varchar(10) DEFAULT NULL,
+  `notice_period` int DEFAULT NULL,
+  `evoqua_account` varchar(50) DEFAULT NULL,
+  `evoqua_contract` varchar(50) DEFAULT NULL,
+  `equipment_ids` varchar(255) DEFAULT NULL,
+  `service_frequency` varchar(50) DEFAULT NULL,
+  `last_service_date` date DEFAULT NULL,
+  `next_service_date` date DEFAULT NULL,
+  `notes` text,
+  `created_date` datetime DEFAULT NULL,
+  `created_by` varchar(100) DEFAULT NULL,
+  `modified_date` datetime DEFAULT NULL,
+  `modified_by` varchar(100) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `customers`
+CREATE TABLE `customers` (
+  `customer_id` varchar(32) NOT NULL,
+  `contact_id` int DEFAULT NULL,
+  `address` varchar(255) DEFAULT NULL,
+  `tank_count` int DEFAULT NULL,
+  `last_delivery` date DEFAULT NULL,
+  `last_modified` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `discussions`
+CREATE TABLE `discussions` (
+  `id` int NOT NULL,
+  `contact_id` int DEFAULT NULL,
+  `author` varchar(100) DEFAULT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  `entry_text` text,
+  `linked_opportunity_id` int DEFAULT NULL,
+  `visibility` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `discussion_log`
+CREATE TABLE `discussion_log` (
+  `id` int NOT NULL,
+  `contact_id` varchar(32) DEFAULT NULL,
+  `author` varchar(128) NOT NULL,
+  `timestamp` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `entry_text` text NOT NULL,
+  `linked_opportunity_id` varchar(32) DEFAULT NULL,
+  `visibility` varchar(32) DEFAULT 'private'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `equipment`
+CREATE TABLE `equipment` (
+  `equipment_id` varchar(32) NOT NULL,
+  `equipment_type` varchar(100) DEFAULT NULL,
+  `manufacturer` varchar(100) DEFAULT NULL,
+  `model_number` varchar(100) DEFAULT NULL,
+  `serial_number` varchar(100) DEFAULT NULL,
+  `ownership` varchar(50) DEFAULT NULL,
+  `customer_id` int DEFAULT NULL,
+  `contact_id` int DEFAULT NULL,
+  `contract_id` int DEFAULT NULL,
+  `install_date` date DEFAULT NULL,
+  `purchase_date` date DEFAULT NULL,
+  `purchase_value` decimal(12,2) DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
+  `tank_size` varchar(50) DEFAULT NULL,
+  `resin_type` varchar(100) DEFAULT NULL,
+  `regeneration_id` varchar(50) DEFAULT NULL,
+  `service_frequency` varchar(50) DEFAULT NULL,
+  `last_service_date` date DEFAULT NULL,
+  `next_service_date` date DEFAULT NULL,
+  `warranty_expiry` date DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `purchase_order` varchar(100) DEFAULT NULL,
+  `notes` text,
+  `created_date` datetime DEFAULT NULL,
+  `modified_date` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `inventory`
+CREATE TABLE `inventory` (
+  `item_id` varchar(32) NOT NULL,
+  `item_name` varchar(150) DEFAULT NULL,
+  `description` text,
+  `category` varchar(100) DEFAULT NULL,
+  `brand` varchar(100) DEFAULT NULL,
+  `model` varchar(100) DEFAULT NULL,
+  `serial_number` varchar(100) DEFAULT NULL,
+  `barcode` varchar(100) DEFAULT NULL,
+  `rfid_tag` varchar(100) DEFAULT NULL,
+  `supplier_id` int DEFAULT NULL,
+  `supplier_name` varchar(150) DEFAULT NULL,
+  `purchase_date` date DEFAULT NULL,
+  `cost_price` decimal(12,2) DEFAULT NULL,
+  `margin` decimal(5,2) DEFAULT NULL,
+  `selling_price` decimal(12,2) DEFAULT NULL,
+  `currency` varchar(10) DEFAULT NULL,
+  `quantity_in_stock` int DEFAULT NULL,
+  `reorder_level` int DEFAULT NULL,
+  `reorder_quantity` int DEFAULT NULL,
+  `unit` varchar(50) DEFAULT NULL,
+  `warehouse` varchar(100) DEFAULT NULL,
+  `location` varchar(100) DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `created_by` varchar(100) DEFAULT NULL,
+  `updated_by` varchar(100) DEFAULT NULL,
+  `notes` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `inventory_ledger`
+CREATE TABLE `inventory_ledger` (
+  `id` int NOT NULL,
+  `item_id` int NOT NULL,
+  `status` varchar(64) NOT NULL,
+  `quantity` float NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `inventory_serials`
+CREATE TABLE `inventory_serials` (
+  `id` int NOT NULL,
+  `item_id` int NOT NULL,
+  `status` varchar(64) NOT NULL,
+  `serial_number` varchar(128) DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `inventory_status_options`
+CREATE TABLE `inventory_status_options` (
+  `id` int NOT NULL,
+  `status` varchar(64) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `opportunities`
+CREATE TABLE `opportunities` (
+  `opportunity_id` int NOT NULL,
+  `contact_id` int DEFAULT NULL,
+  `value` decimal(12,2) DEFAULT NULL,
+  `stage` varchar(100) DEFAULT NULL,
+  `probability` int DEFAULT NULL,
+  `expected_close` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `purchase_orders`
+CREATE TABLE `purchase_orders` (
+  `po_number` varchar(64) NOT NULL,
+  `date` date DEFAULT NULL,
+  `status` varchar(32) DEFAULT NULL,
+  `supplier_id` varchar(64) DEFAULT NULL,
+  `supplier_name` varchar(128) DEFAULT NULL,
+  `supplier_contact` varchar(128) DEFAULT NULL,
+  `supplier_address` varchar(255) DEFAULT NULL,
+  `billing_address` varchar(255) DEFAULT NULL,
+  `shipping_address` varchar(255) DEFAULT NULL,
+  `item_id` varchar(64) DEFAULT NULL,
+  `item_name` varchar(128) DEFAULT NULL,
+  `quantity` decimal(12,2) DEFAULT NULL,
+  `unit` varchar(32) DEFAULT NULL,
+  `unit_price` decimal(12,2) DEFAULT NULL,
+  `discount` decimal(12,2) DEFAULT NULL,
+  `tax_rate` decimal(5,2) DEFAULT NULL,
+  `tax_amount` decimal(12,2) DEFAULT NULL,
+  `total` decimal(12,2) DEFAULT NULL,
+  `subtotal` decimal(12,2) DEFAULT NULL,
+  `total_discount` decimal(12,2) DEFAULT NULL,
+  `total_tax` decimal(12,2) DEFAULT NULL,
+  `shipping_cost` decimal(12,2) DEFAULT NULL,
+  `other_fees` decimal(12,2) DEFAULT NULL,
+  `grand_total` decimal(12,2) DEFAULT NULL,
+  `currency` varchar(8) DEFAULT NULL,
+  `expected_delivery` date DEFAULT NULL,
+  `payment_terms` varchar(128) DEFAULT NULL,
+  `notes` text,
+  `created_by` varchar(64) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `purchase_order_items`
+CREATE TABLE `purchase_order_items` (
+  `id` int NOT NULL,
+  `po_number` varchar(64) DEFAULT NULL,
+  `item_id` varchar(64) DEFAULT NULL,
+  `item_name` varchar(128) DEFAULT NULL,
+  `quantity` decimal(12,2) DEFAULT NULL,
+  `unit` varchar(32) DEFAULT NULL,
+  `unit_price` decimal(12,2) DEFAULT NULL,
+  `discount` decimal(12,2) DEFAULT NULL,
+  `tax_rate` decimal(5,2) DEFAULT NULL,
+  `tax_amount` decimal(12,2) DEFAULT NULL,
+  `total` decimal(12,2) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `sessions`
+CREATE TABLE `sessions` (
+  `user_id` int NOT NULL,
+  `session_token` varchar(128) NOT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `user_agent` varchar(255) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `last_activity` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `tasks`
+CREATE TABLE `tasks` (
+  `id` int NOT NULL,
+  `title` varchar(255) DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `priority` varchar(50) DEFAULT NULL,
+  `assigned_to` varchar(100) DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
+  `timestamp` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Indexes, constraints, and auto-increment settings are included in the original crmdb.sql file.
+-- For migration, review all foreign keys and indexes for compatibility with Zim Databases.

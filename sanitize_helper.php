@@ -8,6 +8,9 @@
  * Safely escape HTML special characters
  */
 function escapeHtml($str) {
+    if (is_array($str)) {
+        return implode(', ', array_map('escapeHtml', $str));
+    }
     return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
 }
 
@@ -22,6 +25,9 @@ function e($str) {
  * Escape for use in HTML attributes
  */
 function escapeAttr($str) {
+    if (is_array($str)) {
+        return implode(', ', array_map('escapeAttr', $str));
+    }
     return htmlspecialchars($str, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
 

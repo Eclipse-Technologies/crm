@@ -67,6 +67,8 @@ $totalValue = 0;
         <?php elseif ($field === 'value' || $field === 'probability'): ?>
           <input type="number" name="<?= $field ?>" id="<?= $field ?>" class="form-control" required>
 
+        <?php elseif ($field === 'description'): ?>
+          <textarea name="description" id="description" class="form-control" rows="3" placeholder="Describe what is being sold..."></textarea>
         <?php else: ?>
           <input type="text" name="<?= $field ?>" id="<?= $field ?>" class="form-control" required>
         <?php endif; ?>

@@ -83,10 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($field === 'contract_id') {
             $fields[$field] = $contractId;
         } elseif (isset($_POST[$field])) {
-            // Fix: convert empty string to null for integer and date fields
+            // Fix: convert empty string to null for integer, date, and decimal fields
             if ($field === 'customer_id' && ($_POST[$field] === '' || !is_numeric($_POST[$field]))) {
                 $fields[$field] = null;
             } elseif (in_array($field, ['start_date','end_date','renewal_date','last_service_date','next_service_date','created_date','modified_date']) && trim($_POST[$field]) === '') {
+                $fields[$field] = null;
+            } elseif ($field === 'tank_sale_price' && trim($_POST[$field]) === '') {
                 $fields[$field] = null;
             } else {
                 $fields[$field] = $_POST[$field];
@@ -312,12 +314,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <p>Update SDI service agreement details</p>
 </div>
 
+<?php
+// --- Tank Assignment Summary Block ---
+$tankEquipment = [];
+$numTanks = 0;
+$tankSizes = [];
+if (!empty($contract['equipment_ids'])) {
+    $ids = array_filter(array_map('trim', explode(',', $contract['equipment_ids'])));
+    if ($ids) {
+        $conn = get_mysql_connection();
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $sql = "SELECT equipment_id, tank_size FROM equipment WHERE equipment_id IN ($placeholders) AND tank_size IS NOT NULL AND tank_size != ''";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param(str_repeat('s', count($ids)), ...$ids);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $tankEquipment[] = $row;
+            $tankSizes[] = $row['tank_size'];
+        }
+        $numTanks = count($tankEquipment);
+        $stmt->close();
+        $conn->close();
+    }
+}
+?>
 <?php if (!empty($error)): ?>
     <div style="background: #FEE2E2; border: 2px solid #EF4444; color: #991B1B; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
         ⚠️ <?= $error ?>
     </div>
 <?php endif; ?>
 <div class="form-container">
+    <!-- Tank Assignment Summary -->
+    <div class="alert alert-info mb-3">
+        <strong>Tanks Assigned to Contract:</strong><br>
+        <?php if ($numTanks > 0): ?>
+            Number of Tanks: <b><?= $numTanks ?></b><br>
+            Sizes: <b><?= htmlspecialchars(implode(', ', $tankSizes)) ?></b>
+        <?php else: ?>
+            <span style="color:#888;">No tanks assigned to this contract.</span>
+        <?php endif; ?>
+    </div>
     <form method="POST" id="contractForm">
         <?php renderCSRFInput(); ?>
         <!-- Contact & Customer Information -->
@@ -349,12 +386,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-section-title">📄 Contract Details</div>
             <div class="form-grid">
                 <div class="form-group">
+                    <label for="tank_quantity">Tank Quantity</label>
+                    <input type="number" name="tank_quantity" id="tank_quantity" min="0" value="<?= htmlspecialchars($contract['tank_quantity'] ?? '') ?>">
+                </div>
+                <div class="form-group">
+                    <label for="tank_size">Tank Size</label>
+                    <select name="tank_size" id="tank_size" class="form-select">
+                        <option value="">Select Size</option>
+                        <option value="1" <?= ($contract['tank_size'] ?? '') == '1' ? 'selected' : '' ?>>1 cuft</option>
+                        <option value="2" <?= ($contract['tank_size'] ?? '') == '2' ? 'selected' : '' ?>>2 cuft</option>
+                        <option value="3.5" <?= ($contract['tank_size'] ?? '') == '3.5' ? 'selected' : '' ?>>3.5 cuft</option>
+                        <option value="5" <?= ($contract['tank_size'] ?? '') == '5' ? 'selected' : '' ?>>5 cuft</option>
+                        <option value="Other" <?= ($contract['tank_size'] ?? '') == 'Other' ? 'selected' : '' ?>>Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label for="contract_type">Contract Type *</label>
                     <select name="contract_type" id="contract_type" required>
                         <option value="">Select Type</option>
                         <option value="New" <?= ($contract['contract_type'] == 'New') ? 'selected' : '' ?>>New Contract</option>
                         <option value="Renewal" <?= ($contract['contract_type'] == 'Renewal') ? 'selected' : '' ?>>Renewal</option>
                         <option value="Upsell" <?= ($contract['contract_type'] == 'Upsell') ? 'selected' : '' ?>>Upsell</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tank_ownership">Tank Ownership *</label>
+                    <select name="tank_ownership" id="tank_ownership" required>
+                        <option value="">Select</option>
+                        <option value="Owned" <?= ($contract['tank_ownership'] == 'Owned') ? 'selected' : '' ?>>Owned</option>
+                        <option value="Rented" <?= ($contract['tank_ownership'] == 'Rented') ? 'selected' : '' ?>>Rented</option>
                     </select>
                 </div>
                 <div class="form-group">

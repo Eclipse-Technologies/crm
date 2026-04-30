@@ -14,20 +14,27 @@ $config = require $configFile;
 
 $auth = new Auth($config);
 $error = null; // Always initialize $error
+$reason = $_GET['reason'] ?? '';
+$notice = null;
+$scriptDir = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+$scriptSegments = $scriptDir === '' ? [] : explode('/', $scriptDir);
+array_pop($scriptSegments);
+$basePath = empty($scriptSegments) ? '' : '/' . implode('/', $scriptSegments);
+$loginPath = ($basePath === '' ? '' : $basePath) . '/simple_auth/login.php';
+$defaultTarget = ($basePath === '' ? '' : $basePath) . '/contacts_list.php';
 
-// DEBUG: Show session state for troubleshooting (after session is started, before any HTML)
-if (isset($_GET['debug_session'])) {
-    echo '<div style="background:#fee;border:2px solid #c33;padding:10px;margin:10px 0;">';
-    echo '<strong>DEBUG SESSION (login.php):</strong><br><pre>';
-    print_r($_SESSION);
-    echo '</pre>';
-    echo '</div>';
+if ($reason === 'session_expired') {
+    $notice = 'Your session expired. Please sign in again.';
+} else if ($reason === 'reauth_required') {
+    $notice = 'Please sign in again to continue.';
+} else if ($reason === 'login_required') {
+    $notice = 'Please sign in to continue.';
 }
 
 // Check if already logged in
 if ($auth->isAuthenticated()) {
     $redirect = $_GET['redirect'] ?? $_POST['redirect'] ?? '';
-    $target = ($redirect && strpos($redirect, '/') === 0) ? $redirect : '/contacts_list.php';
+    $target = ($redirect && strpos($redirect, '/') === 0) ? $redirect : $defaultTarget;
     if (!headers_sent()) {
         header('Location: ' . $target);
         exit;
@@ -39,30 +46,22 @@ if ($auth->isAuthenticated()) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Log raw POST data before login
-        file_put_contents(__DIR__ . '/login_debug.log', "\n==== BEFORE LOGIN ====".PHP_EOL.print_r($_POST, true).PHP_EOL, FILE_APPEND);
     $usernameOrEmail = trim($_POST['username_or_email'] ?? '');
     $password = $_POST['password'] ?? '';
     $rememberMe = isset($_POST['remember_me']);
     $csrfToken = $_POST['csrf_token'] ?? '';
 
-    // Force CSRF dev bypass for local testing
-    $devBypass = true;
-    if (!$devBypass && !$auth->verifyCsrfToken($csrfToken)) {
+    if (!$auth->verifyCsrfToken($csrfToken)) {
         $error = 'Invalid security token. Please try again.';
     } else {
         $result = $auth->login($usernameOrEmail, $password, $rememberMe);
         if ($result['success']) {
-                        // Log session/user data after successful login
-                        file_put_contents(__DIR__ . '/login_debug.log', "==== AFTER LOGIN (SUCCESS) ====".PHP_EOL.print_r($_SESSION, true).PHP_EOL, FILE_APPEND);
-                        // Log session/user data after failed login
-                        file_put_contents(__DIR__ . '/login_debug.log', "==== AFTER LOGIN (FAIL) ====".PHP_EOL.print_r($_SESSION, true).PHP_EOL, FILE_APPEND);
             // Redirect to the URL in the 'redirect' parameter if present, else to /index.php
             $redirect = $_GET['redirect'] ?? $_POST['redirect'] ?? '';
             if ($redirect && strpos($redirect, '/') === 0) {
                 header('Location: ' . $redirect);
             } else {
-                header('Location: /index.php');
+                header('Location: ' . $defaultTarget);
             }
             exit;
         } else {
@@ -78,11 +77,7 @@ $csrfToken = $auth->generateCsrfToken();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<<<<<<< HEAD
-    <title>Login - CRM</title>
-=======
     <title><?= htmlspecialchars($config['app']['name']) ?> - Login</title>
->>>>>>> c34eaea0973d4ee29e8620be5643dba9eaaa18b7
     <link rel="stylesheet" href="../style.css">
     <style>
         .auth-container {
@@ -172,6 +167,14 @@ $csrfToken = $auth->generateCsrfToken();
             margin-bottom: 20px;
             color: #363;
         }
+        .info-msg {
+            background: #eef6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #1d4ed8;
+        }
         .auth-footer {
             margin-top: 20px;
             text-align: center;
@@ -195,27 +198,17 @@ $csrfToken = $auth->generateCsrfToken();
             <div class="error-msg"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
 
+        <?php if (!empty($notice)): ?>
+            <div class="info-msg"><?= htmlspecialchars($notice) ?></div>
+        <?php endif; ?>
+
         <?php if (isset($_GET['registered'])): ?>
             <div class="success-msg">
                 Registration successful! Please login with your credentials.
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="/simple_auth/login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-            <?php $redirectVal = $_GET['redirect'] ?? $_POST['redirect'] ?? ''; ?>
-            <?php if ($redirectVal): ?>
-                <input type="hidden" name="redirect" value="<?= htmlspecialchars($redirectVal) ?>">
-            <?php endif; ?>
-
-
-        <?php if (isset($_GET['registered'])): ?>
-            <div class="success-msg">
-                Registration successful! Please login with your credentials.
-            </div>
-        <?php endif; ?>
-        
-        <form method="POST" action="/simple_auth/login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>">
+        <form method="POST" action="<?= htmlspecialchars($loginPath . (isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : ''), ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
             <?php $redirectVal = $_GET['redirect'] ?? $_POST['redirect'] ?? ''; ?>
             <?php if ($redirectVal): ?>
@@ -262,5 +255,4 @@ $csrfToken = $auth->generateCsrfToken();
     </div>
 </body>
 </html>
-                    id="password" 
 

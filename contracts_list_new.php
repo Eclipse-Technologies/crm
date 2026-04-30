@@ -96,6 +96,10 @@ $contracts = fetch_table_mysql('contracts', $contractSchema);
 $contacts = fetch_table_mysql('contacts', $contactSchema);
 $customers = fetch_table_mysql('customers', $customerSchema);
 
+$debug_contract_ids = array_map(function($c) { return $c['contract_id']; }, $contracts);
+echo '<div style="background:#ffd;padding:8px;margin:8px 0;">';
+echo '<strong>DEBUG:</strong> $contracts count = ' . count($contracts) . '<br>Contract IDs: ' . implode(', ', $debug_contract_ids) . '</div>';
+
 $totalActive = 0;
 $totalMRR = 0;
 $totalARR = 0;
@@ -206,7 +210,9 @@ foreach ($contracts as &$contract) {
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($contracts as $contract): ?>
+                <?php
+                foreach ($contracts as $contract):
+                ?>
                     <?php
                     $contactName = 'Unknown';
                     foreach ($contacts as $c) {
@@ -223,7 +229,11 @@ foreach ($contracts as &$contract) {
                         <td><strong><?= htmlspecialchars($contract['contract_id']) ?></strong></td>
                         <td><?= htmlspecialchars($contactName) ?></td>
                         <td><?= htmlspecialchars($contract['equipment_type']) ?></td>
-                        <td><?= htmlspecialchars($contract['tank_quantity']) ?></td>
+                        <td><?php
+                            // Show number of tanks as count of equipment_ids (from equipment)
+                            $ids = array_filter(array_map('trim', explode(',', $contract['equipment_ids'] ?? '')));
+                            echo count($ids);
+                        ?></td>
                         <td><?= htmlspecialchars($contract['tank_size']) ?></td>
                         <td><strong>$<?= number_format((float)$contract['monthly_fee'], 2) ?></strong></td>
                         <td>

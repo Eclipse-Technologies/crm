@@ -33,9 +33,15 @@ class SessionDataStore {
         $stmt->execute();
         $stmt->close();
     }
-    public function updateLastActivity($sessionToken) {
-        $stmt = $this->conn->prepare("UPDATE sessions SET last_activity = NOW() WHERE session_token = ?");
-        $stmt->bind_param('s', $sessionToken);
+    public function refresh($sessionToken, $userId, $expiresAt) {
+        $stmt = $this->conn->prepare("UPDATE sessions SET last_activity = NOW(), expires_at = ? WHERE session_token = ? AND user_id = ?");
+        $stmt->bind_param('ssi', $expiresAt, $sessionToken, $userId);
+        $stmt->execute();
+        $stmt->close();
+    }
+    public function rotateToken($oldSessionToken, $newSessionToken, $userId, $expiresAt) {
+        $stmt = $this->conn->prepare("UPDATE sessions SET session_token = ?, last_activity = NOW(), expires_at = ? WHERE session_token = ? AND user_id = ?");
+        $stmt->bind_param('sssi', $newSessionToken, $expiresAt, $oldSessionToken, $userId);
         $stmt->execute();
         $stmt->close();
     }

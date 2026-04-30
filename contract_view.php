@@ -70,7 +70,35 @@ $contactLabel = $fullName !== '' ? $fullName : 'N/A';
         <div class="contract-grid">
             <div class="contract-item"><span class="contract-label">Status</span><span class="contract-value"><?= htmlspecialchars($contract['contract_status'] ?? 'N/A') ?></span></div>
             <div class="contract-item"><span class="contract-label">Type</span><span class="contract-value"><?= htmlspecialchars($contract['contract_type'] ?? 'N/A') ?></span></div>
+
             <div class="contract-item"><span class="contract-label">Equipment</span><span class="contract-value"><?= htmlspecialchars($contract['equipment_type'] ?? 'N/A') ?></span></div>
+            <div class="contract-item"><span class="contract-label">Tank Ownership</span><span class="contract-value"><?= htmlspecialchars($contract['tank_ownership'] ?? 'N/A') ?></span></div>
+
+<?php
+if (($contract['tank_ownership'] ?? '') === 'Rented' && !empty($contract['equipment_ids'])) {
+    require_once 'inventory_mysql.php';
+    $equipmentIds = array_map('trim', explode(',', $contract['equipment_ids']));
+    $inventory = fetch_inventory_mysql(require __DIR__ . '/inventory_schema.php');
+    $rentedTanks = array_filter($inventory, function($item) use ($equipmentIds) {
+        return in_array((string)($item['item_id'] ?? ''), $equipmentIds, true);
+    });
+    if (count($rentedTanks) > 0) {
+        echo '<div class="contract-item" style="grid-column:1/-1;"><span class="contract-label">Rented Tank Details</span>';
+        echo '<table style="width:100%;background:#f9fafb;border-radius:8px;overflow:hidden;">';
+        echo '<tr><th>ID</th><th>Name</th><th>Serial</th><th>Status</th><th>Location</th></tr>';
+        foreach ($rentedTanks as $tank) {
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars($tank['item_id'] ?? '') . '</td>';
+            echo '<td>' . htmlspecialchars($tank['item_name'] ?? '') . '</td>';
+            echo '<td>' . htmlspecialchars($tank['serial_number'] ?? '') . '</td>';
+            echo '<td>' . htmlspecialchars($tank['status'] ?? '') . '</td>';
+            echo '<td>' . htmlspecialchars($tank['location'] ?? '') . '</td>';
+            echo '</tr>';
+        }
+        echo '</table></div>';
+    }
+}
+?>
 
             <div class="contract-item"><span class="contract-label">Contact</span><span class="contract-value"><?= htmlspecialchars($contactLabel) ?></span></div>
             <div class="contract-item"><span class="contract-label">Company</span><span class="contract-value"><?= htmlspecialchars($contract['company'] ?? 'N/A') ?></span></div>
@@ -101,6 +129,11 @@ $contactLabel = $fullName !== '' ? $fullName : 'N/A';
     <div class="contract-card">
         <h3 style="margin-top:0;">Notes</h3>
         <p style="white-space:pre-wrap;"><?= htmlspecialchars($contract['notes'] ?? 'No notes') ?></p>
+    </div>
+
+    <div class="contract-card">
+        <h3 style="margin-top:0;">Regeneration Events</h3>
+        <iframe src="contract_regenerations.php?contract_id=<?= urlencode($contractId) ?>" style="width:100%;height:320px;border:none;overflow:auto;background:#f9fafb;"></iframe>
     </div>
 </div>
 

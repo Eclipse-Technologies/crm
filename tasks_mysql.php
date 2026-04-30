@@ -26,8 +26,23 @@ function fetch_tasks_mysql($filters = []) {
 
 function insert_task_mysql($task) {
     $conn = get_mysql_connection();
-    $stmt = $conn->prepare("INSERT INTO tasks (id, title, status, priority, assigned_to, due_date, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param('sssssss', $task['id'], $task['title'], $task['status'], $task['priority'], $task['assigned_to'], $task['due_date'], $task['timestamp']);
+    $stmt = $conn->prepare("INSERT INTO tasks (id, title, status, priority, assigned_to, due_date, timestamp, contact_id, opportunity_id, project_id, description, comments, recurrence, attachment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param('sssssssiiissss',
+        $task['id'],
+        $task['title'],
+        $task['status'],
+        $task['priority'],
+        $task['assigned_to'],
+        $task['due_date'],
+        $task['timestamp'],
+        $task['contact_id'],
+        $task['opportunity_id'],
+        $task['project_id'],
+        $task['description'],
+        $task['comments'],
+        $task['recurrence'],
+        $task['attachment']
+    );
     $result = $stmt->execute();
     $stmt->close();
     $conn->close();

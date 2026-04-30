@@ -1,5 +1,7 @@
 <?php
 // Navbar code here
+$authPathPrefix = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+$authPathPrefix = $authPathPrefix === '' ? '' : '/' . $authPathPrefix;
 ?>
 <nav class="navbar">
   <ul>
@@ -21,12 +23,12 @@
     <?php if (auth_check()): ?>
       <li style="margin-left: auto;">
         <span style="margin-right: 15px;">👤 <?= htmlspecialchars(auth_current_user()['username']) ?></span>
-        <a href="simple_auth/logout.php" style="color: #e74c3c;">Logout</a>
+        <a href="<?= htmlspecialchars(($authPathPrefix === '' ? '' : $authPathPrefix) . '/simple_auth/logout.php') ?>" style="color: #e74c3c;">Logout</a>
       </li>
     <?php else: ?>
       <li style="margin-left: auto;">
-        <a href="simple_auth/login.php">Login</a> | 
-        <a href="simple_auth/register.php">Register</a>
+        <a href="<?= htmlspecialchars(($authPathPrefix === '' ? '' : $authPathPrefix) . '/simple_auth/login.php') ?>">Login</a> | 
+        <a href="<?= htmlspecialchars(($authPathPrefix === '' ? '' : $authPathPrefix) . '/simple_auth/register.php') ?>">Register</a>
       </li>
     <?php endif; ?>
   </ul>

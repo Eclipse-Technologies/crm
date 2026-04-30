@@ -1,0 +1,100 @@
+
+/* ===============================
+   📅 CALENDAR MODULE STYLES
+   =============================== */
+
+/* Use global variables from styles.css */
+:root {
+  --crm-font-size: 0.85rem;
+  --crm-font-color: #333;
+  --crm-border-color: #ddd;
+  --crm-accent: #0099A8;
+  --crm-bg-light: #f9f9f9;
+  --crm-bg-panel: #fcfcfc;
+}
+
+/* Calendar container */
+#calendar {
+  font-size: var(--crm-font-size);
+  background-color: var(--crm-bg-panel);
+  border: 1px solid var(--crm-border-color);
+  border-radius: 6px;
+  padding: 20px;
+  margin-top: 30px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* FullCalendar overrides */
+.fc {
+  font-family: 'Open Sans', sans-serif;
+  color: var(--crm-font-color);
+}
+
+.fc-toolbar-title {
+  font-size: 1.2rem;
+  color: var(--crm-accent);
+}
+
+.fc-button {
+  background-color: var(--crm-accent);
+  border: none;
+  color: white;
+  padding: 6px 10px;
+  font-size: var(--crm-font-size);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.fc-button:hover {
+  background-color: #00b5c0;
+}
+
+.fc-button-primary:not(:disabled).fc-button-active,
+.fc-button-primary:not(:disabled):active {
+  background-color: #00b5c0;
+  border-color: #00b5c0;
+}
+
+.fc-daygrid-day-number {
+  font-weight: bold;
+  color: var(--crm-font-color);
+}
+
+.fc-daygrid-event {
+  font-size: var(--crm-font-size);
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: 2px 0;
+  cursor: pointer;
+}
+
+/* Priority-based event colors */
+.fc-event.red {
+  background-color: #e74c3c;
+  border-color: #e74c3c;
+  color: white;
+}
+
+.fc-event.orange {
+  background-color: #f39c12;
+  border-color: #f39c12;
+  color: white;
+}
+
+.fc-event.green {
+  background-color: #27ae60;
+  border-color: #27ae60;
+  color: white;
+}
+
+.fc-event.gray {
+  background-color: #bdc3c7;
+  border-color: #bdc3c7;
+  color: white;
+}
+
+/* Hover effect for events */
+.fc-daygrid-event:hover {
+  opacity: 0.9;
+  box-shadow: 0 0 4px rgba(0,0,0,0.1);
+}

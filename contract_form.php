@@ -1,6 +1,24 @@
 <?php
 require_once 'db_mysql.php';
-require_once 'csrf_helper.php';
+// Count available rental tanks by size from equipment table
+$availableRentalTanks = [];
+$conn = get_mysql_connection();
+$result = $conn->query("SELECT tank_size, COUNT(*) as qty FROM equipment WHERE ownership = 'rental' AND tank_size IS NOT NULL AND tank_size != '' GROUP BY tank_size");
+if ($result) {
+    while ($row = $result->fetch_assoc()) {
+        $size = (string)($row['tank_size'] ?? '');
+        $qty = (int)($row['qty'] ?? 0);
+        if ($size !== '') {
+            $availableRentalTanks[$size] = $qty;
+        }
+    }
+    $result->free();
+}
+$conn->close();
+?>
+<?php
+require_once 'layout_start.php';
+require_once 'db_mysql.php';
 
 $pageTitle = 'Add Service Contract';
 $contractSchema = require __DIR__ . '/contract_schema.php';
@@ -106,20 +124,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo '<div style="color:red;"><b>CSRF validation failed.</b></div>';
         exit;
     }
-    
-    // Generate contract ID (find max contract_id in DB)
-    $conn = get_mysql_connection();
-    $result = $conn->query("SELECT COUNT(*) AS cnt FROM contracts");
-    $row = $result ? $result->fetch_assoc() : null;
-    $count = $row ? (int)$row['cnt'] : 0;
-    $contractId = 'CNT-' . date('Ymd') . '-' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
+
+    // --- Tank Inventory Deduction Logic ---
+    $rentedTankSize = $_POST['rented_tank_size'] ?? '';
+    $numRentedTanks = isset($_POST['num_rented_tanks']) ? (int)$_POST['num_rented_tanks'] : 0;
+    if ($rentedTankSize && $rentedTankSize !== 'Other' && $numRentedTanks > 0) {
+        $conn = get_mysql_connection();
+        // Get available rental tanks for this size from equipment
+        $result = $conn->query("SELECT equipment_id FROM equipment WHERE ownership = 'rental' AND tank_size = '" . $conn->real_escape_string($rentedTankSize) . "' LIMIT " . intval($numRentedTanks));
+        $assigned = [];
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $assigned[] = $row['equipment_id'];
+            }
+            $result->free();
+        }
+        if (count($assigned) < $numRentedTanks) {
+            $conn->close();
+            echo '<div style="color:red;"><b>Not enough rental tanks available in equipment to fulfill this contract. No changes made.</b></div>';
+            exit;
+        }
+        // Mark assigned tanks as 'Assigned'
+        foreach ($assigned as $equipmentId) {
+            $update = $conn->prepare("UPDATE equipment SET status = 'Assigned' WHERE equipment_id = ?");
+            $update->bind_param('s', $equipmentId);
+            $update->execute();
+            $update->close();
+        }
+        // Continue using $conn for contract insert below
+    } else {
+        $conn = get_mysql_connection();
+    }
+
+    // Generate contract ID (find max contract_id for today and increment)
+    $datePrefix = 'CNT-' . date('Ymd') . '-';
+    $result = $conn->query("SELECT contract_id FROM contracts WHERE contract_id LIKE '{$datePrefix}%' ORDER BY contract_id DESC LIMIT 1");
+    $nextNum = 1;
+    if ($result && $row = $result->fetch_assoc()) {
+        $lastId = $row['contract_id'];
+        $lastNum = (int)substr($lastId, strrpos($lastId, '-') + 1);
+        $nextNum = $lastNum + 1;
+    }
+    $contractId = $datePrefix . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
     // Calculate values
     $monthlyFee = (float)$_POST['monthly_fee'];
+    $contractTerm = (int)$_POST['contract_term'];
     $annualValue = $monthlyFee * 12;
 
+    // Calculate end date
     $startDate = $_POST['start_date'];
-    $endDate = valid_date_or_null($_POST['end_date'] ?? '');
+    $endDate = date('Y-m-d', strtotime($startDate . ' + ' . $contractTerm . ' months'));
 
     // Calculate renewal date (end date - notice period)
     $noticePeriod = (int)$_POST['notice_period'];
@@ -128,21 +183,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate date fields
     function valid_date_or_null($val) {
         $val = trim($val ?? '');
-        return ($val === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)) ? null : $val;
+        return ($val === '' || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $val)) ? null : $val;
     }
     $fields = [
         'contract_id' => $contractId,
         'customer_id' => (isset($_POST['customer_id']) && is_numeric($_POST['customer_id']) && $_POST['customer_id'] !== '' ? (int)$_POST['customer_id'] : null),
         'contact_id' => $_POST['contact_id'] ?? null,
         'contract_type' => $_POST['contract_type'],
-        'contract_status' => ($_POST['contract_status'] ?? 'Active'),
+        'contract_status' => 'Active',
         'equipment_type' => $_POST['equipment_type'],
         'monthly_fee' => $monthlyFee,
         'regen_fee' => isset($_POST['regen_fee']) && $_POST['regen_fee'] !== '' ? (float)$_POST['regen_fee'] : null,
         'tank_sale_price' => isset($_POST['tank_sale_price']) && $_POST['tank_sale_price'] !== '' ? (float)$_POST['tank_sale_price'] : null,
         'annual_value' => $annualValue,
         'payment_frequency' => $_POST['payment_frequency'],
-        'contract_term' => null,
+        'contract_term' => $contractTerm,
         'start_date' => $startDate,
         'end_date' => $endDate,
         'renewal_date' => $renewalDate,
@@ -179,14 +234,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($result) {
         $stmt->close();
         $conn->close();
+        // Clean output buffer before redirect
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
         header('Location: contracts_list.php?success=1');
         exit;
     } else {
         echo '<div style="color:red;"><b>Failed to add contract:</b> ' . htmlspecialchars($stmt->error) . '</div>';
     }
 }
-
-require_once 'layout_start.php';
 ?>
 
 <!-- Debug Section (visible only if DEBUG is true) -->
@@ -425,25 +482,25 @@ require_once 'layout_start.php';
         <!-- Tank Ownership -->
         <div class="form-section">
             <div class="form-section-title">🛢️ Tank Ownership & Fees</div>
+            <div class="form-help" style="margin-bottom:12px;color:#0d6efd;font-weight:500;">
+                <b>Note:</b> Enter the number of tanks for this contract. Specify how many are customer-owned and how many are rented from us.<br>
+                <span style="color:#198754;">Detailed tank assignment logic will be implemented later.</span>
+            </div>
             <div class="form-grid">
-                <div class="form-group full-width">
-                    <label for="equipment_ids">Select Tank(s) on this Contract</label>
-                    <select name="equipment_ids[]" id="equipment_ids" multiple style="min-height:80px;">
-                        <option value="">— Select a customer first —</option>
-                    </select>
-                    <div class="form-help">Hold Ctrl/Cmd to select multiple tanks</div>
+                <div class="form-group">
+                    <label for="num_owned_tanks">Number of Customer-Owned Tanks</label>
+                    <input type="number" name="num_owned_tanks" id="num_owned_tanks" min="0" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="num_rented_tanks">Number of Rented Tanks</label>
+                    <input type="number" name="num_rented_tanks" id="num_rented_tanks" min="0" value="0">
                 </div>
 
-                <div class="form-group" id="ownership_display" style="display:none;">
-                    <label>Tank Ownership Type</label>
-                    <div id="ownership_badge" style="padding:10px 14px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;"></div>
-                    <div class="form-help" id="ownership_help"></div>
-                </div>
-
+                <!-- Rental: monthly fee + regen fee -->
                 <div class="form-group" id="row_monthly_fee">
-                    <label for="monthly_fee">Monthly Rental Fee ($ / month)</label>
+                    <label for="monthly_fee">Monthly Rental Fee ($) *</label>
                     <input type="number" name="monthly_fee" id="monthly_fee" step="0.01" min="0" onchange="calculateAnnualValue()">
-                    <div class="form-help">Fixed monthly rental fee (independent of delivery/regen volume)</div>
+                    <div class="form-help">Charged monthly for tank rental</div>
                 </div>
 
                 <div class="form-group" id="row_regen_fee">
@@ -452,18 +509,60 @@ require_once 'layout_start.php';
                     <div class="form-help">Fee charged per regeneration/exchange visit</div>
                 </div>
 
-                <div class="form-group" id="row_tank_sale_price">
-                    <label for="tank_sale_price">Delivery Fee ($ / drop-off)</label>
+                <!-- Purchased: one-time tank sale -->
+                <div class="form-group" id="row_tank_sale_price" style="display:none;">
+                    <label for="tank_sale_price">Tank Sale Price ($)</label>
                     <input type="number" name="tank_sale_price" id="tank_sale_price" step="0.01" min="0">
-                    <div class="form-help">Fee charged each time tanks are delivered/exchanged</div>
+                    <div class="form-help">One-time sale price for the tank</div>
+                </div>
+
+                <!-- Tank Size Dropdown: moved here after ownership and fees -->
+                <div class="form-group">
+                    <label for="rented_tank_size">Rented Tank Size</label>
+                    <select name="rented_tank_size" id="rented_tank_size" class="form-select" style="max-width:220px;" onchange="updateAvailableTanks()">
+                        <option value="">Select Size</option>
+                        <option value="1">1 cuft</option>
+                        <option value="2">2 cuft</option>
+                        <option value="3.5">3.5 cuft</option>
+                        <option value="5">5 cuft</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <div class="form-help">Applies to all rented tanks on this contract</div>
+                    <div id="available_tanks_display" style="margin-top:8px;"></div>
                 </div>
 
                 <div class="form-group">
                     <label for="annual_value">Annual Contract Value ($)</label>
                     <div class="calculated-value" id="annual_value_display">$0.00</div>
-                    <div class="form-help">Calculated automatically from monthly rental fee × 12</div>
+                    <div class="form-help">Calculated automatically from monthly fee × 12</div>
                 </div>
             </div>
+        <script>
+        // Equipment data for available rental tanks by size
+        const availableTanksBySize = <?php echo json_encode($availableRentalTanks); ?>;
+        function updateAvailableTanks() {
+            const size = document.getElementById('rented_tank_size').value;
+            const num = parseInt(document.getElementById('num_rented_tanks').value || '0', 10);
+            const display = document.getElementById('available_tanks_display');
+            if (!size || size === 'Other') {
+                display.innerHTML = '<span style="color:#6B7280">Select a standard size to see available tanks.</span>';
+                return;
+            }
+            const available = availableTanksBySize[size] || 0;
+            let msg = `<b>Available tanks (${size} cuft):</b> <span style="color:${available > 0 ? '#198754' : '#dc3545'}">${available}</span>`;
+            if (num > 0) {
+                if (num > available) {
+                    msg += `<br><span style=\"color:#dc3545;font-weight:600;\">Warning: Not enough tanks available for this size!</span>`;
+                } else {
+                    msg += `<br><span style=\"color:#198754;\">Enough tanks available for this contract.</span>`;
+                }
+            }
+            display.innerHTML = msg;
+        }
+        document.getElementById('rented_tank_size').addEventListener('change', updateAvailableTanks);
+        document.getElementById('num_rented_tanks').addEventListener('input', updateAvailableTanks);
+        window.addEventListener('DOMContentLoaded', updateAvailableTanks);
+        </script>
         </div>
 
         <!-- Contract Details -->
@@ -503,10 +602,13 @@ require_once 'layout_start.php';
                 </div>
 
                 <div class="form-group">
-                    <label for="contract_status">Contract Status *</label>
-                    <select name="contract_status" id="contract_status" required>
-                        <option value="Active" selected>Active</option>
-                        <option value="Lost">Lost</option>
+                    <label for="contract_term">Contract Term (Months) *</label>
+                    <select name="contract_term" id="contract_term" required onchange="calculateDates()">
+                        <option value="12">12 Months</option>
+                        <option value="24">24 Months</option>
+                        <option value="36">36 Months</option>
+                        <option value="48">48 Months</option>
+                        <option value="60">60 Months</option>
                     </select>
                 </div>
             </div>
@@ -518,13 +620,13 @@ require_once 'layout_start.php';
             <div class="form-grid">
                 <div class="form-group">
                     <label for="start_date">Contract Start Date *</label>
-                    <input type="date" name="start_date" id="start_date" required>
+                    <input type="date" name="start_date" id="start_date" required onchange="calculateDates()">
                 </div>
                 
                 <div class="form-group">
                     <label for="end_date">Contract End Date</label>
-                    <input type="date" name="end_date" id="end_date" onchange="calculateDates()">
-                    <div class="form-help">Set a date if known</div>
+                    <div class="calculated-value" id="end_date_display">Not calculated</div>
+                    <div class="form-help">Calculated from start date + term</div>
                 </div>
                 
                 <div class="form-group">
@@ -616,9 +718,9 @@ const allEquipment = <?= json_encode(array_map(fn($e) => [
 ], $equipment)) ?>;
 
 const ownershipColors = {
-    'rental':          { bg:'#DBEAFE', color:'#1D4ED8', label:'Rental' },
-    'customer-owned':  { bg:'#D1FAE5', color:'#065F46', label:'Customer-Owned' },
-    'purchased':       { bg:'#FEF3C7', color:'#92400E', label:'Purchased' },
+    'rental':          { bg:'#DBEAFE', color:'#1D4ED8', label:'Rental — Monthly Fee + Regen Fee' },
+    'customer-owned':  { bg:'#D1FAE5', color:'#065F46', label:'Customer-Owned — Regen Fee Only' },
+    'purchased':       { bg:'#FEF3C7', color:'#92400E', label:'Purchased — Tank Sale + Regen Fee' },
 };
 
 function updateTankOptions() {
@@ -668,10 +770,10 @@ function setOwnershipUI(ownership) {
         badge.textContent = '⚠️ Ownership not set on this tank';
         badge.style.background = '#FEF3C7';
         badge.style.color = '#92400E';
-        help.innerHTML = 'Go to <a href="equipment_list.php" target="_blank">Equipment</a> and set the ownership on this tank before creating a contract.';
-        rowMonthly.style.display = '';
-        rowRegen.style.display   = '';
-        rowSale.style.display    = '';
+        help.innerHTML = '<b>Go to <a href="equipment_list.php" target="_blank">Equipment</a> and set the ownership on this tank before creating a contract.</b>';
+        rowMonthly.style.display = 'none';
+        rowRegen.style.display   = 'none';
+        rowSale.style.display    = 'none';
         return;
     }
 
@@ -681,30 +783,48 @@ function setOwnershipUI(ownership) {
     badge.style.color = info.color;
     display.style.display = '';
 
-    // Keep all fee inputs visible: rental fee, regeneration fee, delivery fee.
-    rowMonthly.style.display = '';
-    rowRegen.style.display   = '';
-    rowSale.style.display    = '';
+    // Show/hide fee fields based on ownership
+    if (ownership === 'rental') {
+        rowMonthly.style.display = '';
+        rowRegen.style.display   = '';
+        rowSale.style.display    = 'none';
+        document.getElementById('monthly_fee').required = true;
+    } else if (ownership === 'customer-owned') {
+        rowMonthly.style.display = 'none';
+        rowRegen.style.display   = '';
+        rowSale.style.display    = 'none';
+        document.getElementById('monthly_fee').required = false;
+        document.getElementById('monthly_fee').value = '';
+    } else if (ownership === 'purchased') {
+        rowMonthly.style.display = 'none';
+        rowRegen.style.display   = '';
+        rowSale.style.display    = '';
+        document.getElementById('monthly_fee').required = false;
+        document.getElementById('monthly_fee').value = '';
+    }
     calculateAnnualValue();
 }
-
-function calculateAnnualValue() {
     const monthlyFee = parseFloat(document.getElementById('monthly_fee').value) || 0;
     const annualValue = monthlyFee * 12;
     document.getElementById('annual_value_display').textContent = '$' + annualValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 function calculateDates() {
-    const endDate = document.getElementById('end_date').value;
+    const startDate = document.getElementById('start_date').value;
+    const termMonths = parseInt(document.getElementById('contract_term').value);
     const noticeDays = parseInt(document.getElementById('notice_period').value);
-
-    if (!endDate) {
-        document.getElementById('renewal_date_display').textContent = 'Not calculated';
-        return;
-    }
-
+    
+    if (!startDate || !termMonths) return;
+    
+    // Calculate end date
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + termMonths);
+    
+    const endDateStr = end.toISOString().split('T')[0];
+    document.getElementById('end_date_display').textContent = endDateStr;
+    
     // Calculate renewal date
-    const end = new Date(endDate);
     const renewal = new Date(end);
     renewal.setDate(renewal.getDate() - noticeDays);
     const renewalDateStr = renewal.toISOString().split('T')[0];

@@ -9,6 +9,46 @@ $poFile = __DIR__ . '/purchase_orders.csv';
 $errors = [];
 $inventorySchema = require __DIR__ . '/inventory_schema.php';
 $inventory = fetch_inventory_mysql($inventorySchema);
+$supplierOptions = [];
+$supplierConn = get_mysql_connection();
+$poColumnMetaResult = $supplierConn->query("SELECT DATA_TYPE FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'purchase_orders' AND column_name = 'supplier_id' LIMIT 1");
+if ($poColumnMetaResult instanceof mysqli_result) {
+  $poColumnMeta = $poColumnMetaResult->fetch_assoc();
+  $poColumnMetaResult->free();
+  $poDataType = strtolower((string) ($poColumnMeta['DATA_TYPE'] ?? ''));
+  $numericTypes = ['tinyint', 'smallint', 'mediumint', 'int', 'bigint', 'decimal', 'float', 'double'];
+  if (in_array($poDataType, $numericTypes, true)) {
+    $supplierConn->query("ALTER TABLE purchase_orders MODIFY supplier_id VARCHAR(32) NULL");
+  }
+}
+
+$supplierConn->query("CREATE TABLE IF NOT EXISTS suppliers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  supplier_id VARCHAR(32) NOT NULL UNIQUE,
+  supplier_name VARCHAR(255) NOT NULL,
+  contact_name VARCHAR(255) DEFAULT NULL,
+  email VARCHAR(255) DEFAULT NULL,
+  phone VARCHAR(64) DEFAULT NULL,
+  address_line1 VARCHAR(255) DEFAULT NULL,
+  address_line2 VARCHAR(255) DEFAULT NULL,
+  city VARCHAR(120) DEFAULT NULL,
+  state_province VARCHAR(120) DEFAULT NULL,
+  postal_code VARCHAR(40) DEFAULT NULL,
+  country VARCHAR(120) DEFAULT NULL,
+  notes TEXT DEFAULT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_supplier_name (supplier_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+$supplierResult = $supplierConn->query("SELECT supplier_id, supplier_name FROM suppliers WHERE is_active = 1 ORDER BY supplier_name ASC, supplier_id ASC");
+if ($supplierResult instanceof mysqli_result) {
+  while ($row = $supplierResult->fetch_assoc()) {
+    $supplierOptions[] = $row;
+  }
+  $supplierResult->free();
+}
+$supplierConn->close();
 
 function generate_po_number() {
   $prefix = 'EWTPO' . date('Ymd');
@@ -41,6 +81,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $updated_at = $created_at;
   $item_count = isset($_POST['item_id']) ? count($_POST['item_id']) : 0;
   $conn = get_mysql_connection();
+  $selectedSupplierId = trim((string) ($_POST['supplier_id'] ?? ''));
+  $selectedSupplierName = '';
+  if ($selectedSupplierId !== '') {
+    $supplierStmt = $conn->prepare('SELECT supplier_name FROM suppliers WHERE supplier_id = ? LIMIT 1');
+    $supplierStmt->bind_param('s', $selectedSupplierId);
+    $supplierStmt->execute();
+    $supplierRes = $supplierStmt->get_result();
+    $supplierRow = $supplierRes->fetch_assoc();
+    $supplierRes->free();
+    $supplierStmt->close();
+    if ($supplierRow) {
+      $selectedSupplierName = (string) ($supplierRow['supplier_name'] ?? '');
+    }
+  }
   // Insert into purchase_orders (header)
   $orderFields = [
     'po_number','date','status','supplier_id','supplier_name','supplier_contact','supplier_address','billing_address','shipping_address',
@@ -54,6 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($f === 'po_number') $val = $po_number;
     if ($f === 'date') $val = $date;
     if ($f === 'created_at' || $f === 'updated_at') $val = $created_at;
+    if ($f === 'supplier_name') $val = $selectedSupplierName;
     if (in_array($f, $decimalFields)) {
       $orderData[] = ($val === '' ? null : (float)$val);
     } elseif (in_array($f, $dateFields)) {
@@ -131,11 +186,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <?php foreach ($schema as $f):
         if (in_array($f, ['created_at','updated_at','po_number','date','item_id','item_name','quantity','unit','unit_price','discount','tax_rate','tax_amount','total'])) continue;
         $readonly = '';
+        if ($f === 'supplier_name') $readonly = 'readonly';
         $value = htmlspecialchars($_POST[$f] ?? '');
       ?>
         <div style="display:flex; flex-direction:column; min-width:160px;">
           <label for="<?= $f ?>" style="font-weight:600; margin-bottom:2px; font-size:0.97em; color:#222;"> <?= htmlspecialchars(ucwords(str_replace('_',' ',$f))) ?> </label>
-          <input type="text" name="<?= $f ?>" id="<?= $f ?>" value="<?= $value ?>" style="padding:4px 7px; border-radius:4px; border:1px solid #bbb; font-size:0.97em;" <?= $readonly ?> >
+          <?php if ($f === 'supplier_id'): ?>
+            <select name="supplier_id" id="supplier_id" style="padding:4px 7px; border-radius:4px; border:1px solid #bbb; font-size:0.97em;">
+              <option value="">-- Select Supplier --</option>
+              <?php foreach ($supplierOptions as $supplier): ?>
+                <?php $sid = (string) ($supplier['supplier_id'] ?? ''); ?>
+                <option value="<?= htmlspecialchars($sid) ?>" data-name="<?= htmlspecialchars((string) ($supplier['supplier_name'] ?? '')) ?>" <?= ($_POST['supplier_id'] ?? '') === $sid ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($sid . ' - ' . ((string) ($supplier['supplier_name'] ?? ''))) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+            <span style="font-size:0.85em; margin-top:4px;"><a href="supplier_directory.php" target="_blank" rel="noopener">Manage suppliers</a></span>
+          <?php else: ?>
+            <input type="text" name="<?= $f ?>" id="<?= $f ?>" value="<?= $value ?>" style="padding:4px 7px; border-radius:4px; border:1px solid #bbb; font-size:0.97em;" <?= $readonly ?> >
+          <?php endif; ?>
         </div>
       <?php endforeach; ?>
       <div style="display:flex; flex-direction:column; min-width:120px;">
@@ -292,6 +361,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Attach listeners to all existing rows on page load
     document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('#po-items-table tbody tr').forEach(attachItemSelectListener);
+
+      const supplierSelect = document.getElementById('supplier_id');
+      const supplierName = document.getElementById('supplier_name');
+      if (supplierSelect && supplierName) {
+        const syncSupplierName = function() {
+          const selectedOption = supplierSelect.options[supplierSelect.selectedIndex];
+          supplierName.value = selectedOption ? (selectedOption.getAttribute('data-name') || '') : '';
+        };
+        supplierSelect.addEventListener('change', syncSupplierName);
+        syncSupplierName();
+      }
     });
   </script>
   </form>
