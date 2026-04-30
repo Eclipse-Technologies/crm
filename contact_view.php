@@ -72,16 +72,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id'])) {
     $params = [];
     $types = '';
 
+    // Fetch current contact data for fallback
+    $currentContact = null;
+    if ($contactId) {
+      $stmt = $conn->prepare('SELECT * FROM contacts WHERE contact_id = ? LIMIT 1');
+      if ($stmt) {
+        $stmt->bind_param('s', $contactId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $currentContact = $result ? $result->fetch_assoc() : null;
+        $stmt->close();
+      }
+    }
+
     foreach ($fields as $field) {
         if (!isset($_POST[$field])) {
             continue;
         }
-
         $value = $_POST[$field];
         if ($field === 'is_customer') {
             $value = !empty($_POST[$field]) ? '1' : '0';
         }
-
+        // Preserve previous address if left blank
+        if ($field === 'address' && trim($value) === '' && $currentContact && isset($currentContact['address'])) {
+            $value = $currentContact['address'];
+        }
         $updates[] = "`$field` = ?";
         $params[] = $value;
         $types .= 's';
