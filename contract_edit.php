@@ -31,6 +31,7 @@ $contacts = fetch_mysql('contacts', require __DIR__ . '/contact_schema.php');
 $customers = fetch_mysql('customers', require __DIR__ . '/customer_schema.php');
 $equipment = fetch_mysql('equipment', require __DIR__ . '/equipment_schema.php');
 
+
 $error = '';
 // 1. Get contract ID from URL
 $contractId = $_GET['id'] ?? '';
@@ -83,12 +84,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($field === 'contract_id') {
             $fields[$field] = $contractId;
         } elseif (isset($_POST[$field])) {
-            // Fix: convert empty string to null for integer, date, and decimal fields
+            // Fix: convert empty string to null for integer and date fields
             if ($field === 'customer_id' && ($_POST[$field] === '' || !is_numeric($_POST[$field]))) {
                 $fields[$field] = null;
             } elseif (in_array($field, ['start_date','end_date','renewal_date','last_service_date','next_service_date','created_date','modified_date']) && trim($_POST[$field]) === '') {
-                $fields[$field] = null;
-            } elseif ($field === 'tank_sale_price' && trim($_POST[$field]) === '') {
                 $fields[$field] = null;
             } else {
                 $fields[$field] = $_POST[$field];
@@ -97,12 +96,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fields[$field] = $contract[$field] ?? null;
         }
     }
-    // Calculate annual_value if monthly_fee is set
-    if (isset($fields['monthly_fee'])) {
-        $fields['annual_value'] = (float)$fields['monthly_fee'] * 12;
+    // Calculate annual_value with proration for first year (sync with contracts_list.php)
+    if (isset($fields['regen_fee'])) {
+        $fee = (float)$fields['regen_fee'];
+        $qty = isset($fields['tank_quantity']) ? (int)$fields['tank_quantity'] : 1;
+        $sched = $fields['service_frequency'] ?? 'Monthly';
+        $mult = 12;
+        if ($sched === 'Weekly') $mult = 52;
+        elseif ($sched === 'Bi-weekly') $mult = 26;
+        elseif ($sched === 'Monthly') $mult = 12;
+        elseif ($sched === 'Quarterly') $mult = 4;
+        elseif ($sched === 'Semi-Annual') $mult = 2;
+        elseif ($sched === 'Annual') $mult = 1;
+        $fields['annual_value'] = round($qty * $fee * $mult, 2);
     }
-    // Contract term has been retired from the workflow.
-    $fields['contract_term'] = null;
+    // Calculate end_date if start_date and contract_term are set
+    if (!empty($fields['start_date']) && !empty($fields['contract_term'])) {
+        $fields['end_date'] = date('Y-m-d', strtotime($fields['start_date'] . ' + ' . (int)$fields['contract_term'] . ' months'));
+    }
     // Calculate renewal_date if end_date and notice_period are set
     if (!empty($fields['end_date']) && !empty($fields['notice_period'])) {
         $fields['renewal_date'] = date('Y-m-d', strtotime($fields['end_date'] . ' - ' . (int)$fields['notice_period'] . ' days'));
@@ -146,6 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // 4. Show form, pre-filled with $contract
 ?>
+
 <style>
 .page-header {
     background: linear-gradient(135deg, #10B981 0%, #059669 100%);
@@ -154,13 +166,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     border-radius: 12px;
     margin-bottom: 24px;
 }
-
 .page-header h1 {
     margin: 0 0 8px 0;
     font-size: 32px;
     font-weight: 700;
 }
-
 .form-container {
     background: white;
     padding: 32px;
@@ -168,17 +178,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     max-width: 1200px;
 }
-
 .form-section {
     margin-bottom: 32px;
     padding-bottom: 32px;
     border-bottom: 2px solid #E5E7EB;
 }
-
 .form-section:last-child {
     border-bottom: none;
 }
-
 .form-section-title {
     font-size: 18px;
     font-weight: 700;
@@ -188,22 +195,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     align-items: center;
     gap: 12px;
 }
-
 .form-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 24px;
 }
-
 .form-group {
     display: flex;
     flex-direction: column;
 }
-
 .form-group.full-width {
     grid-column: 1 / -1;
 }
-
 .form-group label {
     font-size: 13px;
     font-weight: 700;
@@ -212,7 +215,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
-
 .form-group input,
 .form-group select,
 .form-group textarea {
@@ -223,7 +225,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     font-family: inherit;
     transition: all 0.2s;
 }
-
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
@@ -231,12 +232,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     border-color: #10B981;
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
-
 .form-group textarea {
     resize: vertical;
     min-height: 100px;
 }
-
 .calculated-value {
     background: #F0FDF4;
     padding: 16px;
@@ -246,13 +245,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     color: #065F46;
     font-size: 20px;
 }
-
 .form-actions {
     display: flex;
     gap: 12px;
     margin-top: 32px;
 }
-
 .btn {
     padding: 14px 32px;
     border-radius: 8px;
@@ -264,48 +261,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     display: inline-block;
     border: none;
 }
-
 .btn-primary {
     background: linear-gradient(135deg, #10B981 0%, #059669 100%);
     color: white;
 }
-
 .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
-
 .btn-secondary {
     background: #F3F4F6;
     color: #374151;
     border: 2px solid #E5E7EB;
 }
-
 .btn-secondary:hover {
     background: #E5E7EB;
 }
-
-.btn-danger {
-    background: #EF4444;
-    color: white;
-}
-
-.btn-danger:hover {
-    background: #DC2626;
-}
-
 .form-help {
     font-size: 12px;
     color: #6B7280;
     margin-top: 6px;
 }
-
 @media (max-width: 768px) {
     .form-grid {
         grid-template-columns: 1fr;
     }
 }
 </style>
+
 <a href="contracts_list.php" style="display: inline-flex; align-items: center; gap: 8px; color: #10B981; text-decoration: none; font-weight: 600; margin-bottom: 16px;">
     ← Back to Contracts
 </a>
@@ -314,47 +297,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <p>Update SDI service agreement details</p>
 </div>
 
-<?php
-// --- Tank Assignment Summary Block ---
-$tankEquipment = [];
-$numTanks = 0;
-$tankSizes = [];
-if (!empty($contract['equipment_ids'])) {
-    $ids = array_filter(array_map('trim', explode(',', $contract['equipment_ids'])));
-    if ($ids) {
-        $conn = get_mysql_connection();
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $sql = "SELECT equipment_id, tank_size FROM equipment WHERE equipment_id IN ($placeholders) AND tank_size IS NOT NULL AND tank_size != ''";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param(str_repeat('s', count($ids)), ...$ids);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        while ($row = $result->fetch_assoc()) {
-            $tankEquipment[] = $row;
-            $tankSizes[] = $row['tank_size'];
-        }
-        $numTanks = count($tankEquipment);
-        $stmt->close();
-        $conn->close();
-    }
-}
-?>
 <?php if (!empty($error)): ?>
     <div style="background: #FEE2E2; border: 2px solid #EF4444; color: #991B1B; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
         ⚠️ <?= $error ?>
     </div>
 <?php endif; ?>
 <div class="form-container">
-    <!-- Tank Assignment Summary -->
-    <div class="alert alert-info mb-3">
-        <strong>Tanks Assigned to Contract:</strong><br>
-        <?php if ($numTanks > 0): ?>
-            Number of Tanks: <b><?= $numTanks ?></b><br>
-            Sizes: <b><?= htmlspecialchars(implode(', ', $tankSizes)) ?></b>
-        <?php else: ?>
-            <span style="color:#888;">No tanks assigned to this contract.</span>
-        <?php endif; ?>
-    </div>
     <form method="POST" id="contractForm">
         <?php renderCSRFInput(); ?>
         <!-- Contact & Customer Information -->
@@ -362,44 +310,60 @@ if (!empty($contract['equipment_ids'])) {
             <div class="form-section-title">👤 Contact & Customer Information</div>
             <div class="form-grid">
                 <div class="form-group">
-                    <label for="contact_id">Contact *</label>
-                    <select name="contact_id" id="contact_id" required>
-                        <option value="">Select Contact</option>
-                        <?php foreach ($contacts as $contact): ?>
-                            <?php $contactValue = $contact['contact_id'] ?? $contact['id'] ?? ''; ?>
-                            <option value="<?= htmlspecialchars($contactValue) ?>" <?= ((string)($contract['contact_id'] ?? '') === (string)$contactValue) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars(trim($contact['first_name'] . ' ' . $contact['last_name'])) ?>
-                                <?php if (!empty($contact['company'])): ?> - <?= htmlspecialchars($contact['company']) ?><?php endif; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label>Customer *</label>
+                    <div style="padding: 0.5em 0; font-weight: bold;">
+                        <?php
+                        $customerObj = null;
+                        foreach ($customers as $c) {
+                            if ($c['customer_id'] == $contract['customer_id']) {
+                                $customerObj = $c;
+                                break;
+                            }
+                        }
+                        echo htmlspecialchars($customerObj['company'] ?? $contract['customer_id']);
+                        if (!empty($customerObj['address'])) {
+                            echo ' - ' . htmlspecialchars($customerObj['address']);
+                        }
+                        ?>
+                    </div>
+                    <input type="hidden" name="customer_id" value="<?= htmlspecialchars($contract['customer_id']) ?>">
                 </div>
                 <div class="form-group">
-                    <label for="customer_id">Customer ID (Optional)</label>
-                    <input type="text" name="customer_id" id="customer_id" value="<?= htmlspecialchars($contract['customer_id'] ?? '') ?>">
-                    <div class="form-help">Leave blank if contact is the customer</div>
+                    <label>Customer Contact *</label>
+                    <div style="padding: 0.5em 0; font-weight: bold;">
+                        <?php
+                        $contactObj = null;
+                        foreach ($contacts as $c) {
+                            if ($c['contact_id'] == $contract['contact_id']) {
+                                $contactObj = $c;
+                                break;
+                            }
+                        }
+                        if ($contactObj) {
+                            echo htmlspecialchars(trim(($contactObj['first_name'] ?? '') . ' ' . ($contactObj['last_name'] ?? '')));
+                            if (!empty($contactObj['company'])) {
+                                echo ' - ' . htmlspecialchars($contactObj['company']);
+                            }
+                        } else {
+                            echo htmlspecialchars($contract['contact_id']);
+                        }
+                        ?>
+                    </div>
+                    <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contract['contact_id']) ?>">
                 </div>
+            </div>
+        </div>
+        <!-- Annual Value Card (moved above contract details) -->
+        <div style="max-width:340px;margin:0 auto 24px auto;">
+            <div class="calculated-value" id="annual_value_display" style="background:#F0FDF4;padding:16px;border-radius:8px;border:2px solid #10B981;font-weight:700;color:#065F46;font-size:20px;text-align:center;">
+                Annual Value<br>
+                <span style="font-size:28px;">$<?= number_format((float)($contract['annual_value'] ?? 0), 2) ?></span>
             </div>
         </div>
         <!-- Contract Details -->
         <div class="form-section">
             <div class="form-section-title">📄 Contract Details</div>
             <div class="form-grid">
-                <div class="form-group">
-                    <label for="tank_quantity">Tank Quantity</label>
-                    <input type="number" name="tank_quantity" id="tank_quantity" min="0" value="<?= htmlspecialchars($contract['tank_quantity'] ?? '') ?>">
-                </div>
-                <div class="form-group">
-                    <label for="tank_size">Tank Size</label>
-                    <select name="tank_size" id="tank_size" class="form-select">
-                        <option value="">Select Size</option>
-                        <option value="1" <?= ($contract['tank_size'] ?? '') == '1' ? 'selected' : '' ?>>1 cuft</option>
-                        <option value="2" <?= ($contract['tank_size'] ?? '') == '2' ? 'selected' : '' ?>>2 cuft</option>
-                        <option value="3.5" <?= ($contract['tank_size'] ?? '') == '3.5' ? 'selected' : '' ?>>3.5 cuft</option>
-                        <option value="5" <?= ($contract['tank_size'] ?? '') == '5' ? 'selected' : '' ?>>5 cuft</option>
-                        <option value="Other" <?= ($contract['tank_size'] ?? '') == 'Other' ? 'selected' : '' ?>>Other</option>
-                    </select>
-                </div>
                 <div class="form-group">
                     <label for="contract_type">Contract Type *</label>
                     <select name="contract_type" id="contract_type" required>
@@ -410,11 +374,13 @@ if (!empty($contract['equipment_ids'])) {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="tank_ownership">Tank Ownership *</label>
-                    <select name="tank_ownership" id="tank_ownership" required>
-                        <option value="">Select</option>
-                        <option value="Owned" <?= ($contract['tank_ownership'] == 'Owned') ? 'selected' : '' ?>>Owned</option>
-                        <option value="Rented" <?= ($contract['tank_ownership'] == 'Rented') ? 'selected' : '' ?>>Rented</option>
+                    <label for="contract_status">Contract Status *</label>
+                    <select name="contract_status" id="contract_status" required>
+                        <option value="Draft" <?= ($contract['contract_status'] == 'Draft') ? 'selected' : '' ?>>Draft</option>
+                        <option value="Active" <?= ($contract['contract_status'] == 'Active') ? 'selected' : '' ?>>Active</option>
+                        <option value="Expiring" <?= ($contract['contract_status'] == 'Expiring') ? 'selected' : '' ?>>Expiring</option>
+                        <option value="Expired" <?= ($contract['contract_status'] == 'Expired') ? 'selected' : '' ?>>Expired</option>
+                        <option value="Cancelled" <?= ($contract['contract_status'] == 'Cancelled') ? 'selected' : '' ?>>Cancelled</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -430,22 +396,44 @@ if (!empty($contract['equipment_ids'])) {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="monthly_fee">Monthly Rental Fee ($ / month)</label>
+                    <label for="tank_ownership">Tank Ownership *</label>
+                    <select name="tank_ownership" id="tank_ownership" required>
+                        <option value="Owned" <?= ($contract['tank_ownership'] == 'Owned') ? 'selected' : '' ?>>Owned</option>
+                        <option value="Rented" <?= ($contract['tank_ownership'] == 'Rented') ? 'selected' : '' ?>>Rented</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tank_quantity">Tank Quantity *</label>
+                    <input type="number" name="tank_quantity" id="tank_quantity" min="0" required value="<?= htmlspecialchars($contract['tank_quantity'] ?? '') ?>">
+                </div>
+                <div class="form-group">
+                    <label for="tank_size">Tank Size (cu ft) *</label>
+                    <input type="number" name="tank_size" id="tank_size" min="0" step="0.01" required value="<?= htmlspecialchars($contract['tank_size'] ?? '') ?>">
+                </div>
+                <div class="form-group">
+                    <label for="regen_fee">Regeneration Fee ($)</label>
+                    <input type="number" name="regen_fee" id="regen_fee" min="0" step="0.01" value="<?= htmlspecialchars($contract['regen_fee'] ?? '') ?>">
+                </div>
+                <div class="form-group">
+                    <label for="monthly_fee">Monthly Fee ($) *</label>
                     <input type="number" name="monthly_fee" id="monthly_fee" step="0.01" min="0" required value="<?= htmlspecialchars($contract['monthly_fee'] ?? '') ?>" onchange="calculateAnnualValue()">
                 </div>
-                <div class="form-group">
-                    <label for="regen_fee">Regeneration Fee ($ / service)</label>
-                    <input type="number" name="regen_fee" id="regen_fee" step="0.01" min="0" value="<?= htmlspecialchars($contract['regen_fee'] ?? '') ?>">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div class="form-group">
+                        <label for="service_frequency">Service Frequency *</label>
+                        <select name="service_frequency" id="service_frequency" required>
+                            <option value="Weekly" <?= ($contract['service_frequency'] == 'Weekly') ? 'selected' : '' ?>>Weekly</option>
+                            <option value="Bi-weekly" <?= ($contract['service_frequency'] == 'Bi-weekly') ? 'selected' : '' ?>>Bi-weekly</option>
+                            <option value="Monthly" <?= ($contract['service_frequency'] == 'Monthly') ? 'selected' : '' ?>>Monthly</option>
+                            <option value="Quarterly" <?= ($contract['service_frequency'] == 'Quarterly') ? 'selected' : '' ?>>Quarterly</option>
+                            <option value="Semi-Annual" <?= ($contract['service_frequency'] == 'Semi-Annual') ? 'selected' : '' ?>>Semi-Annual</option>
+                            <option value="Annual" <?= ($contract['service_frequency'] == 'Annual') ? 'selected' : '' ?>>Annual</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="tank_sale_price">Delivery Fee ($ / drop-off)</label>
-                    <input type="number" name="tank_sale_price" id="tank_sale_price" step="0.01" min="0" value="<?= htmlspecialchars($contract['tank_sale_price'] ?? '') ?>">
-                </div>
-                <div class="form-group">
-                    <label for="annual_value">Annual Contract Value ($)</label>
-                    <div class="calculated-value" id="annual_value_display">$<?= number_format((float)($contract['annual_value'] ?? 0), 2) ?></div>
-                    <div class="form-help">Calculated automatically from monthly rental fee</div>
-                </div>
+            </div>
+        </div>
+
                 <div class="form-group">
                     <label for="payment_frequency">Payment Frequency *</label>
                     <select name="payment_frequency" id="payment_frequency" required>
@@ -454,117 +442,43 @@ if (!empty($contract['equipment_ids'])) {
                         <option value="Annual" <?= ($contract['payment_frequency'] == 'Annual') ? 'selected' : '' ?>>Annual</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="contract_status">Contract Status *</label>
-                    <select name="contract_status" id="contract_status" required>
-                        <option value="Active" <?= (($contract['contract_status'] ?? '') === 'Active') ? 'selected' : '' ?>>Active</option>
-                        <option value="Lost" <?= (($contract['contract_status'] ?? '') === 'Lost') ? 'selected' : '' ?>>Lost</option>
-                    </select>
-                </div>
             </div>
-        </div>
-        <!-- Dates & Terms -->
-        <div class="form-section">
-            <div class="form-section-title">📅 Dates & Terms</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="start_date">Contract Start Date *</label>
-                    <input type="date" name="start_date" id="start_date" required value="<?= htmlspecialchars($contract['start_date'] ?? '') ?>">
-                </div>
-                <div class="form-group">
-                    <label for="end_date">Contract End Date</label>
-                    <input type="date" name="end_date" id="end_date" value="<?= htmlspecialchars($contract['end_date'] ?? '') ?>" onchange="calculateDates()">
-                    <div class="form-help">Set a date if known</div>
-                </div>
-                <div class="form-group">
-                    <label for="notice_period">Cancellation Notice Period (Days) *</label>
-                    <select name="notice_period" id="notice_period" required onchange="calculateDates()">
-                        <option value="30" <?= ($contract['notice_period'] == 30) ? 'selected' : '' ?>>30 Days</option>
-                        <option value="60" <?= ($contract['notice_period'] == 60) ? 'selected' : '' ?>>60 Days</option>
-                        <option value="90" <?= ($contract['notice_period'] == 90) ? 'selected' : '' ?>>90 Days</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="renewal_date">Renewal Notification Date</label>
-                    <div class="calculated-value" id="renewal_date_display"><?= htmlspecialchars($contract['renewal_date'] ?? 'Not calculated') ?></div>
-                    <div class="form-help">End date minus notice period</div>
-                </div>
-                <div class="form-group">
-                    <label for="auto_renew">Auto-Renewal</label>
-                    <select name="auto_renew" id="auto_renew">
-                        <option value="Yes" <?= ($contract['auto_renew'] == 'Yes') ? 'selected' : '' ?>>Yes - Auto Renew</option>
-                        <option value="No" <?= ($contract['auto_renew'] == 'No') ? 'selected' : '' ?>>No - Manual Renewal</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <!-- Evoqua Details -->
-        <div class="form-section">
-            <div class="form-section-title">🏢 Evoqua Details</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="evoqua_account">Evoqua Account Number</label>
-                    <input type="text" name="evoqua_account" id="evoqua_account" value="<?= htmlspecialchars($contract['evoqua_account'] ?? '') ?>">
-                </div>
-                <div class="form-group">
-                    <label for="evoqua_contract">Evoqua Contract Number</label>
-                    <input type="text" name="evoqua_contract" id="evoqua_contract" value="<?= htmlspecialchars($contract['evoqua_contract'] ?? '') ?>">
-                </div>
-            </div>
-        </div>
-        <!-- Service Schedule -->
-        <div class="form-section">
-            <div class="form-section-title">🔧 Service Schedule</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="service_frequency">Service Frequency *</label>
-                    <select name="service_frequency" id="service_frequency" required>
-                        <option value="Weekly" <?= ($contract['service_frequency'] == 'Weekly') ? 'selected' : '' ?>>Weekly</option>
-                        <option value="Bi-weekly" <?= ($contract['service_frequency'] == 'Bi-weekly') ? 'selected' : '' ?>>Bi-weekly</option>
-                        <option value="Monthly" <?= ($contract['service_frequency'] == 'Monthly') ? 'selected' : '' ?>>Monthly</option>
-                        <option value="Quarterly" <?= ($contract['service_frequency'] == 'Quarterly') ? 'selected' : '' ?>>Quarterly</option>
-                        <option value="Semi-Annual" <?= ($contract['service_frequency'] == 'Semi-Annual') ? 'selected' : '' ?>>Semi-Annual</option>
-                        <option value="Annual" <?= ($contract['service_frequency'] == 'Annual') ? 'selected' : '' ?>>Annual</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="next_service_date">Next Service Date</label>
-                    <input type="date" name="next_service_date" id="next_service_date" value="<?= htmlspecialchars($contract['next_service_date'] ?? '') ?>">
-                </div>
-                <div class="form-group full-width">
-                    <label for="notes">Contract Notes</label>
-                    <textarea name="notes" id="notes" placeholder="Additional contract notes, special terms, etc."><?= htmlspecialchars($contract['notes'] ?? '') ?></textarea>
-                </div>
-            </div>
-        </div>
-        <!-- Actions -->
-        <div class="form-actions">
+
+        <!-- Form Actions -->
+        <div class="form-actions" style="display:flex;gap:12px;margin-top:32px;">
             <button type="submit" class="btn btn-primary">💾 Save Changes</button>
             <a href="contracts_list.php" class="btn btn-secondary">Cancel</a>
         </div>
-    </form>
 
-    <!-- Delete (separate form to avoid submitting edit fields) -->
-    <form method="POST" style="margin-top:12px;" onsubmit="return confirm('Permanently delete this contract? This cannot be undone.');">
-        <input type="hidden" name="delete_contract" value="1">
-        <button type="submit" class="btn btn-danger">🗑️ Delete Contract</button>
-    </form>
-</div>
-<script>
-function calculateAnnualValue() {
-    const monthlyFee = parseFloat(document.getElementById('monthly_fee').value) || 0;
-    const annualValue = monthlyFee * 12;
-    document.getElementById('annual_value_display').textContent = '$' + annualValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
+        <!-- Audit Info (read-only, now at bottom) -->
+        <div class="form-section" style="margin-top:32px;">
+            <div class="form-section-title">🕒 Audit Info</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Created</label>
+                    <div><?= htmlspecialchars($contract['created_date'] ?? '') ?> by <?= htmlspecialchars($contract['created_by'] ?? '') ?></div>
+                </div>
+                <div class="form-group">
+                    <label>Last Modified</label>
+                    <div><?= htmlspecialchars($contract['modified_date'] ?? '') ?> by <?= htmlspecialchars($contract['modified_by'] ?? '') ?></div>
+                </div>
+            </div>
+        </div>
+    <script>
+window.addEventListener('DOMContentLoaded', calculateAnnualValue);
+
 function calculateDates() {
-    const endDate = document.getElementById('end_date').value;
+    const startDate = document.getElementById('start_date').value;
+    const termMonths = parseInt(document.getElementById('contract_term').value);
     const noticeDays = parseInt(document.getElementById('notice_period').value);
-    if (!endDate) {
-        document.getElementById('renewal_date_display').textContent = 'Not calculated';
-        return;
-    }
+    if (!startDate || !termMonths) return;
+    // Calculate end date
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + termMonths);
+    const endDateStr = end.toISOString().split('T')[0];
+    document.getElementById('end_date_display').textContent = endDateStr;
     // Calculate renewal date
-    const end = new Date(endDate);
     const renewal = new Date(end);
     renewal.setDate(renewal.getDate() - noticeDays);
     const renewalDateStr = renewal.toISOString().split('T')[0];
@@ -575,5 +489,6 @@ document.addEventListener('DOMContentLoaded', function() {
     calculateAnnualValue();
     calculateDates();
 });
+</script>
 </script>
 <?php require_once 'layout_end.php'; ?>

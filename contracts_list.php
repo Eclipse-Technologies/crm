@@ -76,18 +76,6 @@ $contracts = fetch_table_mysql('contracts', $contractSchema);
 $contacts = fetch_table_mysql('contacts', $contactSchema);
 $customers = fetch_table_mysql('customers', $customerSchema);
 
-// Build lookup sets so contract rows can reliably show customer status.
-$customerIdSet = [];
-$customerContactIdSet = [];
-foreach ($customers as $cust) {
-    if (isset($cust['customer_id']) && $cust['customer_id'] !== null && $cust['customer_id'] !== '') {
-        $customerIdSet[(string)$cust['customer_id']] = true;
-    }
-    if (isset($cust['contact_id']) && $cust['contact_id'] !== null && $cust['contact_id'] !== '') {
-        $customerContactIdSet[(string)$cust['contact_id']] = true;
-    }
-}
-
 // Calculate contract metrics
 $totalActive = 0;
 $totalMRR = 0;
@@ -98,6 +86,35 @@ $thirtyDaysOut = strtotime('+30 days');
 $ninetyDaysOut = strtotime('+90 days');
 
 foreach ($contracts as &$contract) {
+        // Calculate annual value (prorated for first year if needed)
+        $monthly = (float)($contract['monthly_fee'] ?? 0);
+        $startDate = !empty($contract['start_date']) ? strtotime($contract['start_date']) : false;
+        $endDate = !empty($contract['end_date']) ? strtotime($contract['end_date']) : false;
+        $yearStart = strtotime(date('Y-01-01', $startDate ?: $today));
+        $yearEnd = strtotime(date('Y-12-31', $startDate ?: $today));
+        $daysInYear = 365 + (date('L', $yearStart) ? 1 : 0);
+        if ($startDate && $startDate > $yearStart && $startDate < $yearEnd) {
+            // Prorate for first year
+            $daysActive = $yearEnd - $startDate;
+            $daysActive = $daysActive > 0 ? $daysActive / 86400 : 0;
+            $contract['annual_value_calc'] = round($monthly * 12 * ($daysActive / $daysInYear), 2);
+            $contract['annual_value_note'] = 'Prorated';
+        } else {
+            $contract['annual_value_calc'] = round($monthly * 12, 2);
+            $contract['annual_value_note'] = '';
+        }
+
+        // Calculate regeneration total for the year
+        $regenFee = (float)($contract['regen_fee'] ?? 0);
+        $serviceFreq = strtolower(trim($contract['service_frequency'] ?? ''));
+        $regenCount = 0;
+        if ($serviceFreq === 'weekly') $regenCount = 52;
+        elseif ($serviceFreq === 'bi-weekly' || $serviceFreq === 'biweekly') $regenCount = 26;
+        elseif ($serviceFreq === 'monthly') $regenCount = 12;
+        elseif ($serviceFreq === 'quarterly') $regenCount = 4;
+        elseif (is_numeric($serviceFreq)) $regenCount = (int)$serviceFreq;
+        $contract['regen_total'] = round($regenFee * $regenCount, 2);
+        $contract['regen_count'] = $regenCount;
     // Calculate days until expiry
     if (!empty($contract['end_date'])) {
         $endDate = strtotime($contract['end_date']);
@@ -116,23 +133,12 @@ foreach ($contracts as &$contract) {
             $contract['expiry_status'] = 'normal';
         }
     }
-    // Normalize effective status and annual value for display + metrics.
-    $effectiveStatus = (string)($contract['contract_status'] ?? '');
-    if (($contract['expiry_status'] ?? '') === 'expired') {
-        $effectiveStatus = 'Expired';
-    }
-    $contract['effective_status'] = $effectiveStatus;
+    // Calculate metrics for active contracts
 
-    $annualValue = (float)($contract['annual_value'] ?? 0);
-    if ($annualValue <= 0) {
-        $annualValue = ((float)($contract['monthly_fee'] ?? 0)) * 12;
-    }
-    $contract['annual_value_calc'] = $annualValue;
-
-    if ($effectiveStatus === 'Active') {
+    if ($contract['contract_status'] === 'Active') {
         $totalActive++;
         $totalMRR += (float)($contract['monthly_fee'] ?? 0);
-        $totalARR += $annualValue;
+        $totalARR += (float)($contract['annual_value'] ?? 0);
     }
 }
 ?>
@@ -151,13 +157,12 @@ foreach ($contracts as &$contract) {
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
 .contracts-table { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 .contracts-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.contracts-table table { width: 100%; min-width: 1200px; border-collapse: collapse; }
+.contracts-table table { width: 100%; min-width: 900px; border-collapse: collapse; }
 .contracts-table th { background: #F9FAFB; padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #E5E7EB; }
 .contracts-table td { padding: 16px; border-bottom: 1px solid #F3F4F6; font-size: 14px; }
 .contracts-table tr:hover { background: #F9FAFB; }
 .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
 .status-active { background: #D1FAE5; color: #065F46; }
-.status-lost { background: #FEE2E2; color: #991B1B; }
 .status-expiring { background: #FEF3C7; color: #92400E; }
 .status-expired { background: #FEE2E2; color: #991B1B; }
 .status-cancelled { background: #E5E7EB; color: #374151; }
@@ -215,8 +220,9 @@ foreach ($contracts as &$contract) {
         <select id="statusFilter" onchange="filterContracts()">
             <option value="">All Status</option>
             <option value="Active">Active</option>
-            <option value="Lost">Lost</option>
+            <option value="Expiring">Expiring</option>
             <option value="Expired">Expired</option>
+            <option value="Cancelled">Cancelled</option>
         </select>
         <select id="typeFilter" onchange="filterContracts()">
             <option value="">All Types</option>
@@ -251,10 +257,9 @@ foreach ($contracts as &$contract) {
                     <th>Equipment Type</th>
                     <th>Tank Quantity</th>
                     <th>Tank Size</th>
-                    <th>Monthly Rental</th>
-                    <th>Regen Fee</th>
-                    <th>Delivery Fee</th>
-                    <th>Annual Value</th>
+                    <th>Monthly Fee</th>
+                                        <th>Annual Contract Value ($)</th>
+                                        <th>Regeneration Total</th>
                     <th>Status</th>
                     <th>Start Date</th>
                     <th>End Date</th>
@@ -263,8 +268,11 @@ foreach ($contracts as &$contract) {
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($contracts as $contract): ?>
-                    <?php
+                <?php
+                $renderedContracts = [];
+                foreach ($contracts as $contract):
+                    if (in_array($contract['contract_id'], $renderedContracts, true)) continue;
+                    $renderedContracts[] = $contract['contract_id'];
                     $contactInfo = [
                         'company' => '—',
                         'first_name' => '—',
@@ -272,25 +280,18 @@ foreach ($contracts as &$contract) {
                         'is_customer' => '—'
                     ];
                     foreach ($contacts as $c) {
-                        if ((isset($c['contact_id']) && (string)$c['contact_id'] === (string)$contract['contact_id']) || (isset($c['id']) && (string)$c['id'] === (string)$contract['contact_id'])) {
+                        if ((isset($c['contact_id']) && $c['contact_id'] === $contract['contact_id']) || (isset($c['id']) && $c['id'] === $contract['contact_id'])) {
                             $contactInfo['company'] = $c['company'] ?? '—';
                             $contactInfo['first_name'] = $c['first_name'] ?? '—';
                             $contactInfo['email'] = $c['email'] ?? '—';
-                            $isCustomer = isset($customerContactIdSet[(string)($contract['contact_id'] ?? '')])
-                                || isset($customerIdSet[(string)($contract['customer_id'] ?? '')]);
-                            if ($isCustomer) {
-                                $contactInfo['is_customer'] = 'Yes';
-                            } elseif (isset($c['is_customer'])) {
-                                $contactInfo['is_customer'] = $c['is_customer'] ? 'Yes' : 'No';
-                            }
+                            $contactInfo['is_customer'] = isset($c['is_customer']) ? ($c['is_customer'] ? 'Yes' : 'No') : '—';
                             break;
                         }
                     }
-                    $displayStatus = $contract['effective_status'] ?? $contract['contract_status'];
-                    $statusClass = 'status-' . strtolower(str_replace(' ', '-', $displayStatus));
+                    $statusClass = 'status-' . strtolower(str_replace(' ', '-', $contract['contract_status']));
                     $expiryClass = 'expiry-' . ($contract['expiry_status'] ?? 'normal');
-                    ?>
-                    <tr data-status="<?= htmlspecialchars($displayStatus) ?>" 
+                ?>
+                    <tr data-status="<?= htmlspecialchars($contract['contract_status']) ?>" 
                         data-type="<?= htmlspecialchars($contract['contract_type']) ?>">
                         <td><strong><?= htmlspecialchars($contract['contract_id']) ?></strong></td>
                         <td><?= htmlspecialchars($contactInfo['company']) ?></td>
@@ -300,13 +301,17 @@ foreach ($contracts as &$contract) {
                         <td><?= htmlspecialchars($contract['equipment_type']) ?></td>
                         <td><?= htmlspecialchars($contract['tank_quantity']) ?></td>
                         <td><?= htmlspecialchars($contract['tank_size']) ?></td>
-                        <td>$<?= number_format((float)($contract['monthly_fee'] ?? 0), 2) ?></td>
-                        <td>$<?= number_format((float)($contract['regen_fee'] ?? 0), 2) ?></td>
-                        <td>$<?= number_format((float)($contract['tank_sale_price'] ?? 0), 2) ?></td>
-                        <td><strong>$<?= number_format((float)($contract['annual_value_calc'] ?? 0), 2) ?></strong></td>
+                        <td><strong>$<?= number_format((float)$contract['monthly_fee'], 2) ?></strong></td>
+                        <td>
+                            $<?= number_format((float)($contract['annual_value'] ?? 0), 2) ?>
+                        </td>
+                        <td>
+                            $<?= number_format($contract['regen_total'], 2) ?>
+                            <span style="color:#888;font-size:11px;">(<?= $contract['regen_count'] ?>x)</span>
+                        </td>
                         <td>
                             <span class="status-badge <?= $statusClass ?>">
-                                <?= htmlspecialchars($displayStatus) ?>
+                                <?= htmlspecialchars($contract['contract_status']) ?>
                             </span>
                         </td>
                         <td><?= htmlspecialchars($contract['start_date']) ?></td>
@@ -326,7 +331,7 @@ foreach ($contracts as &$contract) {
                             <div class="action-btns">
                                 <a href="contract_view.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-view">View</a>
                                 <a href="contract_edit.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-edit">Edit</a>
-                                <?php if (($contract['effective_status'] ?? $contract['contract_status']) === 'Active' && isset($contract['days_to_expiry']) && $contract['days_to_expiry'] <= 90): ?>
+                                <?php if ($contract['contract_status'] === 'Active' && isset($contract['days_to_expiry']) && $contract['days_to_expiry'] <= 90): ?>
                                     <a href="contract_renew.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-renew">Renew</a>
                                 <?php endif; ?>
                             </div>

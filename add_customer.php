@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $db->close();
 
     if (empty($errors)) {
-      header('Location: customer_view.php?customer_id=' . urlencode($nextId));
+      header('Location: customer_view.php?id=' . urlencode($nextId));
       exit;
     }
   }

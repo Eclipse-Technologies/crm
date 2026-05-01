@@ -6,10 +6,85 @@ ensureCSRFSessionStarted();
 require_once __DIR__ . '/db_mysql.php';
 require_once __DIR__ . '/inventory_mysql.php';
 $inventory = fetch_inventory_mysql(require __DIR__ . '/inventory_schema.php');
+
+// Handle assigning number of tanks from pool
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'assign_tank_from_pool') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo "<div class='alert alert-danger'>CSRF token validation failed.</div>";
+    } else {
+        $numTanks = max(0, intval($_POST['pool_tank_count'] ?? 0));
+        $conn = get_mysql_connection();
+        // Find all available pool rental tanks (ownership = rental, customer_id IS NULL)
+        $stmt = $conn->prepare("SELECT equipment_id FROM equipment WHERE LOWER(ownership) IN ('rental', 'evoqua rental', 'lease', 'leased', 'evoqua lease') AND (customer_id IS NULL OR customer_id = '') ORDER BY equipment_id ASC");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $availablePoolTanks = [];
+        while ($row = $result->fetch_assoc()) {
+            $availablePoolTanks[] = $row['equipment_id'];
+        }
+        $stmt->close();
+
+        // Find all rental tanks currently assigned to this customer
+        $stmt = $conn->prepare("SELECT equipment_id FROM equipment WHERE LOWER(ownership) IN ('rental', 'evoqua rental', 'lease', 'leased', 'evoqua lease') AND customer_id = ? ORDER BY equipment_id ASC");
+        $stmt->bind_param('s', $customerId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $currentlyAssigned = [];
+        while ($row = $result->fetch_assoc()) {
+            $currentlyAssigned[] = $row['equipment_id'];
+        }
+        $stmt->close();
+
+        // Calculate how many to add or remove
+        $toAssign = $numTanks - count($currentlyAssigned);
+        if ($toAssign > 0) {
+            // Assign tanks from pool to this customer
+            $assignIds = array_slice($availablePoolTanks, 0, $toAssign);
+            foreach ($assignIds as $eqId) {
+                $stmt = $conn->prepare("UPDATE equipment SET customer_id = ? WHERE equipment_id = ?");
+                $stmt->bind_param('ss', $customerId, $eqId);
+                $stmt->execute();
+                $stmt->close();
+            }
+        } elseif ($toAssign < 0) {
+            // Unassign tanks from this customer (return to pool)
+            $removeIds = array_slice($currentlyAssigned, $toAssign); // negative offset
+            foreach ($removeIds as $eqId) {
+                $stmt = $conn->prepare("UPDATE equipment SET customer_id = NULL WHERE equipment_id = ?");
+                $stmt->bind_param('s', $eqId);
+                $stmt->execute();
+                $stmt->close();
+            }
+        }
+        $conn->close();
+        echo "<div class='alert alert-success'>Updated number of pool rental tanks assigned to customer.</div>";
+    }
+}
 $customerSchema = require __DIR__ . '/customer_schema.php';
 $equipmentSchema = require __DIR__ . '/equipment_schema.php';
 
 $contractSchema = require __DIR__ . '/contract_schema.php';
+
+// ── Fetch equipment for this customer ───────────────────────────────────────
+$customerOwnedEquipment = [];
+$serviceEquipment = [];
+if ($customerId !== '') {
+    $conn = get_mysql_connection();
+    $stmt = $conn->prepare("SELECT * FROM equipment WHERE customer_id = ?");
+    $stmt->bind_param('s', $customerId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $ownership = strtolower(trim($row['ownership'] ?? ''));
+        if ($ownership === 'customer owned' || $ownership === 'customer-owned') {
+            $customerOwnedEquipment[] = $row;
+        } elseif ($ownership === 'rental' || $ownership === 'lease' || $ownership === 'leased' || $ownership === 'evoqua rental' || $ownership === 'evoqua lease') {
+            $serviceEquipment[] = $row;
+        }
+    }
+    $stmt->close();
+    $conn->close();
+}
 
 // ── Layout start ─────────────────────────────────────────────────────────────
 include_once(__DIR__ . '/layout_start.php');
@@ -72,125 +147,119 @@ if ($customerId !== '') {
 
 
         <!-- Header -->
-        <div class="card mb-4 p-4 shadow-sm">
-            <h1 class="h4 mb-2">🏢 <?= htmlspecialchars($customer['address'] ?? 'Customer ' . $customerId) ?></h1>
-            <div class="mb-1"><strong>Customer ID:</strong> <?= htmlspecialchars($customerId) ?></div>
+        <h2>🏢 <?= htmlspecialchars($customer['address'] ?? 'Customer ' . $customerId) ?></h2>
+        <div style="margin-bottom:12px;">
+            <strong>Customer ID:</strong> <?= htmlspecialchars($customerId) ?><br>
             <?php if ($contact): ?>
-                <div><strong>Contact:</strong> <?= htmlspecialchars($contact['company'] ?? 'N/A') ?></div>
+                <strong>Contact:</strong> <?= htmlspecialchars($contact['company'] ?? 'N/A') ?><br>
             <?php endif; ?>
         </div>
 
     <!-- ── CUSTOMER INFO FORM (Editable inline) ────────────────────────────────── -->
 
-        <div class="card mb-4 p-4">
-            <div class="section-header h5 mb-3">📋 Customer Information</div>
-            <form method="post">
-                <?php renderCSRFInput(); ?>
-                <input type="hidden" name="action" value="update_customer">
-                <div class="row g-3">
+        <form method="post" style="margin-bottom:24px;">
+            <?php renderCSRFInput(); ?>
+            <input type="hidden" name="action" value="update_customer">
+            <fieldset style="margin-bottom:20px;">
+                <legend><strong>📋 Customer Information</strong></legend>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px;">
                     <?php foreach ($customerSchema as $field): ?>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="<?= $field ?>" class="form-label"><?= ucfirst(str_replace('_', ' ', $field)) ?></label>
-                                <?php if ($field === 'customer_id'): ?>
-                                    <input type="text" id="<?= $field ?>" class="form-control" value="<?= htmlspecialchars($customer[$field]) ?>" readonly>
-                                <?php elseif ($field === 'contact_id'): ?>
-                                    <select name="<?= $field ?>" id="<?= $field ?>" class="form-select">
-                                        <option value="">-- Select Contact --</option>
-                                        <?php
-                                        $conn = get_mysql_connection();
-                                        $result = $conn->query("SELECT contact_id, company FROM contacts ORDER BY company");
-                                        while ($row = $result ? $result->fetch_assoc() : null) {
-                                            $selected = ($row['contact_id'] == $customer['contact_id']) ? 'selected' : '';
-                                            echo "<option value='{$row['contact_id']}' $selected>{$row['company']}</option>";
-                                        }
-                                        if ($result) $result->free();
-                                        $conn->close();
-                                        ?>
-                                    </select>
-                                <?php else: ?>
-                                    <input type="text" name="<?= $field ?>" id="<?= $field ?>" class="form-control" value="<?= htmlspecialchars($customer[$field] ?? '') ?>">
-                                <?php endif; ?>
-                            </div>
+                        <div>
+                            <label><strong><?= ucfirst(str_replace('_', ' ', $field)) ?></strong></label><br>
+                            <?php if ($field === 'customer_id'): ?>
+                                <input type="text" value="<?= htmlspecialchars($customer[$field]) ?>" readonly style="background:#eee;">
+                            <?php elseif ($field === 'contact_id'): ?>
+                                <select name="<?= $field ?>">
+                                    <option value="">-- Select Contact --</option>
+                                    <?php
+                                    $conn = get_mysql_connection();
+                                    $result = $conn->query("SELECT contact_id, company FROM contacts ORDER BY company");
+                                    while ($row = $result ? $result->fetch_assoc() : null) {
+                                        $selected = ($row['contact_id'] == $customer['contact_id']) ? 'selected' : '';
+                                        echo "<option value='{$row['contact_id']}' $selected>{$row['company']}</option>";
+                                    }
+                                    if ($result) $result->free();
+                                    $conn->close();
+                                    ?>
+                                </select>
+                            <?php else: ?>
+                                <input type="text" name="<?= $field ?>" value="<?= htmlspecialchars($customer[$field] ?? '') ?>">
+                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>
-                <div class="mt-3">
-                    <button type="submit" class="btn btn-primary">💾 Save Customer Info</button>
-                </div>
-            </form>
-        </div>
+            </fieldset>
+            <button type="submit" class="btn-outline">💾 Save Customer Info</button>
+        </form>
 
     <!-- ── RENTED TANKS SUMMARY ───────────────────────────────────────────── -->
+
     <?php
-    require_once 'inventory_mysql.php';
-    $inventory = fetch_inventory_mysql(require __DIR__ . '/inventory_schema.php');
-    $rentedTankIds = array_filter(array_map('trim', explode(',', $customer['rented_tanks'] ?? '')));
-    $rentedTanks = array_filter($inventory, function($item) use ($rentedTankIds) {
-        return in_array($item['item_id'], $rentedTankIds);
-    });
-    $rentedCount = count($rentedTanks);
+    // New logic: rented tanks summary is based on serviceEquipment
+    $rentedCount = count($serviceEquipment);
     $rentedSizes = array_map(function($item) {
-        return $item['tank_size'] ?? ($item['item_name'] ?? '');
-    }, $rentedTanks);
+        return $item['tank_size'] ?? ($item['equipment_type'] ?? '');
+    }, $serviceEquipment);
     ?>
 
-        <div class="card mb-4 p-4">
-            <div class="section-header h5 mb-3">🛢️ Rented Tanks Summary</div>
+        <fieldset style="margin-bottom:20px;">
+            <legend><strong>🛢️ Rented Tanks Summary</strong></legend>
             <div>
                 <strong>Number of Rented Tanks:</strong> <?= $rentedCount ?><br>
                 <strong>Sizes:</strong> <?= $rentedCount > 0 ? htmlspecialchars(implode(', ', $rentedSizes)) : 'N/A' ?>
             </div>
-        </div>
+        </fieldset>
 
     <!-- ── TANK ASSIGNMENT (POOL ONLY, MODERN CSS) ───────────────────────────── -->
 
-        <div class="card mb-4 p-4">
-            <div class="section-header h5 mb-3">🛢️ Assign Tank from Pool</div>
-            <form method="post">
-                <?php renderCSRFInput(); ?>
-                <input type="hidden" name="action" value="assign_tank_from_pool">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="pool_tank" class="form-label">Select Tank from Pool</label>
-                        <select name="pool_tank" id="pool_tank" class="form-select">
-                            <option value="">-- Select Pool Tank --</option>
-                            <?php
-                            foreach ($inventory as $item) {
-                                $isPool = (strtolower($item['location'] ?? '') === 'pool');
-                                if ($isPool) {
-                                    echo "<option value='" . htmlspecialchars($item['item_id']) . "'>" . htmlspecialchars($item['item_name']) . " (" . htmlspecialchars($item['serial_number']) . ")</option>";
-                                }
-                            }
-                            ?>
-                        </select>
+
+        <form method="post" style="margin-bottom:24px;">
+            <?php renderCSRFInput(); ?>
+            <input type="hidden" name="action" value="assign_tank_from_pool">
+            <fieldset>
+                <legend><strong>🛢️ Assign Tank from Pool</strong></legend>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px;">
+                    <div>
+                        <label><strong>Number of Pool Tanks Assigned</strong></label><br>
+                        <?php
+                        // New logic: count rental tanks assigned to this customer and available in pool
+                        $currentAssigned = count($serviceEquipment);
+                        // Find available pool rental tanks (ownership = rental, customer_id IS NULL)
+                        $conn = get_mysql_connection();
+                        $stmt = $conn->prepare("SELECT COUNT(*) AS cnt FROM equipment WHERE LOWER(ownership) IN ('rental', 'evoqua rental', 'lease', 'leased', 'evoqua lease') AND (customer_id IS NULL OR customer_id = '')");
+                        $stmt->execute();
+                        $stmt->bind_result($maxPool);
+                        $stmt->fetch();
+                        $stmt->close();
+                        $conn->close();
+                        ?>
+                        <input type="number" name="pool_tank_count" min="0" max="<?= $maxPool ?>" value="<?= $currentAssigned ?>" style="width:100px;">
+                        <span style="color:#888; font-size:13px;">(of <?= $maxPool ?> available in pool)</span>
                     </div>
                 </div>
-                <div class="mt-3">
-                    <button type="submit" class="btn btn-primary">💾 Assign Tank</button>
-                </div>
-            </form>
-        </div>
+            </fieldset>
+            <button type="submit" class="btn-outline">💾 Update Pool Tank Count</button>
+        </form>
 
     <!-- ── CONTACT INFORMATION ────────────────────────────────────────────────── -->
 
-    <?php if ($contact): ?>
-      <div class="card mb-4 p-4">
-        <div class="section-header h5 mb-3">👤 Linked Contact</div>
-        <div class="row mb-2">
-          <div class="col-md-6 mb-2"><strong>Company:</strong> <?= htmlspecialchars($contact['company'] ?? 'N/A') ?></div>
-          <div class="col-md-6 mb-2"><strong>Contact Person:</strong> <?= htmlspecialchars($contact['name'] ?? 'N/A') ?></div>
-          <div class="col-md-6 mb-2"><strong>Phone:</strong> <?= htmlspecialchars($contact['phone'] ?? 'N/A') ?></div>
-          <div class="col-md-6 mb-2"><strong>Email:</strong> <a href="mailto:<?= htmlspecialchars($contact['email'] ?? '') ?>"><?= htmlspecialchars($contact['email'] ?? 'N/A') ?></a></div>
-          <div class="col-12"><strong>Address:</strong> <?= htmlspecialchars($contact['address'] ?? 'N/A') ?></div>
-        </div>
-      </div>
-    <?php endif; ?>
+        <?php if ($contact): ?>
+            <fieldset style="margin-bottom:20px;">
+                <legend><strong>👤 Linked Contact</strong></legend>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px;">
+                    <div><strong>Company:</strong> <?= htmlspecialchars($contact['company'] ?? 'N/A') ?></div>
+                    <div><strong>Contact Person:</strong> <?= htmlspecialchars($contact['name'] ?? 'N/A') ?></div>
+                    <div><strong>Phone:</strong> <?= htmlspecialchars($contact['phone'] ?? 'N/A') ?></div>
+                    <div><strong>Email:</strong> <a href="mailto:<?= htmlspecialchars($contact['email'] ?? '') ?>"><?= htmlspecialchars($contact['email'] ?? 'N/A') ?></a></div>
+                    <div style="grid-column:1/-1;"><strong>Address:</strong> <?= htmlspecialchars($contact['address'] ?? 'N/A') ?></div>
+                </div>
+            </fieldset>
+        <?php endif; ?>
 
     <!-- ── EQUIPMENT INVENTORY ────────────────────────────────────────────────── -->
 
-        <div class="card mb-4 p-4">
-            <div class="section-header h5 mb-3">🛢️ Customer-Owned Tanks (<?= count($customerOwnedEquipment ?? []) ?>)</div>
+        <fieldset style="margin-bottom:20px;">
+            <legend><strong>🛢️ Customer-Owned Tanks (<?= count($customerOwnedEquipment ?? []) ?>)</strong></legend>
             <div class="location-legend mb-2">
                 <span class="location-chip location-pool">pool</span>
                 <span class="location-chip location-production">production</span>
@@ -198,7 +267,7 @@ if ($customerId !== '') {
                 <span class="location-chip location-customer-site">customer site</span>
             </div>
             <?php if (!empty($customerOwnedEquipment)): ?>
-                <div class="table-responsive">
+                <div style="overflow-x:auto;">
                     <table class="table table-striped table-hover align-middle">
                         <thead class="table-light">
                             <tr>
@@ -266,13 +335,13 @@ if ($customerId !== '') {
             <?php else: ?>
                 <div class="no-data">No customer-owned tanks tracked yet.</div>
             <?php endif; ?>
-        </div>
+        </fieldset>
 
 
-        <div class="card mb-4 p-4">
-            <div class="section-header h5 mb-3">🔁 Service and Rental Tanks At This Site (<?= count($serviceEquipment ?? []) ?>)</div>
+        <fieldset style="margin-bottom:20px;">
+            <legend><strong>🔁 Service and Rental Tanks At This Site (<?= count($serviceEquipment ?? []) ?>)</strong></legend>
             <?php if (!empty($serviceEquipment)): ?>
-                <div class="table-responsive">
+                <div style="overflow-x:auto;">
                     <table class="table table-striped table-hover align-middle">
                         <thead class="table-light">
                             <tr>
@@ -348,102 +417,91 @@ if ($customerId !== '') {
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-3">
-                    <a href="add_customer.php?contact_id=<?= urlencode($customer['contact_id']) ?>" class="btn btn-primary">➕ Add Equipment</a>
+                <div style="margin-top:12px;">
+                    <a href="add_customer.php?contact_id=<?= urlencode($customer['contact_id']) ?>" class="btn-outline">➕ Add Equipment</a>
                 </div>
             <?php else: ?>
                 <div class="no-data">No service/rental tanks assigned at this site. <a href="add_customer.php?contact_id=<?= urlencode($customer['contact_id']) ?>">Add equipment</a></div>
             <?php endif; ?>
-        </div>
+        </fieldset>
 
     <!-- ── CONTRACTS & REVENUE ────────────────────────────────────────────────── -->
 
-        <div class="card mb-4 p-4">
-            <div class="section-header h5 mb-3">💰 Service Contracts & Revenue</div>
-            <?php if ($activeCount > 0): ?>
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <div class="card text-center mb-2">
-                            <div class="card-body">
-                                <div class="metric-label">Active Contracts</div>
-                                <div class="metric-value h4 mb-0"><?= $activeCount ?></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card text-center mb-2">
-                            <div class="card-body">
-                                <div class="metric-label">Monthly Recurring Revenue</div>
-                                <div class="metric-value h4 mb-0">$<?= number_format($totalMRR, 2) ?></div>
-                                <div class="metric-subtext small text-muted"><?= $activeCount ?> active contract<?= $activeCount !== 1 ? 's' : '' ?></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card text-center mb-2">
-                            <div class="card-body">
-                                <div class="metric-label">Annual Value</div>
-                                <div class="metric-value h4 mb-0">$<?= number_format($totalARR, 2) ?></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
-            <?php if (!empty($contracts)): ?>
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Contract ID</th>
-                                <th>Type</th>
-                                <th>Status</th>
-                                <th>Monthly Rental</th>
-                                <th>Regen Fee</th>
-                                <th>Delivery Fee</th>
-                                <th>Annual Value</th>
-                                <th>Start Date</th>
-                                <th>End Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($contracts as $c): ?>
-                                <tr>
-                                    <td><strong><?= htmlspecialchars($c['contract_id']) ?></strong></td>
-                                    <td><?= htmlspecialchars($c['contract_type'] ?? '') ?></td>
-                                    <td>
-                                        <span class="badge bg-info text-dark">
-                                            <?= htmlspecialchars($c['contract_status']) ?>
-                                        </span>
-                                    </td>
-                                    <td>$<?= number_format((float)($c['monthly_fee'] ?? 0), 2) ?></td>
-                                    <td>$<?= number_format((float)($c['regen_fee'] ?? 0), 2) ?></td>
-                                    <td>$<?= number_format((float)($c['tank_sale_price'] ?? 0), 2) ?></td>
-                                    <td><strong>$<?= number_format((float)($c['annual_value'] ?? 0), 2) ?></strong></td>
-                                    <td><?= !empty($c['start_date']) ? date('M d, Y', strtotime($c['start_date'])) : 'N/A' ?></td>
-                                    <td><?= !empty($c['end_date']) ? date('M d, Y', strtotime($c['end_date'])) : 'N/A' ?></td>
-                                    <td>
-                                        <a href="contract_view.php?id=<?= urlencode($c['contract_id']) ?>" class="btn btn-sm btn-outline-primary">View</a>
-                                        <a href="contract_edit.php?id=<?= urlencode($c['contract_id']) ?>" class="btn btn-sm btn-outline-secondary ms-1">Edit</a>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-3">
-                    <a href="contract_form.php?customer_id=<?= urlencode($customerId) ?>" class="btn btn-primary">➕ New Contract</a>
-                </div>
-            <?php else: ?>
-                <div class="no-data">No contracts found. <a href="contract_form.php?customer_id=<?= urlencode($customerId) ?>">Create a new contract</a></div>
-            <?php endif; ?>
+    <?php if ($activeCount > 0): ?>
+        <div style="max-width:340px;margin-bottom:16px;">
+            <div style="background:#f8f9fa;padding:16px;border-radius:8px;text-align:center;">
+                <div style="font-size:13px;color:#6B7280;font-weight:600;text-transform:uppercase;">Annual Value</div>
+                <div style="font-size:28px;font-weight:700;">$<?= number_format($totalARR, 2) ?></div>
+            </div>
         </div>
+    <?php endif; ?>
+
+    <fieldset style="margin-bottom:20px;">
+        <legend><strong>💰 Service Contracts & Revenue</strong></legend>
+        <?php if ($activeCount > 0): ?>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px;">
+                <div style="background:#f8f9fa;padding:16px;border-radius:8px;text-align:center;">
+                    <div style="font-size:13px;color:#6B7280;font-weight:600;text-transform:uppercase;">Active Contracts</div>
+                    <div style="font-size:28px;font-weight:700;"><?= $activeCount ?></div>
+                </div>
+                <div style="background:#f8f9fa;padding:16px;border-radius:8px;text-align:center;">
+                    <div style="font-size:13px;color:#6B7280;font-weight:600;text-transform:uppercase;">Monthly Recurring Revenue</div>
+                    <div style="font-size:28px;font-weight:700;">$<?= number_format($totalMRR, 2) ?></div>
+                    <div style="font-size:12px;color:#9CA3AF;"><?= $activeCount ?> active contract<?= $activeCount !== 1 ? 's' : '' ?></div>
+                </div>
+            </div>
+        <?php endif; ?>
+        <?php if (!empty($contracts)): ?>
+            <div style="overflow-x:auto;">
+                <table class="table table-striped table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Contract ID</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Monthly Rental</th>
+                            <th>Regen Fee</th>
+                            <th>Delivery Fee</th>
+                            <th>Annual Value</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($contracts as $c): ?>
+                            <tr>
+                                <td><strong><?= htmlspecialchars($c['contract_id']) ?></strong></td>
+                                <td><?= htmlspecialchars($c['contract_type'] ?? '') ?></td>
+                                <td>
+                                    <span class="badge bg-info text-dark">
+                                        <?= htmlspecialchars($c['contract_status']) ?>
+                                    </span>
+                                </td>
+                                <td>$<?= number_format((float)($c['monthly_fee'] ?? 0), 2) ?></td>
+                                <td>$<?= number_format((float)($c['regen_fee'] ?? 0), 2) ?></td>
+                                <td>$<?= number_format((float)($c['tank_sale_price'] ?? 0), 2) ?></td>
+                                <td><strong>$<?= number_format((float)($c['annual_value'] ?? 0), 2) ?></strong></td>
+                                <td>
+                                    <a href="contract_view.php?id=<?= urlencode($c['contract_id']) ?>" class="btn btn-sm btn-outline-primary">View</a>
+                                    <a href="contract_edit.php?id=<?= urlencode($c['contract_id']) ?>" class="btn btn-sm btn-outline-secondary ms-1">Edit</a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top:12px;">
+                <a href="contract_form.php?customer_id=<?= urlencode($customerId) ?>" class="btn-outline">➕ New Contract</a>
+            </div>
+        <?php else: ?>
+            <div class="no-data">No contracts found. <a href="contract_form.php?customer_id=<?= urlencode($customerId) ?>">Create a new contract</a></div>
+        <?php endif; ?>
+    </fieldset>
 
     <!-- Navigation -->
 
-        <div class="d-flex gap-2 justify-content-end mt-4">
-            <a href="customers_list.php" class="btn btn-outline-secondary">⬅ Back to Customers</a>
-            <a href="index.php" class="btn btn-outline-secondary">⬅ Back to Home</a>
+        <div style="margin-top:32px;display:flex;gap:12px;justify-content:flex-end;">
+            <a href="customers_list.php" class="btn-outline">⬅ Back to Customers</a>
+            <a href="index.php" class="btn-outline">⬅ Back to Home</a>
         </div>
 </div>
 
