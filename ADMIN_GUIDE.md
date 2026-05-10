@@ -442,7 +442,63 @@ All admin tools use a shared library of helper functions. While you don't need t
 
 ---
 
-## Additional Resources
+## Contracts (`contracts_list.php`)
+
+### Features:
+- View all service contracts with status, value, renewal dates, and equipment info
+- **Add New Contract** — `contract_form.php` — creates contract with auto-generated ID (`CNT-YYYYMMDD-XXXX`), deducts rental tank inventory, calculates end/renewal dates automatically
+- **Edit** — `contract_edit.php` — update all contract fields; empty decimal fields (Regen Fee, Tank Sale Price) are saved as NULL rather than causing a database error
+- **Delete** — red 🗑️ Delete button on each row — requires confirmation dialog, protected by CSRF token, handled by `delete_contract.php`
+- **Success/error banners** shown after save, update, or delete
+
+### Workflow Notes:
+- After saving a new contract you will be redirected to `contracts_list.php?success=1`
+- If "Not enough rental tanks available" appears, go to Equipment and confirm available rental inventory before retrying
+- Blank Regen Fee or Tank Sale Price fields are intentionally allowed — they save as NULL in the database
+
+---
+
+## Contacts List (`contacts_list.php`)
+
+### Customize Visible Columns:
+- Click **Customize Visible Columns** to choose which fields appear in the table
+- Click **Apply Changes** — preference is saved to both your browser session AND a 1-year cookie, so it persists after logging out, adding contacts, or refreshing
+- Column selection survives the add-contact flow (contact_form → add_contact → contact_success → back to contacts_list)
+
+### Column Persistence Troubleshooting:
+- If columns reset, clear your browser cookies for `localhost` and re-apply your preferences
+- The cookie is named `crm_display_fields`
+
+---
+
+## Security Notes
+
+### CSRF Protection:
+- All state-changing operations (insert, update, delete) are protected by CSRF tokens
+- This includes: contact updates, task deletes, opportunity deletes, contract creates/edits/deletes
+- A CSRF failure redirects to the referring page with `?error=csrf` and shows a banner
+
+### Data Files & Git:
+- CSV exports, debug logs, and error logs are excluded from version control via `.gitignore`
+- Patterns excluded: `*.csv`, `*.log`, `debug_log.txt`, `error_log.txt`, `combined_php.txt`
+- If a data file was accidentally committed, use `git rm --cached <filename>` to untrack it (file stays on disk)
+
+---
+
+## UX Standards
+
+### Sticky Horizontal Scrollbar (All Table Pages)
+All pages with wide tables display a scrollbar **fixed to the bottom edge of the browser window** — not the page bottom. This lets you scroll the table horizontally without first scrolling to the bottom of the page.
+
+- Implemented globally in `layout_end.php` — applies automatically to any page using `<div class="table-responsive">`
+- Appears only when the table is wider than the viewport and still visible on screen
+- Disappears once you scroll past the table
+- Stays in sync with the table scroll in both directions
+- Uses `requestAnimationFrame` for smooth performance
+
+**For new pages:** wrapping a table in `<div class="table-responsive">` is sufficient — no additional JS needed.
+
+
 
 - See [CRM_FIXES_SUMMARY.md](CRM_FIXES_SUMMARY.md) for security improvements
 - See [PHASES_STATUS.md](PHASES_STATUS.md) for implementation timeline

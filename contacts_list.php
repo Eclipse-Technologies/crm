@@ -583,48 +583,6 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
   </div>
 </div>
 
-<!-- Sticky bottom scrollbar -->
-<div id="sticky-scroll-bar" style="position:fixed;bottom:0;left:0;width:100%;overflow-x:auto;overflow-y:hidden;height:16px;z-index:1000;background:#f8f9fa;border-top:1px solid #dee2e6;display:none;">
-  <div id="sticky-scroll-inner" style="height:1px;"></div>
-</div>
-<script>
-(function() {
-  var outer = document.getElementById('table-scroll-outer');
-  var bar   = document.getElementById('sticky-scroll-bar');
-  var inner = document.getElementById('sticky-scroll-inner');
-  if (!outer || !bar || !inner) return;
-
-  function syncWidth() {
-    inner.style.width = outer.scrollWidth + 'px';
-  }
-  function isTableInView() {
-    var rect = outer.getBoundingClientRect();
-    // Show bar when table bottom is below viewport bottom OR table is taller than viewport
-    return rect.bottom > window.innerHeight && rect.top < window.innerHeight;
-  }
-  function updateBar() {
-    syncWidth();
-    bar.style.display = isTableInView() ? 'block' : 'none';
-    // Match the left offset and width of the outer container
-    var r = outer.getBoundingClientRect();
-    bar.style.left  = r.left + 'px';
-    bar.style.width = r.width + 'px';
-  }
-
-  // Keep scroll positions in sync
-  bar.addEventListener('scroll', function() {
-    outer.scrollLeft = bar.scrollLeft;
-  });
-  outer.addEventListener('scroll', function() {
-    bar.scrollLeft = outer.scrollLeft;
-  });
-
-  window.addEventListener('scroll', updateBar);
-  window.addEventListener('resize', updateBar);
-  updateBar();
-})();
-</script>
-
 <style>
 /* ========== PAGE HEADER ========== */
 .page-header {
