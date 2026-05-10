@@ -30,8 +30,12 @@ function fetch_table_mysql($table, $schema) {
 
 $opportunities = fetch_table_mysql('opportunities', $opportunitySchema);
 if (!is_array($opportunities)) $opportunities = [];
-$contacts = fetch_table_mysql('contacts', $contactSchema);
-if (!is_array($contacts)) $contacts = [];
+// Fetch only needed contact fields instead of full schema
+$conn_cl = get_mysql_connection();
+$cl_result = $conn_cl->query('SELECT contact_id, first_name, last_name, company FROM contacts');
+$contacts = $cl_result ? $cl_result->fetch_all(MYSQLI_ASSOC) : [];
+if ($cl_result) $cl_result->free();
+$conn_cl->close();
 
 // Build contact lookup map
 $contactMap = [];

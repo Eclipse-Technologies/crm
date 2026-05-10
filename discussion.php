@@ -17,6 +17,7 @@ $conn->close();
 ?>
 <div class="container mt-4">
   <h1 class="mb-4">Discussion Log</h1>
+  <p class="text-muted">Showing the 100 most recent entries. Visit a contact page to see full history per contact.</p>
   <table class="table table-striped table-hover">
     <thead>
       <tr>

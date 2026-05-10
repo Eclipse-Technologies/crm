@@ -78,8 +78,8 @@ function status_badge($status) {
           <td><?= htmlspecialchars($task['due_date']) ?></td>
           <td><?= htmlspecialchars($task['priority']) ?></td>
           <td><?= htmlspecialchars($task['assigned_to']) ?></td>
-          <td><?= $task['contact_id'] ? intval($task['contact_id']) : '' ?></td>
-          <td><?= $task['opportunity_id'] ? intval($task['opportunity_id']) : '' ?></td>
+          <td><?= $task['contact_id'] ? '<a href="contact_view.php?id=' . intval($task['contact_id']) . '">' . intval($task['contact_id']) . '</a>' : '' ?></td>
+          <td><?= $task['opportunity_id'] ? '<a href="edit_opportunity.php?opportunity_id=' . intval($task['opportunity_id']) . '">' . intval($task['opportunity_id']) . '</a>' : '' ?></td>
           <td><?= $task['project_id'] ? intval($task['project_id']) : '' ?></td>
           <td><?= htmlspecialchars($task['description'] ?? '') ?></td>
           <td><?= htmlspecialchars($task['comments'] ?? '') ?></td>

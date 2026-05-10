@@ -36,8 +36,8 @@ $currentPage = basename($_SERVER['SCRIPT_NAME']);
   <meta name="robots" content="index, follow">
   <meta property="og:title" content="<?= htmlspecialchars($pageTitle) ?>">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://yourdomain.com/<?= htmlspecialchars($currentPage) ?>">
-  <meta property="og:image" content="https://yourdomain.com/images/preview.png">
+  <meta property="og:url" content="https://<?= htmlspecialchars($_SERVER['HTTP_HOST'] ?? '') ?>/<?= htmlspecialchars($currentPage) ?>">
+  <meta property="og:image" content="https://<?= htmlspecialchars($_SERVER['HTTP_HOST'] ?? '') ?>/images/preview.png">
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
