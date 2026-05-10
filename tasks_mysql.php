@@ -3,16 +3,30 @@
 require_once 'db_mysql.php';
 
 function fetch_tasks_mysql($filters = []) {
+    $allowedFilterKeys = ['id', 'title', 'status', 'priority', 'assigned_to', 'due_date', 'timestamp', 'contact_id', 'opportunity_id', 'project_id', 'recurrence'];
     $conn = get_mysql_connection();
     $where = [];
+    $bindTypes = '';
+    $bindValues = [];
     foreach ($filters as $key => $value) {
-        $key = $conn->real_escape_string($key);
-        $value = $conn->real_escape_string($value);
-        $where[] = "`$key` = '" . $value . "'";
+        if (!in_array($key, $allowedFilterKeys, true)) {
+            continue;
+        }
+        $where[] = "`$key` = ?";
+        $bindTypes .= 's';
+        $bindValues[] = $value;
     }
     $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
     $sql = "SELECT * FROM tasks $whereSql ORDER BY due_date ASC, timestamp DESC";
-    $result = $conn->query($sql);
+    if ($bindValues) {
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param($bindTypes, ...$bindValues);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+    } else {
+        $result = $conn->query($sql);
+    }
     $tasks = [];
     if ($result) {
         while ($row = $result->fetch_assoc()) {

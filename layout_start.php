@@ -9,9 +9,6 @@ require_once __DIR__ . '/error_handler.php';
 require_once __DIR__ . '/sanitize_helper.php';
 require_once __DIR__ . '/audit_handler.php';
 
-// Initialize CSRF token for this session
-initializeCSRFToken();
-
 // Security headers
 header('Content-Type: text/html; charset=UTF-8');
 header('X-Content-Type-Options: nosniff');

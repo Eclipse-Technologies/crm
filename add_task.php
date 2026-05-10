@@ -1,8 +1,14 @@
 
 <?php
 require_once 'tasks_mysql.php';
+require_once __DIR__ . '/csrf_helper.php';
+require_once __DIR__ . '/simple_auth/middleware.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        header('Location: index.php?error=invalid_request');
+        exit;
+    }
     $title = trim($_POST['title']);
     $due_date = $_POST['due_date'];
     $status = $_POST['status'];
@@ -55,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <form method="POST" action="" style="max-width:700px;margin:32px auto 0 auto;display:flex;flex-wrap:wrap;gap:18px 24px;align-items:center;background:#fff;padding:32px 28px 24px 28px;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,0.07);">
+    <?php renderCSRFInput(); ?>
     <div style="flex:1 1 220px;min-width:220px;">
         <label style="font-weight:600;margin-bottom:4px;display:block;">Title
             <input type="text" name="title" required style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid #ccc;margin-top:4px;">

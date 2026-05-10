@@ -5,10 +5,6 @@ require_once __DIR__ . '/sanitize_helper.php';
  * Provides structured logging and user-friendly error messages
  */
 
-// Ensure session started for error logging
-if (session_status() === PHP_SESSION_NONE) {
-}
-
 define('ERROR_LOG_DIR', __DIR__ . '/logs');
 define('ERROR_LOG_FILE', ERROR_LOG_DIR . '/errors.log');
 define('ERROR_LOG_MAX_SIZE', 5242880); // 5MB

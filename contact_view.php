@@ -58,7 +58,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
     }
   }
 }
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id']) && !isset($_POST['add_discussion'])) {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo '<div class="alert alert-danger m-3">Security validation failed. Please refresh and try again.</div>';
+        exit;
+    }
     $contactId = trim((string) ($_POST['contact_id'] ?? ''));
     $fields = [
       'first_name', 'last_name', 'company', 'email', 'phone', 'address',

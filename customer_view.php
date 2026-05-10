@@ -7,14 +7,6 @@ require_once __DIR__ . '/db_mysql.php';
 $customerId = $_GET['id'] ?? '';
 
 // Handle discussion log form submission for linked contact
-$debugDiscussion = '';
-$lastDiscussionDebug = '';
-$_debugLogFile = __DIR__ . '/discussion_debug.log';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    file_put_contents($_debugLogFile, date('Y-m-d H:i:s') . " POST received. Keys: " . implode(', ', array_keys($_POST)) . "\n", FILE_APPEND);
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
     $contactIdRaw = $_POST['contact_id'] ?? '';
     $contactId = intval($contactIdRaw);
@@ -23,21 +15,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
     $linkedOppId = trim((string) ($_POST['linked_opportunity_id'] ?? ''));
     $visibility = 'private';
 
-    $dbgMsg = "[DEBUG] POST DATA: " . json_encode($_POST) . "\n";
-    $dbgMsg .= "[DEBUG] contact_id_raw=" . $contactIdRaw . " contact_id_int=" . $contactId . "\n";
-
-    $csrfOk = verifyCSRFToken($_POST['csrf_token'] ?? '');
-    $dbgMsg .= "[DEBUG] CSRF check: " . ($csrfOk ? "PASS" : "FAIL") . " | session_csrf=" . ($_SESSION['csrf_token'] ?? 'MISSING') . " | post_csrf=" . ($_POST['csrf_token'] ?? 'MISSING') . "\n";
-
-    if (!$csrfOk) {
-        $lastDiscussionDebug .= "<div style='background:red;color:white;padding:10px;'><b>CSRF FAILED</b> session_token=" . htmlspecialchars($_SESSION['csrf_token'] ?? 'MISSING') . " post_token=" . htmlspecialchars($_POST['csrf_token'] ?? 'MISSING') . "</div>";
-        $dbgMsg .= "[DEBUG] BLOCKED: CSRF failed\n";
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo "<div class='alert alert-danger'>Security validation failed. Please refresh and try again.</div>";
     } elseif (!$contactIdRaw || !is_numeric($contactIdRaw)) {
-        $lastDiscussionDebug .= "<div style='background:red;color:white;padding:10px;'><b>BLOCKED: Invalid contact_id</b> raw='" . htmlspecialchars($contactIdRaw) . "'</div>";
-        $dbgMsg .= "[DEBUG] BLOCKED: invalid contact_id\n";
+        echo "<div class='alert alert-danger'>Invalid contact ID.</div>";
     } elseif (!$author || !$entryText) {
-        $lastDiscussionDebug .= "<div style='background:red;color:white;padding:10px;'><b>BLOCKED: Missing fields</b> author='" . htmlspecialchars($author) . "' entry_text='" . htmlspecialchars(substr($entryText,0,30)) . "'</div>";
-        $dbgMsg .= "[DEBUG] BLOCKED: missing author or entry_text\n";
+        echo "<div class='alert alert-danger'>All required fields must be filled out.</div>";
     } else {
         $conn = get_mysql_connection();
         $sql = "INSERT INTO discussion_log (contact_id, author, entry_text, linked_opportunity_id, visibility, timestamp) VALUES (?, ?, ?, ?, ?, NOW())";
@@ -45,24 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
         if ($stmt) {
             $linkedOppIdNull = ($linkedOppId === '') ? null : $linkedOppId;
             $stmt->bind_param('issss', $contactId, $author, $entryText, $linkedOppIdNull, $visibility);
-            $execResult = $stmt->execute();
-            if (!$execResult) {
-                $dbgMsg .= "[DEBUG] SQL INSERT FAILED: " . $stmt->error . "\n";
-                $lastDiscussionDebug .= "<div style='background:red;color:white;padding:10px;'><b>SQL Error:</b> " . htmlspecialchars($stmt->error) . "</div>";
-            } else {
-                $lastId = $conn->insert_id;
-                $dbgMsg .= "[DEBUG] INSERT OK new id=" . $lastId . "\n";
-                $lastDiscussionDebug .= "<div style='background:green;color:white;padding:10px;'><b>INSERT OK</b> new id=" . intval($lastId) . "</div>";
-            }
+            $stmt->execute();
             $stmt->close();
-        } else {
-            $dbgMsg .= "[DEBUG] PREPARE FAILED: " . $conn->error . "\n";
-            $lastDiscussionDebug .= "<div style='background:red;color:white;padding:10px;'><b>Prepare Error:</b> " . htmlspecialchars($conn->error) . "</div>";
         }
         $conn->close();
     }
-    file_put_contents($_debugLogFile, $dbgMsg, FILE_APPEND);
-    $lastDiscussionDebug = "<div style='position:fixed;top:0;left:0;right:0;z-index:99999;background:#222;color:#fff;padding:12px;font-size:13px;font-family:monospace;max-height:40vh;overflow:auto;'><b>DISCUSSION LOG DEBUG</b><br>" . nl2br(htmlspecialchars($dbgMsg)) . $lastDiscussionDebug . "</div>";
 }
 require_once __DIR__ . '/inventory_mysql.php';
 $inventory = fetch_inventory_mysql(require __DIR__ . '/inventory_schema.php');
@@ -202,11 +172,6 @@ if ($customerId !== '') {
 }
 ?>
 <div class="main-content">
-    <div style="background:#e3e3e3;color:#222;padding:8px;margin:8px 0;">
-        <strong>[DEBUG BLOCK]</strong>
-        <?php if (!empty($lastDiscussionDebug)) echo $lastDiscussionDebug; else echo '<span style="color:#888;">(No lastDiscussionDebug output)</span>'; ?>
-        <?php if (!empty($debugDiscussion)) echo $debugDiscussion; else echo '<span style="color:#888;">(No debugDiscussion output)</span>'; ?>
-    </div>
     <div class="content-container">
         <div class="container">
 

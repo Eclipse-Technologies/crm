@@ -9,48 +9,10 @@ $topStage = '';
 $forecastByStage = [];
 include_once(__DIR__ . '/layout_start.php');
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CRM Dashboard: View pipeline, forecasts, and contact statistics.">
-  <title>CRM Dashboard</title>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-  </style>
-</head>
-<body>
-<header>
-  <!-- Navigation can be included here if layout_start.php provides it -->
-</header>
-<main>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CRM Dashboard: View contacts, opportunities, forecasts, and pipeline breakdown.">
-  <title>CRM Dashboard</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header>
-    <nav aria-label="Main navigation">
-      <ul class="nav-list">
-        <li><a href="contacts_list.php">View Contacts</a></li>
-        <li><a href="opportunities_list.php">View Opportunities</a></li>
-        <li><a href="contact_form.php">Add Contact</a></li>
-        <li><a href="add_opportunity.php">Add Opportunity</a></li>
-      </ul>
-    </nav>
-  </header>
-  <main>
-    <div class="page-header">
+<div class="page-header">
   <h1>Dashboard</h1>
   <div class="page-actions">
-        <section class="page-header">
-          <a href="contacts_list.php" class="btn btn-outline">View Contacts</a>
+    <a href="contacts_list.php" class="btn btn-outline">View Contacts</a>
     <a href="opportunities_list.php" class="btn btn-primary">View Opportunities</a>
   </div>
 </div>
@@ -241,7 +203,3 @@ include_once(__DIR__ . '/layout_start.php');
 </style>
 
 <?php include_once(__DIR__ . '/layout_end.php'); ?>
-<!-- Footer can be included here if layout_end.php provides it -->
-</main>
-</body>
-</html>

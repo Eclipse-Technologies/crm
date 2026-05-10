@@ -20,11 +20,13 @@ function get_mysql_connection() {
     }
     $conn = new mysqli($host, $user, $password);
     if ($conn->connect_error) {
-        die('Error: Could not connect to MySQL database. ' . $conn->connect_error);
+        error_log('MySQL connection failed: host=' . $host . ' db=' . $dbname . ' error=' . $conn->connect_error);
+        die('Database connection error. Please contact support.');
     }
     // Explicitly select the database
     if (!$conn->select_db($dbname)) {
-        die('Error: Could not select database ' . $dbname . '. ' . $conn->error);
+        error_log('MySQL database selection failed: db=' . $dbname . ' error=' . $conn->error);
+        die('Database connection error. Please contact support.');
     }
     return $conn;
 }

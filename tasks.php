@@ -36,6 +36,7 @@ function status_badge($status) {
   <h1 style="font-size:2.2em;font-weight:700;color:#222;">Tasks</h1>
   <div style="margin-bottom:24px;">
     <form method="POST" action="add_task.php" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <?php renderCSRFInput(); ?>
       <input type="text" name="title" placeholder="Task Title" required style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;">
       <input type="date" name="due_date" required style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;">
       <select name="status" required style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;">
@@ -90,7 +91,11 @@ function status_badge($status) {
           </td>
           <td>
             <a href="edit_task.php?id=<?= urlencode($task['id']) ?>" style="color:#007489;font-weight:600;">Edit</a> |
-            <a href="delete_task.php?id=<?= urlencode($task['id']) ?>" style="color:#c00;font-weight:600;" onclick="return confirm('Delete this task?');">Delete</a>
+            <form method="POST" action="delete_task.php" style="display:inline;" onsubmit="return confirm('Delete this task?');">
+              <?php renderCSRFInput(); ?>
+              <input type="hidden" name="id" value="<?= htmlspecialchars($task['id']) ?>">
+              <button type="submit" style="background:none;border:none;color:#c00;font-weight:600;cursor:pointer;padding:0;">Delete</button>
+            </form>
           </td>
         </tr>
       <?php endforeach; ?>
