@@ -1,9 +1,69 @@
-
 <?php
 // --- ALL SESSION/CSRF/DEPENDENCY LOGIC MUST BE AT THE VERY TOP, NO OUTPUT OR WHITESPACE BEFORE THIS BLOCK ---
 require_once __DIR__ . '/csrf_helper.php';
 ensureCSRFSessionStarted();
 require_once __DIR__ . '/db_mysql.php';
+
+$customerId = $_GET['id'] ?? '';
+
+// Handle discussion log form submission for linked contact
+$debugDiscussion = '';
+$lastDiscussionDebug = '';
+$_debugLogFile = __DIR__ . '/discussion_debug.log';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    file_put_contents($_debugLogFile, date('Y-m-d H:i:s') . " POST received. Keys: " . implode(', ', array_keys($_POST)) . "\n", FILE_APPEND);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
+    $contactIdRaw = $_POST['contact_id'] ?? '';
+    $contactId = intval($contactIdRaw);
+    $author = trim((string) ($_POST['author'] ?? ''));
+    $entryText = trim((string) ($_POST['entry_text'] ?? ''));
+    $linkedOppId = trim((string) ($_POST['linked_opportunity_id'] ?? ''));
+    $visibility = 'private';
+
+    $dbgMsg = "[DEBUG] POST DATA: " . json_encode($_POST) . "\n";
+    $dbgMsg .= "[DEBUG] contact_id_raw=" . $contactIdRaw . " contact_id_int=" . $contactId . "\n";
+
+    $csrfOk = verifyCSRFToken($_POST['csrf_token'] ?? '');
+    $dbgMsg .= "[DEBUG] CSRF check: " . ($csrfOk ? "PASS" : "FAIL") . " | session_csrf=" . ($_SESSION['csrf_token'] ?? 'MISSING') . " | post_csrf=" . ($_POST['csrf_token'] ?? 'MISSING') . "\n";
+
+    if (!$csrfOk) {
+        $lastDiscussionDebug .= "<div style='background:red;color:white;padding:10px;'><b>CSRF FAILED</b> session_token=" . htmlspecialchars($_SESSION['csrf_token'] ?? 'MISSING') . " post_token=" . htmlspecialchars($_POST['csrf_token'] ?? 'MISSING') . "</div>";
+        $dbgMsg .= "[DEBUG] BLOCKED: CSRF failed\n";
+    } elseif (!$contactIdRaw || !is_numeric($contactIdRaw)) {
+        $lastDiscussionDebug .= "<div style='background:red;color:white;padding:10px;'><b>BLOCKED: Invalid contact_id</b> raw='" . htmlspecialchars($contactIdRaw) . "'</div>";
+        $dbgMsg .= "[DEBUG] BLOCKED: invalid contact_id\n";
+    } elseif (!$author || !$entryText) {
+        $lastDiscussionDebug .= "<div style='background:red;color:white;padding:10px;'><b>BLOCKED: Missing fields</b> author='" . htmlspecialchars($author) . "' entry_text='" . htmlspecialchars(substr($entryText,0,30)) . "'</div>";
+        $dbgMsg .= "[DEBUG] BLOCKED: missing author or entry_text\n";
+    } else {
+        $conn = get_mysql_connection();
+        $sql = "INSERT INTO discussion_log (contact_id, author, entry_text, linked_opportunity_id, visibility, timestamp) VALUES (?, ?, ?, ?, ?, NOW())";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $linkedOppIdNull = ($linkedOppId === '') ? null : $linkedOppId;
+            $stmt->bind_param('issss', $contactId, $author, $entryText, $linkedOppIdNull, $visibility);
+            $execResult = $stmt->execute();
+            if (!$execResult) {
+                $dbgMsg .= "[DEBUG] SQL INSERT FAILED: " . $stmt->error . "\n";
+                $lastDiscussionDebug .= "<div style='background:red;color:white;padding:10px;'><b>SQL Error:</b> " . htmlspecialchars($stmt->error) . "</div>";
+            } else {
+                $lastId = $conn->insert_id;
+                $dbgMsg .= "[DEBUG] INSERT OK new id=" . $lastId . "\n";
+                $lastDiscussionDebug .= "<div style='background:green;color:white;padding:10px;'><b>INSERT OK</b> new id=" . intval($lastId) . "</div>";
+            }
+            $stmt->close();
+        } else {
+            $dbgMsg .= "[DEBUG] PREPARE FAILED: " . $conn->error . "\n";
+            $lastDiscussionDebug .= "<div style='background:red;color:white;padding:10px;'><b>Prepare Error:</b> " . htmlspecialchars($conn->error) . "</div>";
+        }
+        $conn->close();
+    }
+    file_put_contents($_debugLogFile, $dbgMsg, FILE_APPEND);
+    $lastDiscussionDebug = "<div style='position:fixed;top:0;left:0;right:0;z-index:99999;background:#222;color:#fff;padding:12px;font-size:13px;font-family:monospace;max-height:40vh;overflow:auto;'><b>DISCUSSION LOG DEBUG</b><br>" . nl2br(htmlspecialchars($dbgMsg)) . $lastDiscussionDebug . "</div>";
+}
 require_once __DIR__ . '/inventory_mysql.php';
 $inventory = fetch_inventory_mysql(require __DIR__ . '/inventory_schema.php');
 
@@ -142,6 +202,11 @@ if ($customerId !== '') {
 }
 ?>
 <div class="main-content">
+    <div style="background:#e3e3e3;color:#222;padding:8px;margin:8px 0;">
+        <strong>[DEBUG BLOCK]</strong>
+        <?php if (!empty($lastDiscussionDebug)) echo $lastDiscussionDebug; else echo '<span style="color:#888;">(No lastDiscussionDebug output)</span>'; ?>
+        <?php if (!empty($debugDiscussion)) echo $debugDiscussion; else echo '<span style="color:#888;">(No debugDiscussion output)</span>'; ?>
+    </div>
     <div class="content-container">
         <div class="container">
 
@@ -195,6 +260,8 @@ if ($customerId !== '') {
     <!-- ── RENTED TANKS SUMMARY ───────────────────────────────────────────── -->
 
     <?php
+    // DEBUG: Show current $contact['contact_id']
+    echo "<div style='background:#ffeeba;color:#856404;padding:8px;margin:8px 0;'>[DEBUG] contact['contact_id']: " . htmlspecialchars($contact['contact_id'] ?? 'NULL') . " (type: " . gettype($contact['contact_id'] ?? null) . ")</div>";
     // New logic: rented tanks summary is based on serviceEquipment
     $rentedCount = count($serviceEquipment);
     $rentedSizes = array_map(function($item) {
@@ -496,6 +563,153 @@ if ($customerId !== '') {
             <div class="no-data">No contracts found. <a href="contract_form.php?customer_id=<?= urlencode($customerId) ?>">Create a new contract</a></div>
         <?php endif; ?>
     </fieldset>
+
+
+    <!-- ── ADD COMMUNICATION / DISCUSSION LOG FORM ─────────────────────── -->
+    <?php
+    // The customer has one linked contact (customers.contact_id → contacts.contact_id).
+    // There is no customer_id column in contacts, so build the list from $contact.
+    $customerContacts = $contact ? [$contact] : [];
+    ?>
+    <div class="form-section" style="margin-bottom:32px;">
+        <h3>Add Communication / Discussion Log</h3>
+        <form method="post" action="">
+            <?php renderCSRFInput(); ?>
+            <div class="form-group">
+                <label for="contact_id">Contact</label>
+                <select id="contact_id" name="contact_id" class="form-control" required>
+                    <option value="">-- Select Contact --</option>
+                    <?php foreach ($customerContacts as $c): ?>
+                        <option value="<?= intval($c['contact_id']) ?>" selected>ID: <?= intval($c['contact_id']) ?> - <?= htmlspecialchars($c['company'] ?: ($c['first_name'] . ' ' . $c['last_name'])) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="entry_text">Notes / Communication</label>
+                <textarea id="entry_text" name="entry_text" class="form-control" rows="4" required placeholder="Enter details of your call, meeting, email, or note..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="linked_opportunity_id">Linked Opportunity (Optional)</label>
+                <select id="linked_opportunity_id" name="linked_opportunity_id" class="form-control">
+                    <option value="">-- None --</option>
+                    <?php
+                    // Fetch opportunities for this contact
+                    $opps = [];
+                    $conn = get_mysql_connection();
+                    $stmt = $conn->prepare("SELECT opportunity_id, name, stage FROM opportunities WHERE contact_id = ?");
+                    $stmt->bind_param('s', $contact['contact_id']);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    while ($row = $result ? $result->fetch_assoc() : null) {
+                        $opps[] = $row;
+                    }
+                    $stmt->close();
+                    $conn->close();
+                    foreach ($opps as $opp): ?>
+                        <option value="<?= htmlspecialchars($opp['opportunity_id']) ?>">
+                            <?= htmlspecialchars($opp['name'] ?? $opp['opportunity_id']) ?> (<?= htmlspecialchars($opp['stage'] ?? '') ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="author">Your Name</label>
+                <input type="text" id="author" name="author" class="form-control" value="<?= htmlspecialchars($_SESSION['username'] ?? '') ?>" required>
+            </div>
+            <div class="submit-actions">
+                <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
+            </div>
+        </form>
+        <div style="font-size:12px;color:#888;margin-top:8px;">
+            <strong>Tip:</strong> You can log communications before, during, or after an opportunity. Link to an opportunity if relevant, or leave blank for general notes.
+        </div>
+    </div>
+
+    <?php
+    // Fetch all discussions for all contacts under this customer
+    $discussions = [];
+    $discussionSchema = require __DIR__ . '/discussion_schema.php';
+    $selectDiscussionFields = array_values(array_unique(array_merge(['id'], (array) $discussionSchema)));
+    $fields = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $selectDiscussionFields));
+    if (!empty($customerContacts)) {
+        $contactIds = array_map(function($c) { return intval($c['contact_id']); }, $customerContacts);
+        $placeholders = implode(',', array_fill(0, count($contactIds), '?'));
+        $conn = get_mysql_connection();
+        $discussionQuery = "SELECT $fields FROM discussion_log WHERE contact_id IN ($placeholders) ORDER BY timestamp DESC";
+        $stmtDisc = $conn->prepare($discussionQuery);
+        if ($stmtDisc) {
+            $types = str_repeat('i', count($contactIds));
+            $stmtDisc->bind_param($types, ...$contactIds);
+            $stmtDisc->execute();
+            $result = $stmtDisc->get_result();
+        } else {
+            $result = null;
+        }
+        if ($result) {
+            $seen = [];
+            while ($row = $result->fetch_assoc()) {
+                $uniqueKey = $row['id'] ?? md5(json_encode($row));
+                if (!isset($seen[$uniqueKey])) {
+                    $discussions[] = $row;
+                    $seen[$uniqueKey] = true;
+                }
+            }
+            $result->free();
+        }
+        if (isset($stmtDisc) && $stmtDisc) {
+            $stmtDisc->close();
+        }
+        $conn->close();
+    }
+
+    // Note: $discussions now populated for all contacts under this customer.
+    ?>
+    <div class="accordion" style="margin-bottom:32px;">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <div class="accordion-title">
+                    <span>💬</span>
+                    <span>Discussions (<?= is_array($discussions) ? count($discussions) : 0 ?>)</span>
+                </div>
+                <div class="accordion-icon">▶</div>
+            </div>
+            <div class="accordion-content">
+                <div class="accordion-body">
+                    <div class="section-title">📒 Activity & History</div>
+                    <?php if (!empty($discussions)): ?>
+                        <?php foreach ($discussions as $disc): ?>
+                            <div class="timeline-item" style="padding: 15px; margin-bottom: 12px; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #3B82F6;">
+                                <div style="width: 100%;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+                                        <strong style="color: #1a1a1a; font-size: 14px;"><?= htmlspecialchars($disc['author'] ?? 'Unknown') ?></strong>
+                                        <span style="background: <?= ($disc['visibility'] ?? 'public') === 'public' ? '#e3f2fd' : (($disc['visibility'] ?? '') === 'internal' ? '#fff3cd' : '#f8d7da') ?>; color: <?= ($disc['visibility'] ?? 'public') === 'public' ? '#1976d2' : (($disc['visibility'] ?? '') === 'internal' ? '#856404' : '#721c24') ?>; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase;">
+                                            <?= htmlspecialchars($disc['visibility'] ?? 'public') ?>
+                                        </span>
+                                    </div>
+                                    <div style="color: #666; font-size: 11px; margin-bottom: 8px;">
+                                        📅 <?= htmlspecialchars($disc['timestamp'] ?? '—') ?>
+                                        <?php if (!empty($disc['manual_contact_id'])): ?>
+                                            <span style="margin-left:10px; color:#8B5CF6; font-weight:600; font-size:11px;">🔗 Linked by manual_contact_id: <?= htmlspecialchars($disc['manual_contact_id']) ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div style="color: #1a1a1a; font-size: 13px; line-height: 1.5; margin-bottom: 6px;">
+                                        <?= nl2br(htmlspecialchars($disc['entry_text'] ?? '')) ?>
+                                    </div>
+                                    <?php if (!empty($disc['linked_opportunity_id'])): ?>
+                                        <div style="margin-top: 8px; padding: 8px; background: white; border-left: 3px solid #10B981; border-radius: 3px; font-size: 11px; color: #666;">
+                                            <strong>📎 Linked to Opportunity: #<?= htmlspecialchars($disc['linked_opportunity_id']) ?></strong>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div style="padding: 20px; background: #f8f9fa; border-radius: 4px; color: #999; text-align: center; font-size: 13px;">
+                            No discussions logged yet for this contact.
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
 
     <!-- Navigation -->
 

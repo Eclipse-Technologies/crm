@@ -8,9 +8,11 @@ require_once 'csrf_helper.php';
 $pageTitle = 'Discussion Log';
 
 $conn = get_mysql_connection();
-$result = $conn->query('SELECT * FROM discussion_log ORDER BY timestamp DESC LIMIT 100');
+// Only show logs with valid integer contact_id and join to contacts for company name
+$sql = "SELECT d.*, c.company FROM discussion_log d LEFT JOIN contacts c ON d.contact_id = c.contact_id WHERE d.contact_id REGEXP '^[0-9]+$' ORDER BY d.timestamp DESC LIMIT 100";
+$result = $conn->query($sql);
 $discussions = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
-$result && $result->free();
+if ($result) $result->free();
 $conn->close();
 ?>
 <div class="container mt-4">
@@ -23,7 +25,6 @@ $conn->close();
         <th>Company</th>
         <th>Entry</th>
         <th>Visibility</th>
-        <th>Manual Contact ID</th>
       </tr>
     </thead>
     <tbody>
@@ -34,14 +35,6 @@ $conn->close();
           <td><?= htmlspecialchars($row['company']) ?></td>
           <td><?= nl2br(htmlspecialchars($row['entry_text'])) ?></td>
           <td><?= htmlspecialchars($row['visibility']) ?></td>
-          <td>
-            <form method="POST" action="update_discussion_contact.php" class="d-flex align-items-center gap-2 mb-0">
-              <?php renderCSRFInput(); ?>
-              <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
-              <input type="text" name="manual_contact_id" value="<?= htmlspecialchars($row['manual_contact_id'] ?? '') ?>" class="form-control form-control-sm" style="max-width:120px;">
-              <button type="submit" class="btn btn-sm btn-primary">Save</button>
-            </form>
-          </td>
         </tr>
       <?php endforeach; ?>
       <?php if (empty($discussions)): ?>

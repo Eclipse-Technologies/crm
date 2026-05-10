@@ -1,7 +1,3 @@
-<?php if (isset($contactOpportunities)) {
-  echo '<pre style="background:#fffbe6;color:#b45309;border:1px solid #fde68a;padding:8px;">$contactOpportunities = ' . htmlspecialchars(var_export($contactOpportunities, true)) . '</pre>';
-} ?>
-
 <?php
 // Security headers
 header('Content-Type: text/html; charset=utf-8');
@@ -47,13 +43,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
       $stmt = $conn->prepare($sql);
       if ($stmt) {
         $linkedOppIdNull = ($linkedOppId === '') ? null : $linkedOppId;
-        $stmt->bind_param('sssss', $contactId, $author, $entryText, $linkedOppIdNull, $visibility);
+        $contactIdInt = intval($contactId);
+        $stmt->bind_param('issss', $contactIdInt, $author, $entryText, $linkedOppIdNull, $visibility);
         $stmt->execute();
         $stmt->close();
         $conn->close();
         // Redirect to avoid resubmission
-        header('Location: contact_view.php?id=' . urlencode($contactId) . '&log_added=1');
-        exit;
+        redirect_safely('contact_view.php?id=' . urlencode($contactId) . '&log_added=1');
       } else {
         echo '<div class="alert alert-danger m-3">Failed to save discussion log. Please try again.</div>';
       }
@@ -72,31 +68,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id'])) {
     $params = [];
     $types = '';
 
-    // Fetch current contact data for fallback
-    $currentContact = null;
-    if ($contactId) {
-      $stmt = $conn->prepare('SELECT * FROM contacts WHERE contact_id = ? LIMIT 1');
-      if ($stmt) {
-        $stmt->bind_param('s', $contactId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $currentContact = $result ? $result->fetch_assoc() : null;
-        $stmt->close();
-      }
-    }
-
     foreach ($fields as $field) {
         if (!isset($_POST[$field])) {
             continue;
         }
+
         $value = $_POST[$field];
         if ($field === 'is_customer') {
             $value = !empty($_POST[$field]) ? '1' : '0';
         }
-        // Preserve previous address if left blank
-        if ($field === 'address' && trim($value) === '' && $currentContact && isset($currentContact['address'])) {
-            $value = $currentContact['address'];
-        }
+
         $updates[] = "`$field` = ?";
         $params[] = $value;
         $types .= 's';
@@ -566,6 +547,7 @@ function getContactOpportunities($contact, $opportunities) {
     <h3>Add Communication / Discussion Log</h3>
     <form method="post" action="">
       <?php renderCSRFInput(); ?>
+      <input type="hidden" name="add_discussion" value="1">
       <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
       <div class="form-group">
         <label for="entry_text">Notes / Communication</label>
@@ -587,7 +569,7 @@ function getContactOpportunities($contact, $opportunities) {
         <input type="text" id="author" name="author" class="form-control" value="<?= htmlspecialchars($_SESSION['username'] ?? '') ?>" required>
       </div>
       <div class="submit-actions">
-        <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
+        <button type="submit" class="btn-primary">Add Log Entry</button>
       </div>
     </form>
     <div style="font-size:12px;color:#888;margin-top:8px;">
