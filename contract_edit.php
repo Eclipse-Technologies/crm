@@ -89,6 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $fields[$field] = null;
             } elseif (in_array($field, ['start_date','end_date','renewal_date','last_service_date','next_service_date','created_date','modified_date']) && trim($_POST[$field]) === '') {
                 $fields[$field] = null;
+            } elseif (in_array($field, ['regen_fee','tank_sale_price','monthly_fee','annual_value']) && trim($_POST[$field]) === '') {
+                $fields[$field] = null;
             } else {
                 $fields[$field] = $_POST[$field];
             }
@@ -128,7 +130,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($fields as $k => $v) {
         if ($k === 'contract_id') continue;
         $set[] = "`$k` = ?";
-        if (is_int($v)) {
+        if (is_null($v)) {
+            $types .= 's';
+        } elseif (is_int($v)) {
             $types .= 'i';
         } elseif (is_float($v)) {
             $types .= 'd';
