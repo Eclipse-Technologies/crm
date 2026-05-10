@@ -12,9 +12,17 @@ $conn   = get_mysql_connection();
 $row    = $conn->query('SELECT MAX(customer_id) AS max_id FROM customers')->fetch_assoc();
 $nextId = str_pad((int)($row['max_id'] ?? 0) + 1, 5, '0', STR_PAD_LEFT);
 
-while ($conn->query("SELECT customer_id FROM customers WHERE customer_id = '{$conn->real_escape_string($nextId)}'")->num_rows > 0) {
-  $nextId = str_pad((int)$nextId + 1, 5, '0', STR_PAD_LEFT);
+$checkStmt = $conn->prepare('SELECT customer_id FROM customers WHERE customer_id = ? LIMIT 1');
+$checkStmt->bind_param('s', $nextId);
+$checkStmt->execute();
+$checkStmt->store_result();
+while ($checkStmt->num_rows > 0) {
+    $nextId = str_pad((int)$nextId + 1, 5, '0', STR_PAD_LEFT);
+    $checkStmt->bind_param('s', $nextId);
+    $checkStmt->execute();
+    $checkStmt->store_result();
 }
+$checkStmt->close();
 $conn->close();
 
 // ── Handle POST ──────────────────────────────────────────────────────────────

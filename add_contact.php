@@ -18,7 +18,8 @@ initializeCSRFToken();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         logWarning('CSRF token validation failed', ['email' => $_POST['email'] ?? '']);
-        die(json_encode(['error' => 'Security validation failed. Please try again.']));
+        header('Location: contact_form.php?error=csrf');
+        exit;
     }
 }
 

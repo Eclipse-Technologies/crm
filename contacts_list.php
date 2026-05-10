@@ -29,28 +29,31 @@ if (isset($_GET['export']) && $_GET['export'] === '1') {
   $fieldsToExport = $exportAllFields ? $schema : $displayFields;
   $fieldsToExport = flattenArray($fieldsToExport); // Always flatten before use
   $conn = get_mysql_connection();
-  // Build WHERE clause for export using new logic
-  $where = '';
+  // Build WHERE clause for export using prepared statements
+  $whereConditions = [];
+  $bindTypes = '';
+  $bindValues = [];
   if ($query !== '') {
     $words = preg_split('/\s+/', $query);
     if ($field && in_array($field, $schema)) {
-      $searchConditions = [];
       foreach ($words as $word) {
-        $searchConditions[] = "LOWER(`$field`) LIKE '%" . $conn->real_escape_string($word) . "%'";
+        $whereConditions[] = "LOWER(`$field`) LIKE ?";
+        $bindTypes .= 's';
+        $bindValues[] = '%' . $word . '%';
       }
-      $where = ' WHERE ' . implode(' AND ', $searchConditions);
     } else {
-      $wordConds = [];
       foreach ($words as $word) {
         $fieldConds = [];
         foreach ($schema as $f) {
-          $fieldConds[] = "LOWER(`$f`) LIKE '%" . $conn->real_escape_string($word) . "%'";
+          $fieldConds[] = "LOWER(`$f`) LIKE ?";
+          $bindTypes .= 's';
+          $bindValues[] = '%' . $word . '%';
         }
-        $wordConds[] = '(' . implode(' OR ', $fieldConds) . ')';
+        $whereConditions[] = '(' . implode(' OR ', $fieldConds) . ')';
       }
-      $where = ' WHERE ' . implode(' AND ', $wordConds);
     }
   }
+  $where = $whereConditions ? ' WHERE ' . implode(' AND ', $whereConditions) : '';
   $sortFields = explode(',', $_GET['sort'] ?? '');
   $sortDirection = strtolower($_GET['direction'] ?? 'asc') === 'desc' ? 'DESC' : 'ASC';
   $validSortFields = array_filter($sortFields, function($f) use ($schema) { return in_array($f, $schema); });
@@ -62,7 +65,15 @@ if (isset($_GET['export']) && $_GET['export'] === '1') {
   }
   $fields_sql = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $fieldsToExport));
   $sql = "SELECT $fields_sql FROM contacts$where$orderBy";
-  $result = $conn->query($sql);
+  if ($bindValues) {
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($bindTypes, ...$bindValues);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
+  } else {
+    $result = $conn->query($sql);
+  }
   if (!$result) {
     header('Content-Type: text/html');
     echo "<div class='alert alert-danger' style='margin:40px auto;max-width:600px;'>Error: Unable to export contacts. Please try again later.</div>";
@@ -171,31 +182,42 @@ $activeSort = array_flip($sortFields);
 
 
 
-// Build WHERE clause for both count and data queries
+// Build WHERE clause for both count and data queries using prepared statements
 $conn = get_mysql_connection();
-$where = '';
+$whereConditions = [];
+$bindTypes = '';
+$bindValues = [];
 if ($query !== '') {
   $words = preg_split('/\s+/', $query);
   if ($field && in_array($field, $schema)) {
-    $searchConditions = [];
     foreach ($words as $word) {
-      $searchConditions[] = "LOWER(`$field`) LIKE '%" . $conn->real_escape_string($word) . "%'";
+      $whereConditions[] = "LOWER(`$field`) LIKE ?";
+      $bindTypes .= 's';
+      $bindValues[] = '%' . $word . '%';
     }
-    $where = ' WHERE ' . implode(' AND ', $searchConditions);
   } else {
-    $wordConds = [];
     foreach ($words as $word) {
       $fieldConds = [];
       foreach ($schema as $f) {
-        $fieldConds[] = "LOWER(`$f`) LIKE '%" . $conn->real_escape_string($word) . "%'";
+        $fieldConds[] = "LOWER(`$f`) LIKE ?";
+        $bindTypes .= 's';
+        $bindValues[] = '%' . $word . '%';
       }
-      $wordConds[] = '(' . implode(' OR ', $fieldConds) . ')';
+      $whereConditions[] = '(' . implode(' OR ', $fieldConds) . ')';
     }
-    $where = ' WHERE ' . implode(' AND ', $wordConds);
   }
 }
+$where = $whereConditions ? ' WHERE ' . implode(' AND ', $whereConditions) : '';
 // Count query
-$count_result = $conn->query("SELECT COUNT(*) as cnt FROM contacts$where");
+if ($bindValues) {
+  $countStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM contacts$where");
+  $countStmt->bind_param($bindTypes, ...$bindValues);
+  $countStmt->execute();
+  $count_result = $countStmt->get_result();
+  $countStmt->close();
+} else {
+  $count_result = $conn->query("SELECT COUNT(*) as cnt FROM contacts$where");
+}
 $total_contacts = 0;
 if ($count_result) {
   $row = $count_result->fetch_assoc();
@@ -228,7 +250,15 @@ if (!empty($sortFields)) {
 }
 $sql = "SELECT $fields_sql FROM contacts$where$orderBy LIMIT $per_page OFFSET $offset";
 $contacts = [];
-$result = $conn->query($sql);
+if ($bindValues) {
+  $dataStmt = $conn->prepare($sql);
+  $dataStmt->bind_param($bindTypes, ...$bindValues);
+  $dataStmt->execute();
+  $result = $dataStmt->get_result();
+  $dataStmt->close();
+} else {
+  $result = $conn->query($sql);
+}
 if ($result) {
   while ($row = $result->fetch_assoc()) {
     $contacts[] = $row;

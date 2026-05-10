@@ -7,17 +7,31 @@ header('X-Content-Type-Options: nosniff');
 include_once(__DIR__ . '/layout_start.php');
 require_once 'db_mysql.php';
 
-// Load customers with company info from MySQL
+// Pagination
+$per_page = 25;
+$current_page = max(1, (int)($_GET['page'] ?? 1));
+$offset = ($current_page - 1) * $per_page;
+
 $conn = get_mysql_connection();
-$sql = "SELECT customers.*, contacts.company, contacts.first_name, contacts.email FROM customers LEFT JOIN contacts ON customers.contact_id = contacts.contact_id";
-$result = $conn->query($sql);
+
+// Count
+$count_result = $conn->query('SELECT COUNT(*) AS cnt FROM customers');
+$total_customers = (int)($count_result->fetch_assoc()['cnt'] ?? 0);
+$count_result->free();
+$total_pages = max(1, (int)ceil($total_customers / $per_page));
+$current_page = min($current_page, $total_pages);
+$offset = ($current_page - 1) * $per_page;
+
+// Load page of customers
+$stmt = $conn->prepare('SELECT customers.*, contacts.company, contacts.first_name, contacts.email FROM customers LEFT JOIN contacts ON customers.contact_id = contacts.contact_id ORDER BY customers.customer_id ASC LIMIT ? OFFSET ?');
+$stmt->bind_param('ii', $per_page, $offset);
+$stmt->execute();
+$result = $stmt->get_result();
 $customers = [];
-if ($result) {
-  while ($row = $result->fetch_assoc()) {
-    $customers[] = $row;
-  }
-  $result->free();
+while ($row = $result->fetch_assoc()) {
+  $customers[] = $row;
 }
+$stmt->close();
 $conn->close();
 ?>
 
@@ -87,8 +101,26 @@ $conn->close();
     </tbody>
   </table>
 
-  <div class="navigation">
+  <div class="navigation d-flex justify-content-between align-items-center mt-3">
     <a href="index.php" class="btn-outline">⬅ Back to Home</a>
+    <?php if ($total_pages > 1): ?>
+    <nav>
+      <ul class="pagination mb-0">
+        <?php if ($current_page > 1): ?>
+          <li class="page-item"><a class="page-link" href="?page=<?= $current_page - 1 ?>">‹ Prev</a></li>
+        <?php endif; ?>
+        <?php for ($p = max(1, $current_page - 2); $p <= min($total_pages, $current_page + 2); $p++): ?>
+          <li class="page-item <?= $p === $current_page ? 'active' : '' ?>">
+            <a class="page-link" href="?page=<?= $p ?>"><?= $p ?></a>
+          </li>
+        <?php endfor; ?>
+        <?php if ($current_page < $total_pages): ?>
+          <li class="page-item"><a class="page-link" href="?page=<?= $current_page + 1 ?>">Next ›</a></li>
+        <?php endif; ?>
+      </ul>
+    </nav>
+    <span class="text-muted">Showing <?= $offset + 1 ?>–<?= min($offset + $per_page, $total_customers) ?> of <?= $total_customers ?></span>
+    <?php endif; ?>
   </div>
 </div>
 

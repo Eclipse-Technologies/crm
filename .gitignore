@@ -3,9 +3,11 @@ backups/
 logs/
 debug_log.txt
 error_log.txt
+discussion_debug.log
 simple_auth/login_debug.log
 simple_auth/sessions/
 *.bak
+*.log
 GODADDY_DEPLOYMENT_CHECKLIST.md
 .env
 config.local.php
@@ -13,3 +15,5 @@ simple_auth/config.php
 node_modules/
 .DS_Store
 *.csv
+combined_php.txt
+test_write.txt

@@ -1,1 +1,0 @@
-po_number,date,status,supplier_id,supplier_name,supplier_contact,supplier_address,billing_address,shipping_address,item_id,item_name,quantity,unit,unit_price,discount,tax_rate,tax_amount,total,subtotal,total_discount,total_tax,shipping_cost,other_fees,grand_total,currency,expected_delivery,payment_terms,notes,created_by,created_at,updated_at

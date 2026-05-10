@@ -36,21 +36,36 @@ $field = $_GET['field'] ?? '';
 function fetch_contracts_search($schema, $query, $field, $per_page, $current_page) {
     $conn = get_mysql_connection();
     $fields = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $schema));
-    $where = '';
+    $whereConditions = [];
+    $bindTypes = '';
+    $bindValues = [];
     if ($query !== '') {
         if ($field && in_array($field, $schema)) {
-            $where = " WHERE LOWER(`$field`) LIKE '%" . $conn->real_escape_string($query) . "%'";
+            $whereConditions[] = "LOWER(`$field`) LIKE ?";
+            $bindTypes .= 's';
+            $bindValues[] = '%' . $query . '%';
         } else {
-            $searchConditions = [];
+            $fieldConds = [];
             foreach ($schema as $f) {
-                $searchConditions[] = "LOWER(`$f`) LIKE '%" . $conn->real_escape_string($query) . "%'";
+                $fieldConds[] = "LOWER(`$f`) LIKE ?";
+                $bindTypes .= 's';
+                $bindValues[] = '%' . $query . '%';
             }
-            $where = ' WHERE ' . implode(' OR ', $searchConditions);
+            $whereConditions[] = '(' . implode(' OR ', $fieldConds) . ')';
         }
     }
+    $where = $whereConditions ? ' WHERE ' . implode(' AND ', $whereConditions) : '';
     $offset = ($current_page - 1) * $per_page;
     $sql = "SELECT $fields FROM contracts$where LIMIT $per_page OFFSET $offset";
-    $result = $conn->query($sql);
+    if ($bindValues) {
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param($bindTypes, ...$bindValues);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+    } else {
+        $result = $conn->query($sql);
+    }
     $contracts = [];
     if ($result) {
         while ($row = $result->fetch_assoc()) {
@@ -60,7 +75,15 @@ function fetch_contracts_search($schema, $query, $field, $per_page, $current_pag
     }
     // Get total count for pagination
     $count_sql = "SELECT COUNT(*) as cnt FROM contracts$where";
-    $count_result = $conn->query($count_sql);
+    if ($bindValues) {
+        $cstmt = $conn->prepare($count_sql);
+        $cstmt->bind_param($bindTypes, ...$bindValues);
+        $cstmt->execute();
+        $count_result = $cstmt->get_result();
+        $cstmt->close();
+    } else {
+        $count_result = $conn->query($count_sql);
+    }
     $total_contracts = 0;
     if ($count_result) {
         $row = $count_result->fetch_assoc();

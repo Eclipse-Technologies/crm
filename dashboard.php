@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__ . '/db_mysql.php';
+require_once __DIR__ . '/forecast_calc.php';
+
 // Dashboard variable defaults
 $totalContacts = 0;
 $totalValue = 0;
@@ -7,6 +10,32 @@ $accuracy = 0;
 $stages = [];
 $topStage = '';
 $forecastByStage = [];
+
+// Load real data
+$conn = get_mysql_connection();
+
+$r = $conn->query('SELECT COUNT(*) AS cnt FROM contacts');
+if ($r) { $totalContacts = (int)($r->fetch_assoc()['cnt'] ?? 0); $r->free(); }
+
+$r = $conn->query("SELECT stage, COUNT(*) AS cnt, SUM(value) AS total FROM opportunities GROUP BY stage");
+if ($r) {
+    while ($row = $r->fetch_assoc()) {
+        $stages[$row['stage']] = ['count' => (int)$row['cnt'], 'value' => (float)$row['total']];
+        $totalValue += (float)$row['total'];
+    }
+    $r->free();
+}
+$conn->close();
+
+$forecasts = calculateForecasts();
+foreach ($forecasts['by_stage'] as $stage => $data) {
+    $forecastByStage[$stage] = $data;
+    $totalForecast += $data['total_forecast'];
+}
+arsort($stages);
+$topStage = array_key_first($forecastByStage) ?? '';
+$accuracy = ($totalValue > 0) ? round(($totalForecast / $totalValue) * 100, 1) : 0;
+
 include_once(__DIR__ . '/layout_start.php');
 ?>
 <div class="page-header">

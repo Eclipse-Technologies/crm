@@ -1,4 +1,0 @@
-customer_id,tank_number,tank_size,type_of_resin,delivery_date,regeneration_number,purchase_order
-00001,TNK-001,30L,Cation,2025-09-15,RG-001,PO-123
-00001,TNK-002,60L,Anion,2025-09-20,RG-002,PO-124
-00002,TNK-003,45L,Cation,2025-09-18,RG-003,PO-125

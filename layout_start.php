@@ -61,6 +61,7 @@ if (isset($_GET['error'])) {
         // 'access_denied' admin message removed
         'not_found' => 'The requested page was not found.',
         'invalid_request' => 'Invalid request received.',
+        'csrf' => 'Security validation failed. Please refresh the page and try again.',
     ];
     $errorType = $_GET['error'];
     if (isset($errorMessages[$errorType])) {
