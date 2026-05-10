@@ -1,5 +1,7 @@
 <?php
 require_once 'db_mysql.php';
+require_once 'csrf_helper.php';
+require_once 'simple_auth/middleware.php';
 // Count available rental tanks by size from equipment table
 $availableRentalTanks = [];
 $conn = get_mysql_connection();
@@ -15,8 +17,124 @@ if ($result) {
     $result->free();
 }
 $conn->close();
-?>
-<?php
+
+$insertError = null;
+
+// Handle form submission BEFORE any HTML output so redirect works
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        header('Location: contract_form.php?error=csrf');
+        exit;
+    }
+
+    // --- Tank Inventory Deduction Logic ---
+    $rentedTankSize = $_POST['rented_tank_size'] ?? '';
+    $numRentedTanks = isset($_POST['num_rented_tanks']) ? (int)$_POST['num_rented_tanks'] : 0;
+    if ($rentedTankSize && $rentedTankSize !== 'Other' && $numRentedTanks > 0) {
+        $conn = get_mysql_connection();
+        $stmt_tanks = $conn->prepare('SELECT equipment_id FROM equipment WHERE ownership = \'rental\' AND tank_size = ? LIMIT ' . intval($numRentedTanks));
+        $stmt_tanks->bind_param('s', $rentedTankSize);
+        $stmt_tanks->execute();
+        $tank_result = $stmt_tanks->get_result();
+        $assigned = [];
+        while ($row = $tank_result->fetch_assoc()) {
+            $assigned[] = $row['equipment_id'];
+        }
+        $stmt_tanks->close();
+        if (count($assigned) < $numRentedTanks) {
+            $conn->close();
+            $insertError = 'Not enough rental tanks available in equipment to fulfill this contract. No changes made.';
+        } else {
+            foreach ($assigned as $equipmentId) {
+                $update = $conn->prepare('UPDATE equipment SET status = \'Assigned\' WHERE equipment_id = ?');
+                $update->bind_param('s', $equipmentId);
+                $update->execute();
+                $update->close();
+            }
+        }
+    } else {
+        $conn = get_mysql_connection();
+    }
+
+    if (!$insertError) {
+        // Generate contract ID
+        $datePrefix = 'CNT-' . date('Ymd') . '-';
+        $result = $conn->query("SELECT contract_id FROM contracts WHERE contract_id LIKE '{$datePrefix}%' ORDER BY contract_id DESC LIMIT 1");
+        $nextNum = 1;
+        if ($result && $row = $result->fetch_assoc()) {
+            $lastId = $row['contract_id'];
+            $lastNum = (int)substr($lastId, strrpos($lastId, '-') + 1);
+            $nextNum = $lastNum + 1;
+        }
+        $contractId = $datePrefix . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+
+        $monthlyFee = (float)$_POST['monthly_fee'];
+        $contractTerm = (int)$_POST['contract_term'];
+        $annualValue = $monthlyFee * 12;
+        $startDate = $_POST['start_date'];
+        $endDate = date('Y-m-d', strtotime($startDate . ' + ' . $contractTerm . ' months'));
+        $noticePeriod = (int)$_POST['notice_period'];
+        $renewalDate = date('Y-m-d', strtotime($endDate . ' - ' . $noticePeriod . ' days'));
+
+        function valid_date_or_null($val) {
+            $val = trim($val ?? '');
+            return ($val === '' || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $val)) ? null : $val;
+        }
+        $fields = [
+            'contract_id' => $contractId,
+            'customer_id' => (isset($_POST['customer_id']) && is_numeric($_POST['customer_id']) && $_POST['customer_id'] !== '' ? (int)$_POST['customer_id'] : null),
+            'contact_id' => $_POST['contact_id'] ?? null,
+            'contract_type' => $_POST['contract_type'],
+            'contract_status' => 'Active',
+            'equipment_type' => $_POST['equipment_type'],
+            'monthly_fee' => $monthlyFee,
+            'regen_fee' => isset($_POST['regen_fee']) && $_POST['regen_fee'] !== '' ? (float)$_POST['regen_fee'] : null,
+            'tank_sale_price' => isset($_POST['tank_sale_price']) && $_POST['tank_sale_price'] !== '' ? (float)$_POST['tank_sale_price'] : null,
+            'annual_value' => $annualValue,
+            'payment_frequency' => $_POST['payment_frequency'],
+            'contract_term' => $contractTerm,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'renewal_date' => $renewalDate,
+            'auto_renew' => $_POST['auto_renew'] ?? 'No',
+            'notice_period' => $noticePeriod,
+            'evoqua_account' => $_POST['evoqua_account'] ?? '',
+            'evoqua_contract' => $_POST['evoqua_contract'] ?? '',
+            'equipment_ids' => implode(',', array_filter(array_map('trim', (array)($_POST['equipment_ids'] ?? [])))),
+            'service_frequency' => $_POST['service_frequency'],
+            'last_service_date' => valid_date_or_null($_POST['last_service_date'] ?? ''),
+            'next_service_date' => valid_date_or_null($_POST['next_service_date'] ?? ''),
+            'notes' => $_POST['notes'] ?? '',
+            'created_date' => date('Y-m-d H:i:s'),
+            'created_by' => $_SESSION['user_id'] ?? 'system',
+            'modified_date' => date('Y-m-d H:i:s'),
+            'modified_by' => $_SESSION['user_id'] ?? 'system'
+        ];
+
+        $columns = implode(',', array_map(function($k) { return '`' . $k . '`'; }, array_keys($fields)));
+        $placeholders = implode(',', array_fill(0, count($fields), '?'));
+        $types = '';
+        foreach ($fields as $k => $v) {
+            if (is_int($v)) { $types .= 'i'; }
+            elseif (is_float($v)) { $types .= 'd'; }
+            else { $types .= 's'; }
+        }
+        $stmt = $conn->prepare("INSERT INTO contracts ($columns) VALUES ($placeholders)");
+        $stmt->bind_param($types, ...array_values($fields));
+        $ok = $stmt->execute();
+        if ($ok) {
+            $stmt->close();
+            $conn->close();
+            header('Location: contracts_list.php?success=1');
+            exit;
+        } else {
+            $insertError = $stmt->error;
+            $stmt->close();
+            $conn->close();
+        }
+    }
+}
+
 require_once 'layout_start.php';
 require_once 'db_mysql.php';
 
@@ -141,132 +259,6 @@ if ($result) {
 $conn->close();
 $equipment = fetch_mysql('equipment', require __DIR__ . '/equipment_schema.php');
 
-// Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        echo '<div style="color:red;"><b>CSRF validation failed.</b></div>';
-        exit;
-    }
-
-    // --- Tank Inventory Deduction Logic ---
-    $rentedTankSize = $_POST['rented_tank_size'] ?? '';
-    $numRentedTanks = isset($_POST['num_rented_tanks']) ? (int)$_POST['num_rented_tanks'] : 0;
-    if ($rentedTankSize && $rentedTankSize !== 'Other' && $numRentedTanks > 0) {
-        $conn = get_mysql_connection();
-        // Get available rental tanks for this size from equipment
-        $result = $conn->query("SELECT equipment_id FROM equipment WHERE ownership = 'rental' AND tank_size = '" . $conn->real_escape_string($rentedTankSize) . "' LIMIT " . intval($numRentedTanks));
-        $assigned = [];
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $assigned[] = $row['equipment_id'];
-            }
-            $result->free();
-        }
-        if (count($assigned) < $numRentedTanks) {
-            $conn->close();
-            echo '<div style="color:red;"><b>Not enough rental tanks available in equipment to fulfill this contract. No changes made.</b></div>';
-            exit;
-        }
-        // Mark assigned tanks as 'Assigned'
-        foreach ($assigned as $equipmentId) {
-            $update = $conn->prepare("UPDATE equipment SET status = 'Assigned' WHERE equipment_id = ?");
-            $update->bind_param('s', $equipmentId);
-            $update->execute();
-            $update->close();
-        }
-        // Continue using $conn for contract insert below
-    } else {
-        $conn = get_mysql_connection();
-    }
-
-    // Generate contract ID (find max contract_id for today and increment)
-    $datePrefix = 'CNT-' . date('Ymd') . '-';
-    $result = $conn->query("SELECT contract_id FROM contracts WHERE contract_id LIKE '{$datePrefix}%' ORDER BY contract_id DESC LIMIT 1");
-    $nextNum = 1;
-    if ($result && $row = $result->fetch_assoc()) {
-        $lastId = $row['contract_id'];
-        $lastNum = (int)substr($lastId, strrpos($lastId, '-') + 1);
-        $nextNum = $lastNum + 1;
-    }
-    $contractId = $datePrefix . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
-
-    // Calculate values
-    $monthlyFee = (float)$_POST['monthly_fee'];
-    $contractTerm = (int)$_POST['contract_term'];
-    $annualValue = $monthlyFee * 12;
-
-    // Calculate end date
-    $startDate = $_POST['start_date'];
-    $endDate = date('Y-m-d', strtotime($startDate . ' + ' . $contractTerm . ' months'));
-
-    // Calculate renewal date (end date - notice period)
-    $noticePeriod = (int)$_POST['notice_period'];
-    $renewalDate = date('Y-m-d', strtotime($endDate . ' - ' . $noticePeriod . ' days'));
-
-    // Validate date fields
-    function valid_date_or_null($val) {
-        $val = trim($val ?? '');
-        return ($val === '' || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $val)) ? null : $val;
-    }
-    $fields = [
-        'contract_id' => $contractId,
-        'customer_id' => (isset($_POST['customer_id']) && is_numeric($_POST['customer_id']) && $_POST['customer_id'] !== '' ? (int)$_POST['customer_id'] : null),
-        'contact_id' => $_POST['contact_id'] ?? null,
-        'contract_type' => $_POST['contract_type'],
-        'contract_status' => 'Active',
-        'equipment_type' => $_POST['equipment_type'],
-        'monthly_fee' => $monthlyFee,
-        'regen_fee' => isset($_POST['regen_fee']) && $_POST['regen_fee'] !== '' ? (float)$_POST['regen_fee'] : null,
-        'tank_sale_price' => isset($_POST['tank_sale_price']) && $_POST['tank_sale_price'] !== '' ? (float)$_POST['tank_sale_price'] : null,
-        'annual_value' => $annualValue,
-        'payment_frequency' => $_POST['payment_frequency'],
-        'contract_term' => $contractTerm,
-        'start_date' => $startDate,
-        'end_date' => $endDate,
-        'renewal_date' => $renewalDate,
-        'auto_renew' => $_POST['auto_renew'] ?? 'No',
-        'notice_period' => $noticePeriod,
-        'evoqua_account' => $_POST['evoqua_account'] ?? '',
-        'evoqua_contract' => $_POST['evoqua_contract'] ?? '',
-        'equipment_ids' => implode(',', array_filter(array_map('trim', (array)($_POST['equipment_ids'] ?? [])))),
-        'service_frequency' => $_POST['service_frequency'],
-        'last_service_date' => valid_date_or_null($_POST['last_service_date'] ?? ''),
-        'next_service_date' => valid_date_or_null($_POST['next_service_date'] ?? ''),
-        'notes' => $_POST['notes'] ?? '',
-        'created_date' => date('Y-m-d H:i:s'),
-        'created_by' => $_SESSION['user_id'] ?? 'system',
-        'modified_date' => date('Y-m-d H:i:s'),
-        'modified_by' => $_SESSION['user_id'] ?? 'system'
-    ];
-
-    $columns = implode(',', array_map(function($k) { return '`' . $k . '`'; }, array_keys($fields)));
-    $placeholders = implode(',', array_fill(0, count($fields), '?'));
-    $types = '';
-    foreach ($fields as $k => $v) {
-        if (is_int($v)) {
-            $types .= 'i';
-        } elseif (is_float($v)) {
-            $types .= 'd';
-        } else {
-            $types .= 's';
-        }
-    }
-    $stmt = $conn->prepare("INSERT INTO contracts ($columns) VALUES ($placeholders)");
-    $stmt->bind_param($types, ...array_values($fields));
-    $result = $stmt->execute();
-    if ($result) {
-        $stmt->close();
-        $conn->close();
-        // Clean output buffer before redirect
-        if (ob_get_length()) {
-            ob_end_clean();
-        }
-        header('Location: contracts_list.php?success=1');
-        exit;
-    } else {
-        echo '<div style="color:red;"><b>Failed to add contract:</b> ' . htmlspecialchars($stmt->error) . '</div>';
-    }
-}
 ?>
 
 <!-- Debug Section (visible only if DEBUG is true) -->
@@ -432,9 +424,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <p>Create a new SDI service agreement</p>
 </div>
 
-<?php if (isset($error)): ?>
+<?php if (isset($insertError) && $insertError): ?>
     <div style="background: #FEE2E2; border: 2px solid #EF4444; color: #991B1B; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
-        ⚠️ <?= htmlspecialchars($error) ?>
+        ⚠️ <?= htmlspecialchars($insertError) ?>
     </div>
 <?php endif; ?>
 
