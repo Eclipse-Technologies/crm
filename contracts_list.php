@@ -235,6 +235,16 @@ foreach ($contracts as &$contract) {
     <a href="contract_form.php" class="btn btn-primary">➕ Add New Contract</a>
 </div>
 
+<?php if (isset($_GET['success'])): ?>
+    <div style="background:#D1FAE5;border:2px solid #10B981;color:#065F46;padding:14px 18px;border-radius:8px;margin-bottom:18px;font-weight:600;">
+        ✅ <?= $_GET['success'] === 'deleted' ? 'Contract deleted successfully.' : 'Contract saved successfully.' ?>
+    </div>
+<?php elseif (isset($_GET['error'])): ?>
+    <div style="background:#FEE2E2;border:2px solid #EF4444;color:#991B1B;padding:14px 18px;border-radius:8px;margin-bottom:18px;font-weight:600;">
+        ⚠️ <?= htmlspecialchars($_GET['error']) ?>
+    </div>
+<?php endif; ?>
+
 <!-- Contracts Table -->
 <div class="contracts-table">
 <div class="contracts-table-scroll">
@@ -334,6 +344,11 @@ foreach ($contracts as &$contract) {
                                 <?php if ($contract['contract_status'] === 'Active' && isset($contract['days_to_expiry']) && $contract['days_to_expiry'] <= 90): ?>
                                     <a href="contract_renew.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-renew">Renew</a>
                                 <?php endif; ?>
+                                <form method="POST" action="delete_contract.php" style="display:inline;" onsubmit="return confirm('Delete contract <?= htmlspecialchars($contract['contract_id']) ?>? This cannot be undone.');">
+                                    <?php renderCSRFInput(); ?>
+                                    <input type="hidden" name="contract_id" value="<?= htmlspecialchars($contract['contract_id']) ?>">
+                                    <button type="submit" class="action-btn" style="background:#FEE2E2;color:#991B1B;border:none;cursor:pointer;">🗑️ Delete</button>
+                                </form>
                             </div>
                         </td>
                     </tr>
