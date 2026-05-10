@@ -144,25 +144,33 @@ function flattenDisplayFields($arr) {
 }
 
 $displayFieldsFromGet = isset($_GET['display']) && is_array($_GET['display']) ? $_GET['display'] : (isset($_GET['display']) ? [$_GET['display']] : null);
-if (isset($_POST['display']) && is_array($_POST['display'])) {
-  $displayFields = flattenDisplayFields($_POST['display']);
-  $_SESSION['displayFields'] = $displayFields;
+if (isset($_POST['display']) && is_array($_POST['display']) && isset($_POST['apply'])) {
+  // Validate against schema before saving
+  $posted = array_values(array_intersect(flattenDisplayFields($_POST['display']), $schema));
+  if (empty($posted)) { $posted = [$schema[0]]; } // always keep at least one column
+  $_SESSION['displayFields'] = $posted;
+  // Persist in a long-lived cookie so it survives session resets
+  setcookie('crm_display_fields', json_encode($posted), time() + 60 * 60 * 24 * 365, '/');
+  // PRG: redirect back so Back button and navigation work correctly
+  $qs = http_build_query(['applied' => '1']);
+  header('Location: contacts_list.php?' . $qs);
+  exit;
 } elseif ($displayFieldsFromGet) {
-  $displayFields = flattenDisplayFields($displayFieldsFromGet);
-  $_SESSION['displayFields'] = $displayFields;
+  $displayFields = array_values(array_intersect(flattenDisplayFields($displayFieldsFromGet), $schema));
+  if (!empty($displayFields)) { $_SESSION['displayFields'] = $displayFields; }
 } elseif (isset($_SESSION['displayFields']) && is_array($_SESSION['displayFields'])) {
   $displayFields = flattenDisplayFields($_SESSION['displayFields']);
+} elseif (isset($_COOKIE['crm_display_fields'])) {
+  // Cookie fallback: survives session resets (e.g. after login/CSRF refresh)
+  $fromCookie = json_decode($_COOKIE['crm_display_fields'], true);
+  if (is_array($fromCookie)) {
+    $displayFields = array_values(array_intersect(flattenDisplayFields($fromCookie), $schema));
+    if (!empty($displayFields)) { $_SESSION['displayFields'] = $displayFields; }
+  }
 }
-// If POST or session provides displayFields, override default
-$displayFieldsFromGet = isset($_GET['display']) && is_array($_GET['display']) ? $_GET['display'] : (isset($_GET['display']) ? [$_GET['display']] : null);
-if (isset($_POST['display']) && is_array($_POST['display'])) {
-  $displayFields = flattenDisplayFields($_POST['display']);
-  $_SESSION['displayFields'] = $displayFields;
-} elseif ($displayFieldsFromGet) {
-  $displayFields = flattenDisplayFields($displayFieldsFromGet);
-  $_SESSION['displayFields'] = $displayFields;
-} elseif (isset($_SESSION['displayFields']) && is_array($_SESSION['displayFields'])) {
-  $displayFields = flattenDisplayFields($_SESSION['displayFields']);
+// Ensure displayFields is never empty
+if (empty($displayFields)) {
+  $displayFields = ['first_name', 'last_name', 'company', 'email', 'phone'];
 }
 
 // ✅ PAGINATION: Get current page and per-page setting
@@ -377,7 +385,7 @@ $page_contacts = $contacts;
 
 <?php if (!empty($fieldSaveError)): ?>
   <div class="alert alert-error" style="margin-top:70px;z-index:1050;position:relative;"> <?= e($fieldSaveError) ?> </div>
-<?php elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply'])): ?>
+<?php elseif (isset($_GET['applied']) && $_GET['applied'] === '1'): ?>
   <div class="alert alert-success" style="margin-top:70px;z-index:1050;position:relative;">Column visibility updated.</div>
 <?php endif; ?>
 
@@ -388,6 +396,7 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
 <div id="fieldPanel" class="card shadow-sm mb-4" style="display:<?= $openFieldPanel ? 'block' : 'none' ?>; max-width: 600px;">
   <form method="POST" class="p-3">
     <input type="hidden" name="apply" value="1">
+    <?php renderCSRFInput(); ?>
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h5 class="mb-0">Customize Visible Columns</h5>
       <button type="button" class="btn-close js-toggle-panel" data-target="fieldPanel" aria-label="Close"></button>
