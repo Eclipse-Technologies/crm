@@ -1,6 +1,8 @@
 <?php
 // Migrate to MySQL: Delete opportunity by ID
 require_once 'db_mysql.php';
+require_once 'csrf_helper.php';
+require_once 'simple_auth/middleware.php';
 
 function getOpportunityIdColumn(mysqli $conn): string {
     $hasOpportunityId = false;
@@ -21,6 +23,11 @@ function getOpportunityIdColumn(mysqli $conn): string {
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: opportunities_list.php?error=' . urlencode('Invalid request method'));
+    exit;
+}
+
+if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    header('Location: opportunities_list.php?error=csrf');
     exit;
 }
 

@@ -755,6 +755,7 @@ function getStageColor($stage) {
             <td class="cell-actions">
               <a href="edit_opportunity.php?id=<?= urlencode($oppId) ?>" class="btn-action btn-edit" title="Edit">✏️ Edit</a>
               <form method="POST" action="delete_opportunity.php" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this opportunity?');">
+                <?php renderCSRFInput(); ?>
                 <input type="hidden" name="id" value="<?= htmlspecialchars($oppId) ?>">
                 <button type="submit" class="btn-action btn-delete" title="Delete">🗑️ Delete</button>
               </form>
