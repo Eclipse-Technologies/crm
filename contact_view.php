@@ -12,6 +12,7 @@ require_once 'db_mysql.php';
 
 // Explicitly create the database connection after all includes
 $conn = get_mysql_connection();
+$saveSuccess = false;
 
 function redirect_safely(string $url): void {
   if (!headers_sent()) {
@@ -49,7 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
         $stmt->close();
         $conn->close();
         // Redirect to avoid resubmission
-        redirect_safely('contact_view.php?id=' . urlencode($contactId) . '&log_added=1');
+        header('Location: contact_view.php?id=' . urlencode($contactId) . '&log_added=1');
+        exit;
       } else {
         echo '<div class="alert alert-danger m-3">Failed to save discussion log. Please try again.</div>';
       }
@@ -58,11 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
     }
   }
 }
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id']) && !isset($_POST['add_discussion'])) {
-    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        echo '<div class="alert alert-danger m-3">Security validation failed. Please refresh and try again.</div>';
-        exit;
-    }
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id'])) {
+  if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    echo '<div class="alert alert-danger m-3">Security validation failed. Please refresh and try again.</div>';
+    exit;
+  }
+
     $contactId = trim((string) ($_POST['contact_id'] ?? ''));
     $fields = [
       'first_name', 'last_name', 'company', 'email', 'phone', 'address',
@@ -344,6 +347,24 @@ function getContactOpportunities($contact, $opportunities) {
     });
 }
 
+// ── Computed display variables ────────────────────────────────────────────────
+$initials     = getInitials($contact['first_name'] ?? '', $contact['last_name'] ?? '');
+$status       = $contact['status'] ?? 'Unknown';
+$isCustomer   = !empty($contact['is_customer']) && $contact['is_customer'] !== '0';
+$tags         = parseTags($contact['tags'] ?? '');
+$createdAt    = $contact['created_at'] ?? $contact['date_added'] ?? date('Y-m-d');
+$lastModified = $contact['last_modified'] ?? null;
+
+// Avatar colour derived from contact ID (deterministic)
+$avatarColors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16'];
+$avatarColor  = $avatarColors[abs(crc32((string)($contact['contact_id'] ?? ''))) % count($avatarColors)];
+
+// Status badge colour
+if (strtolower($status) === 'active')        { $statusColor = '#10B981'; }
+elseif (strtolower($status) === 'inactive')  { $statusColor = '#9CA3AF'; }
+elseif (strtolower($status) === 'prospect')  { $statusColor = '#F59E0B'; }
+else                                          { $statusColor = '#6B7280'; }
+
 ?>
 
 <style>
@@ -551,7 +572,6 @@ function getContactOpportunities($contact, $opportunities) {
     <h3>Add Communication / Discussion Log</h3>
     <form method="post" action="">
       <?php renderCSRFInput(); ?>
-      <input type="hidden" name="add_discussion" value="1">
       <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
       <div class="form-group">
         <label for="entry_text">Notes / Communication</label>
@@ -573,7 +593,7 @@ function getContactOpportunities($contact, $opportunities) {
         <input type="text" id="author" name="author" class="form-control" value="<?= htmlspecialchars($_SESSION['username'] ?? '') ?>" required>
       </div>
       <div class="submit-actions">
-        <button type="submit" class="btn-primary">Add Log Entry</button>
+        <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
       </div>
     </form>
     <div style="font-size:12px;color:#888;margin-top:8px;">

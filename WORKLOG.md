@@ -203,3 +203,78 @@ Update method: append newest entry at the top with date, scope, key changes, fil
 - Updated `opportunity_form.php` to render description as textarea
 - Updated `opportunities_list.php` to display description column
 - Next: Run migration to update DB
+
+## 2026-05-12 CRM Enhancement Sprint
+
+### Admin & Navigation
+- Added Admin section to sidebar (`navbar-sidebar.php`) with 6 links: Dashboard, Advanced Search, Bulk Ops, Reports, Contact Timeline, Deduplicate
+- Fixed blank admin pages (root cause 1): `requireAdmin()` was checking `$_SESSION['logged_in']` — changed to `$_SESSION['user_id']` to match `simple_auth/Auth.php`
+- Fixed blank admin pages (root cause 2): Removed duplicate `<div class="main-content">` / `<div class="content-container">` wrappers from all 5 admin pages — `navbar-sidebar.php` already provides both
+- `admin_timeline.php`: shows search form (name/company/email) when no `?id=` is provided
+
+### Notification Badges
+- Added `$_notif_overdue_tasks` (tasks past due_date, not completed/archived) and `$_notif_expiring_contracts` (active contracts ending within 30 days) queries to navbar-sidebar.php
+- Red badge on Tasks nav item; amber badge on Contracts nav item
+
+### Forecast Dashboard
+- `forecast_calc.php`: added `name`, `expected_close`, `days_to_close` to each result row
+- `forecast_dashboard.php`: new "Closing in 30 Days" (amber) and "Overdue Close Date" (red) metric cards; detail table sorted by close date with colour-coded Days Out column
+
+### Duplicate Contact Merge
+- Created `admin_deduplicate.php`: groups contacts by duplicate email, radio-select keep/discard, re-points tasks/opportunities/discussion_log/audit_log before deleting discarded contact; CSRF-protected; logs `merge_contact` audit action
+
+### Bulk Operations
+- `admin_bulk_ops.php`: added bulk delete and bulk update sections for Opportunities and Tasks (in addition to existing Contacts sections)
+- Tasks use `id varchar(64)` — bind type 's' throughout
+- Schema vars: `$opp_schema = ['stage','probability']`, `$task_schema = ['status','priority','assigned_to']`
+
+### contracts_list.php Cleanup
+- Removed 50-line tank_size retry/opcache workaround (was a transient issue; `SELECT tank_size FROM contracts` confirmed working)
+- Removed stale `opcache_reset()` calls
+
+### REST API
+- Created `api.php`: read-only, authenticated via `API_KEYS` in `.env` (Bearer token or `?api_key=` param)
+- Endpoints: `/contacts`, `/contacts/{id}`, `/opportunities`, `/opportunities/{id}`, `/tasks`, `/tasks/{id}`, `/contracts`, `/contracts/{id}`
+- Supports `?q=`, `?stage=`, `?status=`, `?limit=`, `?offset=` query params; returns `{total, limit, offset, data}`
+- API key added to `.env`; tested live — 293 contacts returned correctly
+
+### Mass Email Segment Filters
+- `mass_email.php`: added province/status/tags filter panel above recipient list; filters apply client-side (JS) for instant preview plus server-side for send
+
+### Mobile Responsive Layout
+- `layout_start.php`: added hamburger `<button id="sidebarToggle">` in top bar for screens ≤768px
+- `layout_start.php` / `layout_end.php`: JS toggles `.open` on `#sidebar` and `.active` on `#sidebarOverlay`; CSS already defined these classes in `css/modern-sidebar.css`
+
+### Admin Reports Expansion
+- `admin_reports.php`: added "Revenue" report (monthly fee by month/status, total ARR) and "Pipeline" report (opportunities by stage with sum and count)
+- New report buttons added to selector grid
+
+### Customer Portal
+- Created `customer_portal.php`: session-authenticated, shows customer's active contracts, tank sizes, end dates, and delivery history linked by `customer_id`
+
+## 2026-05-12 Security Hardening Follow-up
+
+### API Authentication Hardening
+- Updated `api.php` to enforce **header-only** authentication:
+  - `X-API-Key: <key>`
+  - `Authorization: Bearer <key>`
+- Disabled query-string key auth (`?api_key=`) to prevent credential leakage in logs/history.
+- Updated API root metadata (`auth` field) to match header-only behavior.
+- Validation run:
+  - Header key returns `200`
+  - Query-string key returns `401`
+
+### Secret Rotation / Scrubbing
+- Rotated `API_KEYS` value in `.env`.
+- Cleared exposed `.env` secrets:
+  - `OPENAI_API_KEY`
+  - `SMTP_PASSWORD`
+- Confirmed old API key is invalid after rotation.
+
+### CSRF Regression Fix
+- Restored CSRF validation in the general contact update POST path in `contact_view.php`.
+- All state-changing POST paths on that page now validate `verifyCSRFToken()` before DB writes.
+
+### Notes / Corrections
+- Prior worklog line stated API supported query-param auth; final state is header-only.
+- Sidebar mobile toggle was already implemented in `js/modern-ui.js`; final change kept CSS visibility fix and removed duplicate toggle script additions.

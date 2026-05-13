@@ -263,7 +263,7 @@ body {
   color: var(--text-secondary);
   width: 40px;
   height: 40px;
-  display: flex;
+  display: none; /* shown only on mobile via @media below */
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
@@ -328,6 +328,10 @@ body {
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
+  .menu-toggle {
+    display: flex;
+  }
+
   .sidebar {
     transform: translateX(-260px);
   }

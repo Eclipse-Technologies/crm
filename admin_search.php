@@ -6,8 +6,11 @@ requireAdmin();
 $pageTitle = 'Advanced Search';
 
 $schema = require __DIR__ . '/contact_schema.php';
-$contacts = readCSV('contacts.csv');
 $results = [];
+$error = '';
+
+// Searchable text fields
+$searchableFields = ['first_name','last_name','company','email','phone','city','province','postal_code','country','tags','notes'];
 
 // Handle search
 if ($_POST && isset($_POST['search'])) {
@@ -15,23 +18,44 @@ if ($_POST && isset($_POST['search'])) {
         $error = 'CSRF validation failed';
     } else {
         $search_mode = $_POST['search_mode'] ?? 'any';
-        $results = $contacts;
+        $conn = get_mysql_connection();
 
-        // Field-specific searches
-        foreach ($schema as $field) {
-            $value = $_POST[$field] ?? '';
-            if (!empty($value)) {
-                $results = array_filter($results, function($c) use ($field, $value, $search_mode) {
-                    if ($search_mode === 'exact') {
-                        return strtolower($c[$field] ?? '') === strtolower($value);
-                    } else {
-                        return stripos($c[$field] ?? '', $value) !== false;
-                    }
-                });
+        $where  = [];
+        $params = [];
+        $types  = '';
+
+        foreach ($searchableFields as $field) {
+            $value = trim($_POST[$field] ?? '');
+            if ($value === '') { continue; }
+            if ($search_mode === 'exact') {
+                $where[]  = "`$field` = ?";
+                $params[] = $value;
+                $types   .= 's';
+            } else {
+                $where[]  = "`$field` LIKE ?";
+                $params[] = '%' . $value . '%';
+                $types   .= 's';
             }
         }
 
-        $results = array_values($results);
+        $sql = 'SELECT contact_id, first_name, last_name, company, email, phone, city, province FROM contacts';
+        if (!empty($where)) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+        $sql .= ' ORDER BY last_name, first_name LIMIT 500';
+
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            if (!empty($params)) {
+                $stmt->bind_param($types, ...$params);
+            }
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) { $results[] = $row; }
+            $result->free();
+            $stmt->close();
+        }
+        $conn->close();
     }
 }
 
@@ -50,9 +74,7 @@ if ($_POST && isset($_POST['search'])) {
 .results-table tr:hover { background: #f9f9f9; }
 </style>
 
-<div class="main-content" id="mainContent">
-  <div class="content-container">
-  <h2>Advanced Search</h2>
+<h2>Advanced Search</h2>
   <p><a href="admin_dashboard.php">← Back to Dashboard</a></p>
 
   <div class="search-form">
@@ -70,13 +92,11 @@ if ($_POST && isset($_POST['search'])) {
       </div>
 
       <div class="search-grid">
-        <?php foreach ($schema as $field): ?>
-          <?php if (!in_array($field, ['id', 'created_at'])): ?>
-            <div>
-              <label><?= ucfirst(str_replace('_', ' ', $field)) ?>:</label>
-              <input type="text" name="<?= $field ?>" placeholder="Search...">
-            </div>
-          <?php endif; ?>
+        <?php foreach ($searchableFields as $field): ?>
+          <div>
+            <label><?= ucfirst(str_replace('_', ' ', $field)) ?>:</label>
+            <input type="text" name="<?= $field ?>" placeholder="Search..." value="<?= htmlspecialchars($_POST[$field] ?? '') ?>">
+          </div>
         <?php endforeach; ?>
       </div>
 
@@ -105,7 +125,7 @@ if ($_POST && isset($_POST['search'])) {
             <?php foreach ($results as $contact): ?>
               <tr>
                 <td>
-                  <a href="contact_view.php?id=<?= urlencode($contact['id']) ?>" title="View contact">
+                  <a href="contact_view.php?id=<?= urlencode($contact['contact_id']) ?>" title="View contact">
                     <?= htmlspecialchars($contact['first_name'] . ' ' . $contact['last_name']) ?>
                   </a>
                 </td>
@@ -123,8 +143,5 @@ if ($_POST && isset($_POST['search'])) {
       <?php endif; ?>
     </div>
   <?php endif; ?>
-
-  </div>
-</div>
 
 <?php include_once 'layout_end.php'; ?>

@@ -504,14 +504,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $contactRows = [];
-$listSql = "SELECT contact_id, first_name, last_name, company, email FROM contacts WHERE email IS NOT NULL AND TRIM(email) <> '' ORDER BY company ASC, last_name ASC, first_name ASC";
-$listResult = $conn->query($listSql);
+$filter_province = trim($_GET['filter_province'] ?? '');
+$filter_status   = trim($_GET['filter_status']   ?? '');
+
+// Build filter clause
+$filter_where = "email IS NOT NULL AND TRIM(email) <> ''";
+$filter_params = [];
+$filter_types  = '';
+if ($filter_province !== '') {
+    $filter_where .= ' AND province = ?';
+    $filter_params[] = $filter_province;
+    $filter_types  .= 's';
+}
+if ($filter_status !== '') {
+    $filter_where .= ' AND status = ?';
+    $filter_params[] = $filter_status;
+    $filter_types  .= 's';
+}
+
+$listSql = "SELECT contact_id, first_name, last_name, company, email, province, status FROM contacts WHERE $filter_where ORDER BY company ASC, last_name ASC, first_name ASC";
+if ($filter_params) {
+    $listStmt = $conn->prepare($listSql);
+    $listStmt->bind_param($filter_types, ...$filter_params);
+    $listStmt->execute();
+    $listResult = $listStmt->get_result();
+} else {
+    $listResult = $conn->query($listSql);
+}
 if ($listResult) {
     while ($row = $listResult->fetch_assoc()) {
         $contactRows[] = $row;
     }
     $listResult->free();
 }
+
+// Province and status options for filter dropdowns
+$provinces = [];
+$r_prov = $conn->query("SELECT DISTINCT province FROM contacts WHERE province IS NOT NULL AND province <> '' ORDER BY province");
+if ($r_prov) { while ($p = $r_prov->fetch_row()) { $provinces[] = $p[0]; } $r_prov->free(); }
+$statuses = [];
+$r_stat = $conn->query("SELECT DISTINCT status FROM contacts WHERE status IS NOT NULL AND status <> '' ORDER BY status");
+if ($r_stat) { while ($s = $r_stat->fetch_row()) { $statuses[] = $s[0]; } $r_stat->free(); }
 
 $conn->close();
 ?>
@@ -589,28 +622,64 @@ $conn->close();
       <span>Select Recipients</span>
       <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleAllContacts">Select All</button>
     </div>
-    <div class="card-body" style="max-height: 360px; overflow: auto;">
-      <?php if (empty($contactRows)): ?>
-        <p class="text-muted mb-0">No contacts with email addresses found.</p>
-      <?php else: ?>
-        <?php foreach ($contactRows as $contact): ?>
-          <?php
-            $cid = (int) ($contact['contact_id'] ?? 0);
-            $label = trim(($contact['first_name'] ?? '') . ' ' . ($contact['last_name'] ?? ''));
-            if ($label === '') {
-                $label = $contact['company'] ?: 'Unnamed Contact';
-            }
-            $isChecked = in_array($cid, $selectedIds, true);
-          ?>
-          <div class="form-check mb-2">
-            <input class="form-check-input recipient-checkbox" type="checkbox" name="contact_ids[]" value="<?= $cid ?>" id="contact_<?= $cid ?>" <?= $isChecked ? 'checked' : '' ?>>
-            <label class="form-check-label" for="contact_<?= $cid ?>">
-              <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
-              <span class="text-muted">(<?= htmlspecialchars($contact['company'] ?? '', ENT_QUOTES, 'UTF-8') ?> - <?= htmlspecialchars($contact['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>)</span>
-            </label>
-          </div>
+    <div class="card-body">
+      <!-- Segment filter bar -->
+      <form method="GET" class="row g-2 mb-3" id="segmentFilterForm">
+        <?php foreach (['subject','message','discussion_message','from_name','from_email'] as $carry): ?>
+          <input type="hidden" name="<?= $carry ?>" value="<?= htmlspecialchars($_GET[$carry] ?? '', ENT_QUOTES) ?>">
         <?php endforeach; ?>
-      <?php endif; ?>
+        <div class="col-auto">
+          <select name="filter_province" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Provinces</option>
+            <?php foreach ($provinces as $pv): ?>
+              <option value="<?= htmlspecialchars($pv) ?>" <?= $filter_province === $pv ? 'selected' : '' ?>><?= htmlspecialchars($pv) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-auto">
+          <select name="filter_status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            <?php foreach ($statuses as $st): ?>
+              <option value="<?= htmlspecialchars($st) ?>" <?= $filter_status === $st ? 'selected' : '' ?>><?= htmlspecialchars($st) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-auto">
+          <input type="text" id="recipientSearch" class="form-control form-control-sm" placeholder="Search name/company…" style="width:180px;">
+        </div>
+        <div class="col-auto align-self-center text-muted" style="font-size:12px;">
+          Showing <span id="visibleCount"><?= count($contactRows) ?></span> of <?= count($contactRows) ?>
+        </div>
+        <?php if ($filter_province !== '' || $filter_status !== ''): ?>
+        <div class="col-auto">
+          <a href="mass_email.php" class="btn btn-sm btn-outline-danger">✕ Clear filters</a>
+        </div>
+        <?php endif; ?>
+      </form>
+
+      <div style="max-height: 360px; overflow: auto;" id="recipientList">
+        <?php if (empty($contactRows)): ?>
+          <p class="text-muted mb-0">No contacts match the current filters.</p>
+        <?php else: ?>
+          <?php foreach ($contactRows as $contact): ?>
+            <?php
+              $cid = (int) ($contact['contact_id'] ?? 0);
+              $label = trim(($contact['first_name'] ?? '') . ' ' . ($contact['last_name'] ?? ''));
+              if ($label === '') {
+                  $label = $contact['company'] ?: 'Unnamed Contact';
+              }
+              $isChecked = in_array($cid, $selectedIds, true);
+            ?>
+            <div class="form-check mb-2 recipient-row" data-search="<?= htmlspecialchars(strtolower($label . ' ' . ($contact['company'] ?? '')), ENT_QUOTES) ?>">
+              <input class="form-check-input recipient-checkbox" type="checkbox" name="contact_ids[]" value="<?= $cid ?>" id="contact_<?= $cid ?>" <?= $isChecked ? 'checked' : '' ?>>
+              <label class="form-check-label" for="contact_<?= $cid ?>">
+                <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
+                <span class="text-muted">(<?= htmlspecialchars($contact['company'] ?? '', ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars($contact['email'] ?? '', ENT_QUOTES, 'UTF-8') ?><?= $contact['province'] ? ' · ' . htmlspecialchars($contact['province']) : '' ?>)</span>
+              </label>
+            </div>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </div>
     </div>
   </div>
 
@@ -625,15 +694,29 @@ $conn->close();
   const toggleBtn = document.getElementById('toggleAllContacts');
   const checkboxes = document.querySelectorAll('.recipient-checkbox');
 
-  if (!toggleBtn || checkboxes.length === 0) {
-    return;
+  if (toggleBtn && checkboxes.length > 0) {
+    toggleBtn.addEventListener('click', function () {
+      const visibleRows = Array.from(document.querySelectorAll('.recipient-row')).filter(r => r.style.display !== 'none');
+      const allChecked = visibleRows.every(r => r.querySelector('input').checked);
+      visibleRows.forEach(r => r.querySelector('input').checked = !allChecked);
+      toggleBtn.textContent = allChecked ? 'Select All' : 'Unselect All';
+    });
   }
 
-  toggleBtn.addEventListener('click', function () {
-    const allChecked = Array.from(checkboxes).every(function (cb) { return cb.checked; });
-    checkboxes.forEach(function (cb) { cb.checked = !allChecked; });
-    toggleBtn.textContent = allChecked ? 'Select All' : 'Unselect All';
-  });
+  const searchInput = document.getElementById('recipientSearch');
+  const visibleCountEl = document.getElementById('visibleCount');
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      const q = this.value.toLowerCase().trim();
+      let count = 0;
+      document.querySelectorAll('.recipient-row').forEach(function (row) {
+        const matches = q === '' || row.dataset.search.includes(q);
+        row.style.display = matches ? '' : 'none';
+        if (matches) count++;
+      });
+      if (visibleCountEl) visibleCountEl.textContent = count;
+    });
+  }
 })();
 </script>
 

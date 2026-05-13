@@ -3,6 +3,23 @@ require_once __DIR__ . '/simple_auth/middleware.php';
 // Sidebar navbar code here
 $authPathPrefix = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 $authPathPrefix = $authPathPrefix === '' ? '' : '/' . $authPathPrefix;
+
+// Notification counts (overdue tasks + contracts expiring within 30 days)
+$_notif_overdue_tasks = 0;
+$_notif_expiring_contracts = 0;
+if (!isset($_sidebar_notif_loaded)) {
+    $_sidebar_notif_loaded = true;
+    try {
+        require_once __DIR__ . '/db_mysql.php';
+        $_nc = get_mysql_connection();
+        $r1 = $_nc->query("SELECT COUNT(*) FROM tasks WHERE due_date < CURDATE() AND status NOT IN ('completed','archived')");
+        if ($r1) { $_notif_overdue_tasks = (int)$r1->fetch_row()[0]; $r1->free(); }
+        $r2 = $_nc->query("SELECT COUNT(*) FROM contracts WHERE end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) AND contract_status = 'Active'");
+        if ($r2) { $_notif_expiring_contracts = (int)$r2->fetch_row()[0]; $r2->free(); }
+        $_nc->close();
+    } catch (Throwable $e) { /* non-fatal */ }
+}
+$_notif_total = $_notif_overdue_tasks + $_notif_expiring_contracts;
 ?>
 <?php
 // Get current user info from session
@@ -59,6 +76,7 @@ $initials = strtoupper(substr($user_name, 0, 2));
           <a href="tasks.php" class="nav-link <?= $currentPage === 'tasks.php' ? 'active' : '' ?>">
             <span class="nav-icon">🗂️</span>
             <span>Tasks</span>
+            <?php if ($_notif_overdue_tasks > 0): ?><span class="nav-badge" style="background:#dc2626;"><?= $_notif_overdue_tasks ?></span><?php endif; ?>
           </a>
         </li>
         <li class="nav-item">
@@ -124,6 +142,12 @@ $initials = strtoupper(substr($user_name, 0, 2));
           <a href="customers_list.php" class="nav-link <?= $currentPage === 'customers_list.php' ? 'active' : '' ?>">
             <span class="nav-icon">📋</span>
             <span>All Customers</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="customer_portal.php" class="nav-link <?= $currentPage === 'customer_portal.php' ? 'active' : '' ?>">
+            <span class="nav-icon">🏢</span>
+            <span>Customer Portal</span>
           </a>
         </li>
         <li class="nav-item">
@@ -199,6 +223,7 @@ $initials = strtoupper(substr($user_name, 0, 2));
             ?>
             <span class="nav-badge"><?= $contracts_count ?></span>
             <?php endif; ?>
+            <?php if ($_notif_expiring_contracts > 0): ?><span class="nav-badge" style="background:#d97706;" title="<?= $_notif_expiring_contracts ?> expiring in 30 days"><?= $_notif_expiring_contracts ?> ⚠️</span><?php endif; ?>
           </a>
         </li>
 
@@ -354,7 +379,48 @@ $initials = strtoupper(substr($user_name, 0, 2));
       </ul>
     </div>
     
-    <!-- ADMIN SECTION FULLY REMOVED -->
+    <!-- ADMIN SECTION -->
+    <div class="nav-section">
+      <div class="nav-section-title">Admin</div>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a href="admin_dashboard.php" class="nav-link <?= $currentPage === 'admin_dashboard.php' ? 'active' : '' ?>">
+            <span class="nav-icon">🛡️</span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="admin_search.php" class="nav-link <?= $currentPage === 'admin_search.php' ? 'active' : '' ?>">
+            <span class="nav-icon">🔍</span>
+            <span>Advanced Search</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="admin_bulk_ops.php" class="nav-link <?= $currentPage === 'admin_bulk_ops.php' ? 'active' : '' ?>">
+            <span class="nav-icon">⚙️</span>
+            <span>Bulk Operations</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="admin_reports.php" class="nav-link <?= $currentPage === 'admin_reports.php' ? 'active' : '' ?>">
+            <span class="nav-icon">📊</span>
+            <span>Reports</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="admin_timeline.php" class="nav-link <?= $currentPage === 'admin_timeline.php' ? 'active' : '' ?>">
+            <span class="nav-icon">🕐</span>
+            <span>Contact Timeline</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="admin_deduplicate.php" class="nav-link <?= $currentPage === 'admin_deduplicate.php' ? 'active' : '' ?>">
+            <span class="nav-icon">🔀</span>
+            <span>Deduplicate</span>
+          </a>
+        </li>
+      </ul>
+    </div>
 
     <!-- TOOLS SECTION -->
     <div class="nav-section">

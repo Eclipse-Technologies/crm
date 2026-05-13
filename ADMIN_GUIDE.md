@@ -15,14 +15,14 @@ The main admin hub provides an overview of your CRM system at a glance.
 ### Features:
 - **Data Integrity Alert** - Shows if your database has any issues that need attention
 - **System Overview** - 8 key statistics:
-  - Total Contacts - Number of contact records
+  - Total Contacts - Number of contact records in MySQL contacts table
   - Email Coverage % - Percentage of contacts with email addresses
   - Duplicate Emails - Number of duplicate email addresses detected
   - Unique Companies - Count of unique company entries
-  - CSV Database Size - File size of contacts.csv
+  - Database Size - MySQL contacts table storage (row count)
   - Total Backups - Number of backup copies
-  - Audit Log Size - Size of activity tracking log
-  - Error Log Size - Size of error log
+  - Audit Log - MySQL audit_log table (row count and activity summary)
+  - Error Log Size - Size of error log file
 - **Admin Tools** - Quick links to all 8 specialized admin tools
 - **Recent Activity** - Last 10 actions with timestamps and status
 - **Active Users** - Users with action counts
@@ -31,39 +31,41 @@ The main admin hub provides an overview of your CRM system at a glance.
 
 ---
 
-## 1. Backup Manager (`admin_backups.php`)
+## 1. Backup Manager (`admin_backups.php`) ⚠️ *Planned — not yet implemented*
 
-Manage backup copies of your contact database. Automatic backups are created whenever contacts are modified.
+Will manage database backups of the MySQL CRM data. The CRM stores all contacts, customers, contracts, tasks, and audit logs in MySQL — backups will capture the full database state.
 
-### Features:
-- **List Backups** - View all backup copies with:
+### Planned Features:
+- **List Backups** - View all backup snapshots with:
   - Timestamp (when created)
-  - File size
-  - Estimated contact count
-- **Restore** - Restore a previous backup with one click
-- **Download** - Download a backup file to your computer
+  - Snapshot size
+  - Contact row count
+- **Restore** - Restore a previous database snapshot with one click
+- **Download** - Download a SQL dump to your computer
 - **Delete** - Remove old backups to save space
-- **Info Section** - Explains backup retention policy (50 backups kept, 30-day retention)
+- **Retention Policy** - 50 snapshots kept, 30-day retention
 
-### How to Use:
+### Planned Workflow:
 1. Go to Admin → Manage Backups
 2. Review backup list with timestamps
 3. To restore a backup:
-   - Find the backup you want
+   - Find the snapshot you want
    - Click **Restore** button
    - Confirm the operation
-   - Current contacts.csv will be replaced
+   - The MySQL database will be restored to that snapshot
 4. To download a backup:
    - Click the download link
-   - Backup file will download to your computer
+   - SQL dump file will download to your computer
+
+**In the meantime:** Use `backup_crm.bat` or `mysqldump` from the command line to create manual backups.
 
 **When to use:** After accidental deletions, before major imports, or to recover old data.
 
 ---
 
-## 2. Audit Log Viewer (`admin_audit.php`)
+## 2. Audit Log Viewer (`admin_audit.php`) ⚠️ *Planned — not yet implemented*
 
-View detailed activity logs of all actions in the CRM system.
+Will provide a UI to query the MySQL `audit_log` table, which already records all CRM actions. The table is written to by `audit_handler.php` on every insert, update, and delete.
 
 ### Features:
 - **Filter by User** - See actions by specific user
@@ -126,9 +128,9 @@ View the complete modification history of a single contact.
 
 ---
 
-## 4. Deduplication Tool (`admin_deduplicate.php`)
+## 4. Deduplication Tool (`admin_deduplicate.php`) ⚠️ *Planned — not yet implemented*
 
-Find and merge duplicate or similar contact records.
+Will find and merge duplicate or similar contact records directly in MySQL.
 
 ### Features:
 - **Exact Duplicate Emails** - Contacts with identical email addresses
@@ -231,9 +233,9 @@ Search contacts across all fields with flexible matching options.
 
 ---
 
-## 7. System Maintenance (`admin_maintenance.php`)
+## 7. System Maintenance (`admin_maintenance.php`) ⚠️ *Planned — not yet implemented*
 
-Manage system health, cleanup old data, and verify integrity.
+Will manage system health, clean up old data, and verify integrity of MySQL tables.
 
 ### Features:
 - **Data Integrity Check**:
@@ -343,13 +345,29 @@ Generate statistical reports and analyze system usage.
 
 All admin tools use a shared library of helper functions. While you don't need to understand these internally, they provide:
 
-- `getSystemStats()` - Gathers all system statistics
+- `getSystemStats()` - Gathers all system statistics from MySQL
 - `findDuplicateEmails()` - Identifies exact email duplicates
 - `findSimilarNames()` - Fuzzy matches similar names
 - `mergeContacts()` - Merges two contact records
-- `checkDataIntegrity()` - Validates database integrity
-- `getRecentActivity()` - Retrieves audit log entries
+- `checkDataIntegrity()` - Validates MySQL table integrity
+- `getRecentActivity()` - Retrieves entries from the MySQL `audit_log` table
 - Plus 8+ more utility functions
+
+---
+
+## Migration Status
+
+The CRM's primary data store is **MySQL**. The following admin tools still read from `contacts.csv` and are pending migration:
+
+| Tool | File | Status |
+|------|------|--------|
+| Advanced Search | `admin_search.php` | ⚠️ Reads contacts.csv — needs MySQL migration |
+| Bulk Operations | `admin_bulk_ops.php` | ⚠️ Reads/writes contacts.csv — needs MySQL migration |
+| Contact Timeline | `admin_timeline.php` | ⚠️ Reads contacts.csv — needs MySQL migration |
+| Reports & Analytics | `admin_reports.php` | ⚠️ Reads contacts.csv — needs MySQL migration |
+| Admin Dashboard | `admin_dashboard.php` | ⚠️ Shows CSV file size stat — needs MySQL query |
+
+Audit logging (`audit_handler.php`) already uses MySQL. The contact list (`contacts_list.php`), customers, contracts, and tasks all use MySQL.
 
 ---
 
@@ -360,10 +378,10 @@ All admin tools use a shared library of helper functions. While you don't need t
 - Future versions will support role-based permissions
 
 ### Data Protection:
-- All operations logged to audit trail
-- CSRF tokens protect against attacks
-- File locking prevents concurrent conflicts
-- Backups created automatically during changes
+- All operations logged to MySQL `audit_log` table
+  - CSRF tokens protect against attacks
+  - MySQL transactions prevent concurrent conflicts
+  - Backups should be taken before major data operations
 
 ### Best Practices:
 1. **Regular Backups** - Check admin dashboard weekly
@@ -391,11 +409,10 @@ All admin tools use a shared library of helper functions. While you don't need t
 5. All matching contacts shown
 
 ### Recovering Accidentally Deleted Contact:
-1. Go to **Backup Manager**
-2. Find a backup before deletion
-3. Click **Restore**
-4. Confirm (current contacts replaced!)
-5. Check **Contact Timeline** to verify
+1. Check the **Audit Log** (`audit_log` table) for the contact's last known data
+2. If a SQL backup exists, restore it via `admin_backups.php` (once implemented) or manually via `mysqldump`
+3. Alternatively, query `audit_log` for the `changes` column to retrieve the pre-deletion field values and re-create the record manually
+4. Check **Contact Timeline** (`admin_timeline.php`) to verify once restored
 
 ### Generating Monthly Activity Report:
 1. Go to **Reports**
@@ -421,11 +438,9 @@ All admin tools use a shared library of helper functions. While you don't need t
 - Clear browser cache and reload
 
 ### Import Went Wrong:
-1. Go to **Backup Manager**
-2. Find backup before import
-3. Restore it
-4. Review **Audit Log** to see what happened
-5. Retry import with corrections
+1. If a SQL backup was taken before import, restore it via `mysqldump` or `admin_backups.php` (once implemented)
+2. Otherwise, use the **Audit Log** (`audit_log` table) to identify which records were inserted and delete them manually
+3. Retry import with corrections
 
 ### Need to Find Where Something Changed:
 1. Go to **Contact Timeline**
@@ -517,6 +532,6 @@ If you encounter issues or have questions:
 
 ---
 
-**Last Updated:** February 13, 2026
+**Last Updated:** May 11, 2026
 **Admin Tools Version:** 1.0
 **CRM Version:** 4.0+ with security hardening

@@ -114,7 +114,6 @@ function fetch_contacts_mysql($schema) {
 // --- Main includes and initializations ---
 require_once __DIR__ . '/simple_auth/middleware.php';
 // Session initialization is now handled by Auth via middleware.php
-require_once __DIR__ . '/layout_start.php';
 require_once __DIR__ . '/sanitize_helper.php';
 require_once __DIR__ . '/csrf_helper.php';
 define('DEFAULT_CONTACTS_PER_PAGE', 25); // Default number of contacts per page
@@ -144,13 +143,20 @@ function flattenDisplayFields($arr) {
 }
 
 $displayFieldsFromGet = isset($_GET['display']) && is_array($_GET['display']) ? $_GET['display'] : (isset($_GET['display']) ? [$_GET['display']] : null);
-if (isset($_POST['display']) && is_array($_POST['display']) && isset($_POST['apply'])) {
+if (isset($_POST['apply'])) {
   // Validate against schema before saving
-  $posted = array_values(array_intersect(flattenDisplayFields($_POST['display']), $schema));
+  $postedRaw = (isset($_POST['display']) && is_array($_POST['display'])) ? $_POST['display'] : [];
+  $posted = array_values(array_intersect(flattenDisplayFields($postedRaw), $schema));
   if (empty($posted)) { $posted = [$schema[0]]; } // always keep at least one column
   $_SESSION['displayFields'] = $posted;
   // Persist in a long-lived cookie so it survives session resets
-  setcookie('crm_display_fields', json_encode($posted), time() + 60 * 60 * 24 * 365, '/');
+  setcookie('crm_display_fields', json_encode($posted), [
+    'expires' => time() + 60 * 60 * 24 * 365,
+    'path' => '/',
+    'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
   // PRG: redirect back so Back button and navigation work correctly
   $qs = http_build_query(['applied' => '1']);
   header('Location: contacts_list.php?' . $qs);
@@ -172,6 +178,9 @@ if (isset($_POST['display']) && is_array($_POST['display']) && isset($_POST['app
 if (empty($displayFields)) {
   $displayFields = ['first_name', 'last_name', 'company', 'email', 'phone'];
 }
+
+// Include layout only after preference handling so header/setcookie work.
+require_once __DIR__ . '/layout_start.php';
 
 // ✅ PAGINATION: Get current page and per-page setting
 $per_page = isset($_GET['per_page']) && in_array((int)$_GET['per_page'], ALLOWED_PER_PAGE_OPTIONS) 

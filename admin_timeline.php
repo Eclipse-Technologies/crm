@@ -5,19 +5,73 @@ requireAdmin();
 
 $pageTitle = 'Contact Timeline';
 
-$contact_id = $_GET['id'] ?? '';
-$contacts = readCSV('contacts.csv');
+$contact_id = trim($_GET['id'] ?? '');
 $contact = null;
 
-foreach ($contacts as $c) {
-    if ($c['id'] === $contact_id) {
-        $contact = $c;
-        break;
+if ($contact_id !== '') {
+    $conn = get_mysql_connection();
+    $stmt = $conn->prepare('SELECT contact_id AS id, first_name, last_name, company, email, created_at FROM contacts WHERE contact_id = ? LIMIT 1');
+    if ($stmt) {
+        $stmt->bind_param('s', $contact_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $contact = $result->fetch_assoc() ?: null;
+        $result->free();
+        $stmt->close();
     }
+    $conn->close();
 }
 
 if (!$contact) {
-    echo '<div class="container"><p style="color: red;">Contact not found.</p></div>';
+    // Show search form if no ID given, or error if invalid ID was provided
+    $searchResults = [];
+    $searchQuery = trim($_GET['q'] ?? '');
+    if ($searchQuery !== '') {
+        $conn2 = get_mysql_connection();
+        $like = '%' . $searchQuery . '%';
+        $stmt2 = $conn2->prepare('SELECT contact_id, first_name, last_name, company, email FROM contacts WHERE first_name LIKE ? OR last_name LIKE ? OR company LIKE ? OR email LIKE ? ORDER BY last_name, first_name LIMIT 30');
+        if ($stmt2) {
+            $stmt2->bind_param('ssss', $like, $like, $like, $like);
+            $stmt2->execute();
+            $r2 = $stmt2->get_result();
+            while ($row = $r2->fetch_assoc()) { $searchResults[] = $row; }
+            $r2->free();
+            $stmt2->close();
+        }
+        $conn2->close();
+    }
+    ?>
+    <h2>Contact Timeline</h2>
+    <p>Search for a contact to view their audit history.</p>
+    <form method="GET" style="display:flex;gap:8px;align-items:center;margin-bottom:20px;">
+        <input type="text" name="q" value="<?= htmlspecialchars($searchQuery) ?>" placeholder="Name, company, or email…" style="padding:8px 12px;border:1px solid #ccc;border-radius:4px;width:300px;">
+        <button type="submit" style="padding:8px 16px;background:#0099A8;color:white;border:none;border-radius:4px;cursor:pointer;">Search</button>
+    </form>
+    <?php if ($searchQuery !== ''): ?>
+        <?php if (empty($searchResults)): ?>
+            <p style="color:#666;">No contacts found matching "<?= htmlspecialchars($searchQuery) ?>".</p>
+        <?php else: ?>
+            <table style="width:100%;border-collapse:collapse;background:white;border-radius:6px;overflow:hidden;">
+                <thead><tr style="background:#f5f5f5;">
+                    <th style="padding:10px;text-align:left;">Name</th>
+                    <th style="padding:10px;text-align:left;">Company</th>
+                    <th style="padding:10px;text-align:left;">Email</th>
+                    <th style="padding:10px;"></th>
+                </tr></thead>
+                <tbody>
+                <?php foreach ($searchResults as $row): ?>
+                    <tr style="border-top:1px solid #eee;">
+                        <td style="padding:10px;"><?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?></td>
+                        <td style="padding:10px;"><?= htmlspecialchars($row['company'] ?? '') ?></td>
+                        <td style="padding:10px;"><?= htmlspecialchars($row['email'] ?? '') ?></td>
+                        <td style="padding:10px;"><a href="admin_timeline.php?id=<?= urlencode($row['contact_id']) ?>" style="color:#0099A8;font-weight:bold;">View Timeline →</a></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    <?php endif; ?>
+    <?php
     include_once 'layout_end.php';
     exit;
 }
@@ -41,9 +95,7 @@ $trail = getAuditTrail($contact_id);
 .change-modified { color: #0099A8; }
 </style>
 
-<div class="main-content" id="mainContent">
-  <div class="content-container">
-  <h2>Contact Timeline: <?= htmlspecialchars($contact['first_name'] . ' ' . $contact['last_name']) ?></h2>
+<h2>Contact Timeline: <?= htmlspecialchars($contact['first_name'] . ' ' . $contact['last_name']) ?></h2>
   <p><a href="admin_dashboard.php">← Back to Dashboard</a> | <a href="contact_view.php?id=<?= urlencode($contact_id) ?>">View Contact →</a></p>
 
   <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
@@ -113,8 +165,5 @@ $trail = getAuditTrail($contact_id);
   <?php else: ?>
     <p style="background: white; padding: 20px; border-radius: 6px;">No modification history found for this contact.</p>
   <?php endif; ?>
-
-  </div>
-</div>
 
 <?php include_once 'layout_end.php'; ?>

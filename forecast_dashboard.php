@@ -16,6 +16,8 @@ foreach ($forecasts as $row) {
 }
 
 $weightedCoverage = $totalPipeline > 0 ? (($totalForecast / $totalPipeline) * 100) : 0;
+$overdueCount = count(array_filter($forecasts, fn($r) => isset($r['days_to_close']) && $r['days_to_close'] < 0));
+$closingThirty = count(array_filter($forecasts, fn($r) => isset($r['days_to_close']) && $r['days_to_close'] >= 0 && $r['days_to_close'] <= 30));
 ?>
 
 <style>
@@ -64,6 +66,14 @@ td { font-size: 14px; color: #111827; }
       <div class="metric-label">Opportunities</div>
       <div class="metric-value"><?= count($forecasts) ?></div>
     </div>
+    <div class="metric-card">
+      <div class="metric-label">Closing in 30 Days</div>
+      <div class="metric-value" style="color:#d97706;"><?= $closingThirty ?></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Overdue Close Date</div>
+      <div class="metric-value" style="color:#dc2626;"><?= $overdueCount ?></div>
+    </div>
   </div>
 
   <div class="panel">
@@ -103,21 +113,28 @@ td { font-size: 14px; color: #111827; }
         <table>
           <thead>
             <tr>
-              <th>Opportunity ID</th>
-              <th>Contact ID</th>
+              <th>Opportunity</th>
               <th>Stage</th>
               <th>Pipeline Value</th>
               <th>Forecast Value</th>
+              <th>Close Date</th>
+              <th>Days Out</th>
             </tr>
           </thead>
           <tbody>
-            <?php foreach ($forecasts as $row): ?>
+            <?php
+            usort($forecasts, function($a,$b){ return strcmp($a['expected_close'] ?? '9999', $b['expected_close'] ?? '9999'); });
+            foreach ($forecasts as $row):
+              $days = $row['days_to_close'] ?? null;
+              $daysColor = $days === null ? '' : ($days < 0 ? 'color:#dc2626' : ($days <= 30 ? 'color:#d97706' : 'color:#16a34a'));
+            ?>
               <tr>
-                <td><?= htmlspecialchars((string)($row['id'] ?? '')) ?></td>
-                <td><?= htmlspecialchars((string)($row['contact_id'] ?? '')) ?></td>
+                <td><a href="opportunity_form.php?id=<?= urlencode((string)($row['id'] ?? '')) ?>" style="color:#0099A8;"><?= htmlspecialchars((string)($row['name'] ?? ('Opp #' . ($row['id'] ?? '')))) ?></a></td>
                 <td><?= htmlspecialchars((string)($row['stage'] ?? '')) ?></td>
                 <td>$<?= number_format((float)($row['value'] ?? 0), 2) ?></td>
                 <td>$<?= number_format((float)($row['forecast'] ?? 0), 2) ?></td>
+                <td><?= $row['expected_close'] ? htmlspecialchars($row['expected_close']) : '<span style="color:#9ca3af">—</span>' ?></td>
+                <td style="<?= $daysColor ?>"><?= $days === null ? '<span style="color:#9ca3af">—</span>' : ($days < 0 ? abs($days).' overdue' : $days.'d') ?></td>
               </tr>
             <?php endforeach; ?>
           </tbody>

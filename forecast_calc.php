@@ -29,12 +29,21 @@ function calculateForecasts() {
         $stageTotals[$stage]['count']++;
         $stageTotals[$stage]['total_forecast'] += $forecast;
         // Add to individual forecast list
+        $closeDate = $opp['expected_close'] ?? null;
+        $daysToClose = null;
+        if ($closeDate) {
+            $diff = (strtotime($closeDate) - time()) / 86400;
+            $daysToClose = (int)round($diff);
+        }
         $results[] = [
-            'id' => $opp['id'] ?? '',
-            'contact_id' => $opp['contact_id'] ?? '',
-            'stage' => $stage,
-            'value' => $value,
-            'forecast' => $forecast
+            'id'            => $opp['opportunity_id'] ?? '',
+            'contact_id'    => $opp['contact_id'] ?? '',
+            'name'          => $opp['name'] ?? '',
+            'stage'         => $stage,
+            'value'         => $value,
+            'forecast'      => $forecast,
+            'expected_close'=> $closeDate,
+            'days_to_close' => $daysToClose,
         ];
     }
     return [

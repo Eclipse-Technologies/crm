@@ -1,5 +1,8 @@
 ## Logging and Auditing
 - For all audit and action logging, use SQL tables (not CSV files) for reliability, queryability, and scalability.
+- Audit logging (`audit_handler.php`) already uses MySQL (`audit_log` table). Primary contact storage (`contacts_list.php`, customers, contracts, tasks) is fully MySQL.
+- **Pending migration:** `admin_search.php`, `admin_bulk_ops.php`, `admin_timeline.php`, `admin_reports.php`, and `admin_dashboard.php` still read from `contacts.csv` — these must be migrated to query MySQL before the CSV file can be retired.
+- `admin_backups.php`, `admin_audit.php`, `admin_deduplicate.php`, and `admin_maintenance.php` are documented in ADMIN_GUIDE.md but do not yet exist — implement these as MySQL-based tools.
 # Lessons Learned
 
 This document captures key lessons, recurring errors, and communication improvements identified during development. Update this file regularly to improve efficiency and avoid repeating mistakes.
@@ -18,11 +21,16 @@ This document captures key lessons, recurring errors, and communication improvem
 - When updating documentation, fix markdownlint errors and check for duplicate headings and broken links.
 - After DB schema changes, verify with both code and database to ensure consistency.
 - For new features, review top industry standards before implementation.
+- API key security: never accept sensitive API keys in query parameters (`?api_key=`) because URLs are logged by browsers, reverse proxies, and web servers. Enforce header-only auth (`X-API-Key` or `Authorization: Bearer ...`).
+- Secret hygiene: if any credential appears in `.env` during development (SMTP, AI, API keys), rotate it immediately and clear committed values. Keep `.env` in `.gitignore` and assume exposed values are compromised.
+- POST handler regression pattern: when merging form handlers, do not remove CSRF checks from generic update branches. Every state-changing POST path must validate `verifyCSRFToken()` before touching the database.
+- Avoid duplicate sidebar toggle logic: `js/modern-ui.js` already handles `#menuToggle` + `#sidebarOverlay`; adding a second toggle script in layout files can create conflicting behavior.
 
 ## Efficiency Improvements
 - Use checklists or roadmaps for multi-step features.
 - Summarize findings and next steps after each research or fetch operation.
 - Store recurring issues and their solutions here for quick reference.
+- After major implementation bursts, run a docs consistency pass: align API docs text with actual behavior and correct any stale worklog claims before handoff.
 
 ## Revenue Tracking for Contracts
 - Separate recurring (monthly) and as-needed (regeneration) revenue in your schema.

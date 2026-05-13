@@ -14,9 +14,7 @@ $integrity = checkDataIntegrity();
 ?>
 
 
-<div class="main-content" id="mainContent">
-  <div class="content-container">
-  <h2>Admin Dashboard</h2>
+<h2>Admin Dashboard</h2>
 
   <!-- Data Integrity Alert -->
   <?php if (!$integrity['is_valid']): ?>
@@ -68,9 +66,9 @@ $integrity = checkDataIntegrity();
     </div>
 
     <div class="stat-card">
-      <h4>CSV Database</h4>
-      <div class="value"><?= formatBytes($stats['csv_size']) ?></div>
-      <div class="subtext">contacts.csv file size</div>
+      <h4>MySQL Contacts</h4>
+      <div class="value"><?= number_format($stats['total_contacts']) ?></div>
+      <div class="subtext">rows in contacts table</div>
     </div>
 
     <div class="stat-card">
@@ -81,8 +79,8 @@ $integrity = checkDataIntegrity();
 
     <div class="stat-card">
       <h4>Audit Log</h4>
-      <div class="value"><?= formatBytes($stats['audit_log_size']) ?></div>
-      <div class="subtext">activity_log.csv</div>
+      <div class="value"><?= number_format($stats['audit_log_rows']) ?></div>
+      <div class="subtext"><?= formatBytes($stats['audit_log_size']) ?> in audit_log table</div>
     </div>
 
     <div class="stat-card">
@@ -167,8 +165,5 @@ $integrity = checkDataIntegrity();
       <p>No user activity yet.</p>
     <?php endif; ?>
   </div>
-
-  </div>
-</div>
 
 <?php include_once 'layout_end.php'; ?>

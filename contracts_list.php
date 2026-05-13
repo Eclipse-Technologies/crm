@@ -1,7 +1,4 @@
 <?php
-if (function_exists('opcache_reset')) { opcache_reset(); }
-// This file is now replaced by contracts_list_new.php. Safe to delete.
-if (function_exists('opcache_reset')) { opcache_reset(); }
 $basePath = __DIR__ . DIRECTORY_SEPARATOR;
 require_once $basePath . 'layout_start.php';
 
@@ -19,54 +16,13 @@ function fetch_table_mysql($table, $schema) {
     $conn = get_mysql_connection();
     $fields = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $schema));
     $sql = "SELECT $fields FROM $table";
-    // NOTE: Feb 2026 - Workaround for persistent MySQL error: 'Unknown column tank_size in field list'.
-    // Even though DESCRIBE contracts shows tank_size, SELECT fails. This code retries without tank_size if error occurs.
-    // This prevents fatal errors and allows the app to load. Underlying DB issue remains unresolved.
-    // UI/UX debug output removed for production.
-    // NOTE: Feb 2026 - Workaround for persistent MySQL error: 'Unknown column tank_size in field list'.
-    // Even though DESCRIBE contracts shows tank_size, SELECT fails. This code retries without tank_size if error occurs.
-    // This prevents fatal errors and allows the app to load. Underlying DB issue remains unresolved.
     $rows = [];
-    try {
-        $result = $conn->query($sql);
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $rows[] = $row;
-            }
-            $result->free();
-        } else {
-            // Workaround: If error is about 'tank_size', retry without it
-            if (strpos($conn->error, "tank_size") !== false) {
-                $schemaNoTank = array_filter($schema, function($f) { return $f !== 'tank_size'; });
-                $fieldsNoTank = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $schemaNoTank));
-                $sqlNoTank = "SELECT $fieldsNoTank FROM $table";
-                $resultNoTank = $conn->query($sqlNoTank);
-                if ($resultNoTank) {
-                    while ($row = $resultNoTank->fetch_assoc()) {
-                        $rows[] = $row;
-                    }
-                    $resultNoTank->free();
-                }
-            }
+    $result = $conn->query($sql);
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $rows[] = $row;
         }
-    } catch (mysqli_sql_exception $e) {
-        // Workaround: If error is about 'tank_size', retry without it
-        if (strpos($e->getMessage(), "tank_size") !== false) {
-            $schemaNoTank = array_filter($schema, function($f) { return $f !== 'tank_size'; });
-            $fieldsNoTank = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $schemaNoTank));
-            $sqlNoTank = "SELECT $fieldsNoTank FROM $table";
-            try {
-                $resultNoTank = $conn->query($sqlNoTank);
-                if ($resultNoTank) {
-                    while ($row = $resultNoTank->fetch_assoc()) {
-                        $rows[] = $row;
-                    }
-                    $resultNoTank->free();
-                }
-            } catch (mysqli_sql_exception $e2) {
-                // Suppress secondary SQL exceptions for UI/UX
-            }
-        }
+        $result->free();
     }
     $conn->close();
     return $rows;
