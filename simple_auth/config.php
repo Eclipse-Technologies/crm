@@ -22,18 +22,25 @@ if ($appBaseUrl === '') {
 $sessionCookieSecureRaw = strtolower(trim((string) getenv('AUTH_SESSION_COOKIE_SECURE')));
 $sessionCookieSecure = in_array($sessionCookieSecureRaw, ['1', 'true', 'yes', 'on'], true);
 
+$passwordAlgo = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;
+$passwordOptions = ($passwordAlgo === PASSWORD_ARGON2ID)
+    ? [
+        'memory_cost' => 65536,
+        'time_cost' => 4,
+        'threads' => 3,
+    ]
+    : [
+        'cost' => 12,
+    ];
+
 return [
     'storage' => [
         'data_dir' => __DIR__ . '/data',
     ],
 
     'security' => [
-        'password_algo' => PASSWORD_ARGON2ID,
-        'password_options' => [
-            'memory_cost' => 65536,
-            'time_cost' => 4,
-            'threads' => 3,
-        ],
+        'password_algo' => $passwordAlgo,
+        'password_options' => $passwordOptions,
 
         'session_name' => 'CRM_SESSION',
         'session_lifetime' => 86400,
