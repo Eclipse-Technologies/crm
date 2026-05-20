@@ -10,7 +10,6 @@ simple_auth/sessions/
 *.log
 GODADDY_DEPLOYMENT_CHECKLIST.md
 .env
-config.local.php
 node_modules/
 .DS_Store
 *.csv
