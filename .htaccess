@@ -1,0 +1,28 @@
+# Apache hardening for GoDaddy/Linux hosting
+
+Options -Indexes
+ServerSignature Off
+
+# Block hidden and sensitive files
+<FilesMatch "^\.(env|git|ht|svn)">
+  Require all denied
+</FilesMatch>
+
+<Files ".env">
+  Require all denied
+</Files>
+
+<Files ".cpanel.yml">
+  Require all denied
+</Files>
+
+# Block direct access to internal/deprecated trees
+RewriteEngine On
+RewriteRule ^DEPRICATED(/|$) - [F,L,NC]
+RewriteRule ^libraries(/|$) - [F,L,NC]
+RewriteRule ^setup(/|$) - [F,L,NC]
+
+# Force HTTPS in production (safe behind typical proxies)
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
