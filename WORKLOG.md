@@ -3,6 +3,27 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-05-21 - Git-Tracked Runtime Env Fallback
+
+### Scope (Deployment Reliability)
+
+- Provide a git-deployable environment fallback when host-side `.env` is missing.
+
+### Key Changes (Deployment Reliability)
+
+- Updated `env_loader.php` to load `.env.runtime` when `.env` is not present.
+- Added `.env.runtime` with production runtime values for Git-based deployment fallback.
+
+### Important Files (Deployment Reliability)
+
+- env_loader.php
+- .env.runtime
+- WORKLOG.md
+
+### Validation (Deployment Reliability)
+
+- PHP syntax checks passed for `env_loader.php` and `db_mysql.php`.
+
 ## 2026-05-21 - cPanel Deploy .env Preservation
 
 ### Scope (Deployment Safety)

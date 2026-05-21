@@ -1,7 +1,16 @@
 <?php
 // env_loader.php - Loads environment variables from .env if present
 function load_env($envFile = __DIR__ . '/.env') {
-    if (!file_exists($envFile)) return;
+    if (!file_exists($envFile)) {
+        // Git-tracked runtime fallback for hosts where server-side .env is unavailable.
+        $fallbackFile = __DIR__ . '/.env.runtime';
+        if (file_exists($fallbackFile)) {
+            $envFile = $fallbackFile;
+        } else {
+            return;
+        }
+    }
+
     $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
         $line = trim($line);
