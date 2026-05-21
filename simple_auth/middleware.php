@@ -57,7 +57,19 @@ if (!$auth->isAuthenticated()) {
 
 // Make auth and current user available globally
 $GLOBALS['auth'] = $auth;
-$GLOBALS['current_user'] = $auth->getCurrentUser();
+$currentUser = $auth->getCurrentUser();
+if ($currentUser === null && isset($_SESSION['user_id'])) {
+    // Fallback to session fields to avoid null-user rendering failures.
+    $currentUser = [
+        'id' => (int) ($_SESSION['user_id'] ?? 0),
+        'username' => (string) ($_SESSION['username'] ?? 'user'),
+        'email' => (string) ($_SESSION['email'] ?? ''),
+        'role' => (string) ($_SESSION['role'] ?? 'user'),
+        'created_at' => '',
+        'last_login' => '',
+    ];
+}
+$GLOBALS['current_user'] = $currentUser;
 
 /**
  * Helper function to get current authenticated user

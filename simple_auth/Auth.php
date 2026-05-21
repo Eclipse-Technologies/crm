@@ -281,22 +281,33 @@ class Auth {
         if (!$this->isAuthenticated()) {
             return null;
         }
-        
-        // $user = $this->store->fetchOne('users', ['id' => (string)$_SESSION['user_id']]); // CSV support removed
-        $user = null; // Implement SQL user fetch here
-        
-        if ($user) {
-            // Return only safe fields
-            $user = [
-                'id' => $user['id'],
-                'username' => $user['username'],
-                'email' => $user['email'],
-                'created_at' => $user['created_at'] ?? '',
-                'last_login' => $user['last_login'] ?? '',
-            ];
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return null;
         }
-        
-        return $user ?: null;
+
+        $conn = get_mysql_connection();
+        $stmt = $conn->prepare('SELECT id, username, email, role, created_at, last_login, is_active FROM users WHERE id = ? LIMIT 1');
+        $stmt->bind_param('i', $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result ? $result->fetch_assoc() : null;
+        $stmt->close();
+        $conn->close();
+
+        if (!$row || (int) ($row['is_active'] ?? 1) !== 1) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $row['id'],
+            'username' => (string) $row['username'],
+            'email' => (string) ($row['email'] ?? ''),
+            'role' => (string) ($row['role'] ?? 'user'),
+            'created_at' => (string) ($row['created_at'] ?? ''),
+            'last_login' => (string) ($row['last_login'] ?? ''),
+        ];
     }
     
     /**
