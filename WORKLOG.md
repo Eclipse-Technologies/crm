@@ -3,6 +3,21 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-05-21 - cPanel Deploy .env Preservation
+
+### Scope (Deployment Safety)
+
+- Prevent server-side production environment file loss during git-based cPanel deployments.
+
+### Key Changes (Deployment Safety)
+
+- Updated `.cpanel.yml` rsync command to exclude `.env` while using `--delete`, ensuring server-only production secrets persist across deploys.
+
+### Important Files (Deployment Safety)
+
+- .cpanel.yml
+- WORKLOG.md
+
 ## 2026-05-21 - Production DB Credential Fallback Fix
 
 ### Scope (Deployment Runtime Fix)

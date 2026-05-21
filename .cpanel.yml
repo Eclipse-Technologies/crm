@@ -4,7 +4,7 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/hp6xh47j1ds2/public_html/crm
     - /bin/mkdir -p $DEPLOYPATH
-    - /usr/bin/rsync -a --delete --exclude='.git/' --exclude='.github/' --exclude='.vscode/' --exclude='.cpanel.yml' ./ $DEPLOYPATH/ || /bin/cp -Rf . $DEPLOYPATH
+    - /usr/bin/rsync -a --delete --exclude='.git/' --exclude='.github/' --exclude='.vscode/' --exclude='.cpanel.yml' --exclude='.env' ./ $DEPLOYPATH/ || /bin/cp -Rf . $DEPLOYPATH
     - /bin/rm -rf $DEPLOYPATH/.git $DEPLOYPATH/.github $DEPLOYPATH/.vscode
     - /bin/rm -f $DEPLOYPATH/.cpanel.yml
     - /usr/bin/find $DEPLOYPATH -type d -exec /bin/chmod 755 {} \;
