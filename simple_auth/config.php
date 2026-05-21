@@ -21,6 +21,8 @@ if ($appBaseUrl === '') {
 
 $sessionCookieSecureRaw = strtolower(trim((string) getenv('AUTH_SESSION_COOKIE_SECURE')));
 $sessionCookieSecure = in_array($sessionCookieSecureRaw, ['1', 'true', 'yes', 'on'], true);
+$allowSelfRegistrationRaw = strtolower(trim((string) getenv('AUTH_ALLOW_SELF_REGISTRATION')));
+$allowSelfRegistration = in_array($allowSelfRegistrationRaw, ['1', 'true', 'yes', 'on'], true);
 
 $passwordAlgo = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;
 $passwordOptions = ($passwordAlgo === PASSWORD_ARGON2ID)
@@ -59,6 +61,7 @@ return [
     'app' => [
         'name' => 'Eclipse CRM',
         'base_url' => $appBaseUrl,
+        'allow_self_registration' => $allowSelfRegistration,
         'require_email_verification' => false,
         'enable_2fa' => false,
         'admin_email' => 'admin@example.com',

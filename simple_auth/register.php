@@ -13,6 +13,7 @@ if (!file_exists($configFile)) {
 $config = require $configFile;
 
 $auth = new Auth($config);
+$allowSelfRegistration = (bool) ($config['app']['allow_self_registration'] ?? false);
 $errors = [];
 $success = false;
 
@@ -20,15 +21,20 @@ $success = false;
 $csrfRetryKey = 'csrf_retry_' . md5($_SERVER['REMOTE_ADDR'] ?? 'unknown');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$allowSelfRegistration) {
+        http_response_code(403);
+        $errors[] = 'Public registration is disabled. Please contact your administrator for access.';
+    }
+
     $username = trim($_POST['username'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirmPassword = $_POST['confirm_password'] ?? '';
     $csrfToken = $_POST['csrf_token'] ?? '';
 
-    // Force CSRF dev bypass for local testing
-    $devBypass = true;
-    if (!$devBypass && !$auth->verifyCsrfToken($csrfToken)) {
+    if (!$allowSelfRegistration) {
+        // Registration disabled. Keep generic response path.
+    } elseif (!$auth->verifyCsrfToken($csrfToken)) {
         // Always allow retry for now (testing mode)
         $auth->generateCsrfToken();
         $errors[] = 'Security token expired or invalid. Please try submitting again.';
@@ -166,19 +172,22 @@ $showDebug = ($_SERVER['SERVER_NAME'] ?? '') === 'localhost' || ($_SERVER['REMOT
 </head>
 <body>
     <div class="auth-container">
-<<<<<<< HEAD
-        <h1>Create Account</h1>
-        <p class="subtitle">Register to access the CRM and manage your business</p>
-=======
         <h1>🔐 Create Account</h1>
         <p class="subtitle">Join <?= htmlspecialchars($config['app']['name']) ?> today</p>
-        
+
         <?php if ($success): ?>
             <div class="success-msg">
                 <?= $successMessage ?>
             </div>
         <?php endif; ?>
->>>>>>> c34eaea0973d4ee29e8620be5643dba9eaaa18b7
+
+        <?php if (!$allowSelfRegistration): ?>
+            <div class="error-list">
+                <ul>
+                    <li>Public registration is disabled. Please contact your administrator for access.</li>
+                </ul>
+            </div>
+        <?php endif; ?>
         
         <?php if ($showDebug): ?>
             <div style="background: #f0f0f0; border: 1px solid #ccc; padding: 10px; margin-bottom: 15px; font-size: 11px; font-family: monospace;">
@@ -206,7 +215,7 @@ $showDebug = ($_SERVER['SERVER_NAME'] ?? '') === 'localhost' || ($_SERVER['REMOT
             </div>
         <?php endif; ?>
         
-        <?php if (!$success): ?>
+        <?php if (!$success && $allowSelfRegistration): ?>
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                 

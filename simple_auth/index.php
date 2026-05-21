@@ -121,7 +121,6 @@ require_once __DIR__ . '/middleware.php';
             </p>
             
             <div class="auth-buttons">
-                <a href="register.php" class="auth-btn auth-btn-primary">Get Started</a>
                 <a href="login.php" class="auth-btn auth-btn-secondary">Sign In</a>
             </div>
             
