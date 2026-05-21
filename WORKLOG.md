@@ -3,6 +3,27 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-05-21 - Production DB Credential Fallback Fix
+
+### Scope (Deployment Runtime Fix)
+
+- Resolve production login/database outage caused by empty password resolution path.
+
+### Key Changes (Deployment Runtime Fix)
+
+- Updated `db_mysql.php` to support both `PROD_DB_*` and standard `DB_*` environment variable names in production.
+- Added fallback logic so a blank `config.local.php` production password can still be filled from environment values.
+- Tightened production env completeness check to require a non-empty password before using env-only credentials.
+
+### Important Files (Deployment Runtime Fix)
+
+- db_mysql.php
+- WORKLOG.md
+
+### Validation (Deployment Runtime Fix)
+
+- PHP syntax check passed for `db_mysql.php`.
+
 ## 2026-05-21 - Login Reliability + Error Visibility Hardening
 
 ### Scope (Production Login Blank-Page Triage)
