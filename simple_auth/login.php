@@ -25,7 +25,9 @@ $config = require $configFile;
 try {
     $auth = new Auth($config);
 } catch (Throwable $e) {
-    @error_log('simple_auth/login.php bootstrap failure: ' . $e->getMessage());
+    $bootstrapMessage = 'simple_auth/login.php bootstrap failure: ' . $e->getMessage();
+    @error_log($bootstrapMessage);
+    @file_put_contents(__DIR__ . '/login_debug.log', '[' . date('Y-m-d H:i:s') . '] ' . $bootstrapMessage . PHP_EOL, FILE_APPEND);
     http_response_code(500);
     echo 'Login is temporarily unavailable. Please contact support.';
     exit;

@@ -25,7 +25,12 @@ if (!$auth->isAuthenticated()) {
     if (isset($_SESSION['user_id'], $_SESSION['session_token'])) {
         $token = trim((string) $_SESSION['session_token']);
         $uid = (int) $_SESSION['user_id'];
-        $sessionRow = (new SessionDataStore())->fetchOne($token, $uid);
+        $sessionRow = null;
+        try {
+            $sessionRow = (new SessionDataStore())->fetchOne($token, $uid);
+        } catch (Throwable $e) {
+            error_log('middleware session lookup failed: ' . $e->getMessage());
+        }
         if (!$sessionRow || (isset($sessionRow['expires_at']) && strtotime($sessionRow['expires_at']) <= time())) {
             $reason = 'session_expired';
         } else {

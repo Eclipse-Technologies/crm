@@ -30,6 +30,7 @@ class Auth {
     }
     // private $store; // CSV support removed
     private $sessionStore;
+    private $sessionStoreAttempted = false;
     private $config;
 
     /**
@@ -72,8 +73,24 @@ class Auth {
     public function __construct($config) {
         $this->config = $config;
         // $this->store = new CsvDataStore($config); // CSV support removed
-        $this->sessionStore = new SessionDataStore();
+        $this->sessionStore = null;
         $this->initSession();
+    }
+
+    private function getSessionStore(): ?SessionDataStore {
+        if ($this->sessionStoreAttempted) {
+            return $this->sessionStore;
+        }
+
+        $this->sessionStoreAttempted = true;
+        try {
+            $this->sessionStore = new SessionDataStore();
+        } catch (Throwable $e) {
+            error_log('Auth session store init failed: ' . $e->getMessage());
+            $this->sessionStore = null;
+        }
+
+        return $this->sessionStore;
     }
     
     /**
@@ -279,7 +296,10 @@ class Auth {
      */
     public function logout() {
         if (isset($_SESSION['session_token'])) {
-            $this->sessionStore->delete($_SESSION['session_token']);
+            $store = $this->getSessionStore();
+            if ($store) {
+                $store->delete($_SESSION['session_token']);
+            }
         }
         if (isset($_SESSION['user_id'])) {
             $this->logActivity($_SESSION['user_id'], 'user_logout', 'User logged out');
@@ -299,16 +319,29 @@ class Auth {
         if (!isset($_SESSION['user_id']) || !isset($_SESSION['session_token'])) {
             return false;
         }
-        $session = $this->sessionStore->fetchOne(trim((string)$_SESSION['session_token']), (int)$_SESSION['user_id']);
-        if (!$session) {
-            return false;
+
+        $store = $this->getSessionStore();
+        if ($store) {
+            $session = $store->fetchOne(trim((string) $_SESSION['session_token']), (int) $_SESSION['user_id']);
+            if (!$session) {
+                return false;
+            }
+            if (isset($session['expires_at']) && strtotime($session['expires_at']) <= time()) {
+                return false;
+            }
+
+            $this->refreshSessionRecord((int) $_SESSION['user_id'], trim((string) $_SESSION['session_token']));
+            return true;
         }
-        if (isset($session['expires_at']) && strtotime($session['expires_at']) <= time()) {
-            return false;
+
+        // Fallback when session table is unavailable: use PHP session lifetime.
+        $created = (int) ($_SESSION['created'] ?? 0);
+        $lifetime = (int) ($_SESSION['session_lifetime'] ?? $this->config['security']['session_lifetime'] ?? 86400);
+        if ($created > 0 && (time() - $created) <= $lifetime) {
+            return true;
         }
-        $this->refreshSessionRecord((int) $_SESSION['user_id'], trim((string) $_SESSION['session_token']));
-        // Optionally check IP address here
-        return true;
+
+        return false;
     }
     
     /**
@@ -527,7 +560,10 @@ class Auth {
         $expiresAt = date('Y-m-d H:i:s', time() + $lifetime);
         $ip = $this->getIpAddress();
         $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-        $this->sessionStore->insert($userId, $sessionToken, $ip, $userAgent, $expiresAt);
+        $store = $this->getSessionStore();
+        if ($store) {
+            $store->insert($userId, $sessionToken, $ip, $userAgent, $expiresAt);
+        }
         return $sessionToken;
     }
     
@@ -563,15 +599,20 @@ class Auth {
     }
 
     private function refreshSessionRecord($userId, $currentToken, $newToken = null) {
+        $store = $this->getSessionStore();
+        if (!$store) {
+            return;
+        }
+
         $lifetime = max(300, (int) ($_SESSION['session_lifetime'] ?? $this->config['security']['session_lifetime'] ?? 86400));
         $expiresAt = date('Y-m-d H:i:s', time() + $lifetime);
 
         if ($newToken !== null && $newToken !== $currentToken) {
-            $this->sessionStore->rotateToken($currentToken, $newToken, $userId, $expiresAt);
+            $store->rotateToken($currentToken, $newToken, $userId, $expiresAt);
             return;
         }
 
-        $this->sessionStore->refresh($currentToken, $userId, $expiresAt);
+        $store->refresh($currentToken, $userId, $expiresAt);
     }
     
     /**
