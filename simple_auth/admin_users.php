@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/middleware.php';
 require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../audit_handler.php';
 
 if (($_SESSION['role'] ?? '') !== 'admin') {
     http_response_code(403);
@@ -25,6 +26,28 @@ $csrfToken = $auth->generateCsrfToken();
 $message = '';
 $errors = [];
 
+function adminAudit(string $action, string $summary, string $entityType = 'user', string $entityId = 'n/a', array $changes = []): void {
+    @logAuditAction($action, $entityType, $entityId, $changes, $summary, 'success', null);
+}
+
+function ensureRequestTable(mysqli $conn): void {
+    $sql = "CREATE TABLE IF NOT EXISTS auth_registration_requests (
+        id INT NOT NULL AUTO_INCREMENT,
+        full_name VARCHAR(120) NOT NULL,
+        email VARCHAR(190) NOT NULL,
+        company VARCHAR(190) DEFAULT NULL,
+        request_note TEXT DEFAULT NULL,
+        status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+        reviewed_by INT DEFAULT NULL,
+        reviewed_at DATETIME DEFAULT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_status_created (status, created_at),
+        KEY idx_email (email)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    $conn->query($sql);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $postedToken = (string) ($_POST['csrf_token'] ?? '');
     if (!$auth->verifyCsrfToken($postedToken)) {
@@ -35,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             $conn = get_mysql_connection();
+            ensureRequestTable($conn);
 
             if ($action === 'create_user') {
                 $username = trim((string) ($_POST['username'] ?? ''));
@@ -95,8 +119,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $lastLogin
                         );
                         $insert->execute();
+                        $newUserId = (int) $insert->insert_id;
                         $insert->close();
                         $message = 'User created successfully.';
+                        adminAudit(
+                            'admin_create_user',
+                            'Admin created user ' . $username,
+                            'user',
+                            (string) $newUserId,
+                            ['username' => ['old' => null, 'new' => $username], 'email' => ['old' => null, 'new' => $email], 'role' => ['old' => null, 'new' => $role]]
+                        );
                     }
                 }
             } elseif ($action === 'toggle_active' && $targetUserId > 0) {
@@ -108,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $toggle->execute();
                     $toggle->close();
                     $message = 'User status updated.';
+                    adminAudit('admin_toggle_user_active', 'Admin toggled user active state', 'user', (string) $targetUserId);
                 }
             } elseif ($action === 'reset_password' && $targetUserId > 0) {
                 $newPassword = (string) ($_POST['new_password'] ?? '');
@@ -124,6 +157,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $reset->execute();
                     $reset->close();
                     $message = 'Password reset successfully.';
+                    adminAudit('admin_reset_password', 'Admin reset a user password', 'user', (string) $targetUserId);
+                }
+            } elseif ($action === 'review_request') {
+                $requestId = (int) ($_POST['request_id'] ?? 0);
+                $newStatus = (string) ($_POST['request_status'] ?? 'pending');
+                if ($requestId <= 0 || !in_array($newStatus, ['approved', 'rejected'], true)) {
+                    $errors[] = 'Invalid registration request action.';
+                } else {
+                    $reviewedBy = (int) ($_SESSION['user_id'] ?? 0);
+                    $review = $conn->prepare('UPDATE auth_registration_requests SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ?');
+                    $review->bind_param('sii', $newStatus, $reviewedBy, $requestId);
+                    $review->execute();
+                    $review->close();
+                    $message = 'Registration request updated.';
+                    adminAudit('admin_review_registration_request', 'Admin reviewed registration request', 'registration_request', (string) $requestId, ['status' => ['old' => 'pending', 'new' => $newStatus]]);
                 }
             }
 
@@ -136,14 +184,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $users = [];
+$requests = [];
 try {
     $conn = get_mysql_connection();
+    ensureRequestTable($conn);
     $result = $conn->query('SELECT id, username, email, role, is_active, is_verified, last_login, created_at FROM users ORDER BY id DESC');
     if ($result) {
         while ($row = $result->fetch_assoc()) {
             $users[] = $row;
         }
         $result->free();
+    }
+
+    $requestResult = $conn->query('SELECT id, full_name, email, company, request_note, status, created_at, reviewed_at FROM auth_registration_requests ORDER BY created_at DESC LIMIT 200');
+    if ($requestResult) {
+        while ($row = $requestResult->fetch_assoc()) {
+            $requests[] = $row;
+        }
+        $requestResult->free();
     }
     $conn->close();
 } catch (Throwable $e) {
@@ -203,6 +261,58 @@ try {
             <label style="display:block; margin-top:8px;"><input type="checkbox" name="is_active" checked> Active account</label>
             <button type="submit" style="margin-top:10px;">Create User</button>
         </form>
+    </div>
+
+    <div class="card">
+        <h2>Registration Requests</h2>
+        <p class="help">External users can request access via <code>simple_auth/request_access.php</code>. Review requests here.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Company</th>
+                    <th>Note</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($requests as $req): ?>
+                <tr>
+                    <td><?= (int) $req['id'] ?></td>
+                    <td><?= htmlspecialchars((string) $req['full_name']) ?></td>
+                    <td><?= htmlspecialchars((string) $req['email']) ?></td>
+                    <td><?= htmlspecialchars((string) ($req['company'] ?? '')) ?></td>
+                    <td><?= htmlspecialchars((string) ($req['request_note'] ?? '')) ?></td>
+                    <td><?= htmlspecialchars((string) $req['status']) ?></td>
+                    <td><?= htmlspecialchars((string) $req['created_at']) ?></td>
+                    <td>
+                        <?php if ($req['status'] === 'pending'): ?>
+                        <div class="row-actions">
+                            <form method="post" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                <input type="hidden" name="action" value="review_request">
+                                <input type="hidden" name="request_id" value="<?= (int) $req['id'] ?>">
+                                <input type="hidden" name="request_status" value="approved">
+                                <button type="submit">Approve</button>
+                            </form>
+                            <form method="post" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                <input type="hidden" name="action" value="review_request">
+                                <input type="hidden" name="request_id" value="<?= (int) $req['id'] ?>">
+                                <input type="hidden" name="request_status" value="rejected">
+                                <button type="submit" class="btn-muted">Reject</button>
+                            </form>
+                        </div>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
 
     <div class="card">

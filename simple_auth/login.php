@@ -250,7 +250,7 @@ $csrfToken = $auth->generateCsrfToken();
         </form>
         
         <div class="auth-footer">
-            Need access? Contact your administrator to receive an account.
+            Need access? <a href="request_access.php">Request access</a> or contact your administrator.
         </div>
     </div>
 </body>

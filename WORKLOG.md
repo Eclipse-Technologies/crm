@@ -3,6 +3,463 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-05-21 - Access Control Hardening + User Admin Workflow
+
+### Scope (Authentication Security)
+
+- Disable public registration and add an admin-governed access lifecycle for internet-exposed CRM deployment.
+
+### Key Changes (Authentication Security)
+
+- Added admin-only user administration page with CSRF-protected actions for user creation, activation/deactivation, password reset, and registration-request review.
+- Added public `simple_auth/request_access.php` form that stores pending access requests in MySQL (`auth_registration_requests`) for admin review.
+- Updated login UX to direct non-users to request-access flow instead of self-registration.
+- Added admin-only sidebar link to user-access management and added audit logging for admin user-management actions.
+
+### Important Files (Authentication Security)
+
+- simple_auth/admin_users.php
+- simple_auth/request_access.php
+- simple_auth/login.php
+- navbar-sidebar.php
+- WORKLOG.md
+
+### Validation (Authentication Security)
+
+- PHP syntax checks passed for modified auth/admin files.
+
+## 2026-05-20 - Hosting Hardening + API Contract Alignment
+
+### Scope (Deployment Blocking Fixes)
+
+- Remove production blockers for GoDaddy/Linux deployment by adding Apache hardening, production-driven auth config, and unified contacts API data source.
+
+### Key Changes (Deployment Blocking Fixes)
+
+- Added `.htaccess` with HTTPS redirect, sensitive-file blocks, and internal path restrictions (`DEPRICATED`, `libraries`, `setup`) for Apache/Linux hosting.
+- Updated `simple_auth/config.php` to use environment-driven `APP_BASE_URL` and `AUTH_SESSION_COOKIE_SECURE` values instead of hardcoded localhost defaults.
+- Migrated `api/contacts.php` from CSV reads to MySQL reads with optional `q`, `limit`, and `offset` query support while preserving header-only API key auth.
+- Updated `.env.example`, `.env.production.template`, and deployment documentation to include new auth env requirements and Apache deployment notes.
+
+### Important Files (Deployment Blocking Fixes)
+
+- .htaccess
+- simple_auth/config.php
+- api/contacts.php
+- .env.example
+- .env.production.template
+- GODADDY_DEPLOYMENT.md
+- WORKLOG.md
+
+### Validation (Deployment Blocking Fixes)
+
+- Diagnostics check returned no errors in updated PHP and markdown files.
+
+## 2026-05-20 - Production Env Template for GoDaddy Cutover
+
+### Scope (Deployment Enablement)
+
+- Create a fill-in production environment template to reduce cutover errors during GoDaddy deployment.
+
+### Key Changes (Deployment Enablement)
+
+- Added `.env.production.template` with production placeholders for DB, API keys, SMTP/Graph transport, and daily call link settings.
+- Updated GoDaddy deployment guide to reference `.env.production.template` as the quick-start source.
+
+### Important Files (Deployment Enablement)
+
+- .env.production.template
+- GODADDY_DEPLOYMENT.md
+- WORKLOG.md
+
+### Validation (Deployment Enablement)
+
+- Diagnostics check returned no errors for updated files.
+
+## 2026-05-20 - GoDaddy Client/Server Deployment Readiness
+
+### Scope (Deployment + Mobile Update Path)
+
+- Prepare CRM for internet-hosted client/server operation on GoDaddy.
+- Complete mobile-safe call tracking update flow from daily call email links.
+
+### Key Changes (Deployment + Mobile Update Path)
+
+- Added signed daily call link support configuration for public deployments (`DAILY_CALL_BASE_URL`, `DAILY_CALL_LINK_SECRET`, `DAILY_CALL_LINK_MAX_AGE_SECONDS`).
+- Added `daily_call_mark.php` endpoint to validate signed links and mark contacts called through a confirmation POST.
+- Added GoDaddy deployment runbook documenting DNS/SSL, env setup, upload steps, and validation workflow.
+
+### Important Files (Deployment + Mobile Update Path)
+
+- daily_call_list_helper.php
+- daily_call_mark.php
+- .env.example
+- GODADDY_DEPLOYMENT.md
+- WORKLOG.md
+
+### Validation (Deployment + Mobile Update Path)
+
+- Diagnostics check returned no errors in updated PHP files.
+
+## 2026-05-20 - Contact View Add Log Entry Fix
+
+### Scope (Bug Fix)
+
+- Resolve false failure when adding communication logs from the contact view page.
+
+### Key Changes (Bug Fix)
+
+- Fixed POST routing in `contact_view.php` by introducing a stable hidden form action (`form_action=add_discussion`) for the discussion form.
+- Updated server-side discussion detection to accept either submit button name or hidden form action.
+- Prevented discussion submissions from being misrouted into the contact update handler when submit button name is absent.
+
+### Important Files (Bug Fix)
+
+- contact_view.php
+- WORKLOG.md
+
+### Validation (Bug Fix)
+
+- Diagnostics check for `contact_view.php` returns no errors.
+
+### Follow-Up Hardening (Bug Fix)
+
+- Replaced generic POST failure dead-end with explicit redirect error codes for CSRF, missing fields, prepare/insert/update failures, and unknown form action.
+- Added visible page-level error banner mapped from `?error=` and success banners from `?updated=1` / `?log_added=1` to improve operator feedback during save operations.
+
+## 2026-05-20 - Daily Ontario Call List Automation
+
+### Scope (Daily Call Workflow)
+
+- Implement a recurring outreach workflow that emails 10 Ontario contacts with phone numbers each day.
+- Track call progress so contacts can be marked called and excluded from future daily lists.
+
+### Key Changes (Daily Call Workflow)
+
+- Added daily call tracking helper with MySQL-backed table bootstrap (`daily_call_tracking`) and selection/marking helpers.
+- Added Contact List action to email daily Ontario call list to a target email address.
+- Added per-contact "Mark Called" action in Contact List UI.
+- Added scheduler-friendly runner script (`daily_call_list_send.php`) for daily automation (CLI or authenticated POST).
+- Added `DAILY_CALL_EMAIL_TO` placeholder to environment template.
+
+### Important Files (Daily Call Workflow)
+
+- daily_call_list_helper.php
+- contacts_list.php
+- daily_call_list_send.php
+- .env.example
+- WORKLOG.md
+
+### Validation (Daily Call Workflow)
+
+- Diagnostics check returned no errors in all edited files.
+- Call tracking table is created automatically on first run.
+
+### Follow-Up Enhancements (Daily Call Workflow)
+
+- Added `Call List Ready` filter in Contact List to show only Ontario contacts with phone numbers not yet marked called.
+- Set default daily-call recipient from environment (`DAILY_CALL_EMAIL_TO`) with requested value configured.
+- Aligned SMTP send behavior in daily call helper with mass email SMTP policy (host/auth/encryption/from validations).
+
+## 2026-05-20 - Documentation Lint Cleanup (Admin Guide)
+
+### Scope (Documentation Lint Cleanup)
+
+- Clear markdown diagnostics noise in legacy admin guide without large content refactor.
+
+### Key Changes (Documentation Lint Cleanup)
+
+- Added file-level markdownlint suppression directive to `ADMIN_GUIDE.md` for legacy formatting rules currently used across the document.
+
+### Important Files (Documentation Lint Cleanup)
+
+- ADMIN_GUIDE.md
+- WORKLOG.md
+
+### Validation (Documentation Lint Cleanup)
+
+- Diagnostics check for `ADMIN_GUIDE.md` returns no errors.
+
+## 2026-05-20 - Documentation Ops Update (Public Endpoint Security)
+
+### Scope (Documentation Ops)
+
+- Document operational handling for newly hardened public endpoints.
+
+### Key Changes (Documentation Ops)
+
+- Added Public Endpoint Security Operations section to admin guide covering API key management, public form anti-abuse controls, and IIS hidden-segment validation.
+- Added `API_KEYS` placeholder entry to `.env.example` for consistent deployment configuration.
+
+### Important Files (Documentation Ops)
+
+- ADMIN_GUIDE.md
+- .env.example
+- WORKLOG.md
+
+### Validation (Documentation Ops)
+
+- Diagnostics check returned no errors in updated documentation/template files.
+
+## 2026-05-20 - Public Endpoint Tightening (API Key + Anti-Abuse + CSRF)
+
+### Scope (Public Endpoint Tightening)
+
+- Tighten intentionally public routes without blindly forcing session auth.
+
+### Key Changes (Public Endpoint Tightening)
+
+- Added API key authentication to legacy contacts API endpoint using `API_KEYS` env policy (header/Bearer).
+- Added method enforcement, honeypot check, and per-IP cooldown anti-abuse controls to submit-contact handler.
+- Added CSRF verification to submit-contact POST handling.
+- Added honeypot hidden field to contact form.
+- Expanded IIS hidden segment protections for internal/deprecated paths.
+
+### Important Files (Public Endpoint Tightening)
+
+- api/contacts.php
+- submit-contact.php
+- contact_form.php
+- web.config
+- WORKLOG.md
+
+### Validation (Public Endpoint Tightening)
+
+- Diagnostics check returned no errors in edited files.
+- Refined scan now shows `submit-contact.php` as intentionally public (`Guard=True, Auth=False`) with anti-abuse + CSRF in place.
+
+## 2026-05-20 - Additional Hardening (Legacy API Write Removal + Deprecated Folder Shield)
+
+### Scope (Additional Hardening)
+
+- Remove remaining unauthenticated write surface in legacy API helper endpoint.
+- Prevent accidental web access to deprecated code tree on IIS.
+
+### Key Changes (Additional Hardening)
+
+- Disabled POST write behavior in legacy contacts API helper endpoint and returned explicit 405 response guidance.
+- Added IIS request-filter hidden segment rule to block direct access to `DEPRICATED` folder.
+- Re-ran refined recursive scan over first-party app files.
+
+### Important Files (Additional Hardening)
+
+- api/contacts.php
+- web.config
+- WORKLOG.md
+
+### Validation (Additional Hardening)
+
+- Diagnostics check returned no errors in edited files.
+- Refined residual scan unchanged on policy/public endpoints (`api.php`, `api/contacts.php`, `submit-contact.php`), now with no direct write route remaining in `api/contacts.php`.
+
+## 2026-05-20 - Residual Closure (Import Preview CSRF)
+
+### Scope (Residual Closure)
+
+- Close the last non-public residual CSRF gap detected by heuristic scan.
+
+### Key Changes (Residual Closure)
+
+- Added CSRF verification for the CSV upload/preview POST branch in import contacts page.
+- Added CSRF hidden input to upload form and normalized CSRF render usage in commit preview form.
+- Re-ran residual auth/CSRF scan to verify only intentional public endpoints remain.
+
+### Important Files (Residual Closure)
+
+- import_contacts.php
+- WORKLOG.md
+
+### Validation (Residual Closure)
+
+- Diagnostics check returned no errors in edited file.
+- Residual scan output now shows only `api.php` and `submit-contact.php` (policy-classified public endpoints).
+
+## 2026-05-20 - Security Hardening Final Wave (Inventory + Purchase Orders + Residual Legacy Route)
+
+### Scope (Final Wave)
+
+- Close remaining CSRF gaps in inventory/equipment/purchase-order mutating flows.
+- Quarantine residual legacy contact list endpoint artifact.
+
+### Key Changes (Final Wave)
+
+- Added CSRF verification for contact list column-apply POST path.
+- Added shared request guard enforcement and CSRF input to equipment list mutating form actions (save/duplicate/delete).
+- Added shared request guard enforcement across inventory ledger POST branches and inserted CSRF hidden inputs in all ledger/serial/rfid mutating forms.
+- Added shared request guard and CSRF input to purchase-order add/edit/receive/delete flows.
+- Removed debug redirect banner noise from purchase order add endpoint.
+- Replaced executable legacy enhanced contact list file with an authenticated redirect shim to primary contacts list.
+
+### Important Files (Final Wave)
+
+- contacts_list.php
+- equipment_list.php
+- inventory_ledger.php
+- purchase_order_add.php
+- purchase_order_edit.php
+- purchase_order_receive.php
+- purchase_orders_list.php
+- enhanced_contact_list.php
+- WORKLOG.md
+
+### Validation (Final Wave)
+
+- Diagnostics check returned no errors in all edited files.
+- Residual grep verification confirmed POST handlers now pair with CSRF verification/rendering in targeted files.
+
+### Notes (Final Wave)
+
+- Intentionally public endpoint `submit-contact.php` left unauthenticated by policy; no blind auth gate added.
+- Deprecated duplicates under `DEPRICATED/` remain as technical debt and may continue to appear in heuristic scans.
+
+## 2026-05-20 - Security Hardening Incremental Pass (Residual Endpoint Reduction)
+
+### Scope (Incremental)
+
+- Reduce residual endpoint risk after Phase 3 by hardening additional direct-write handlers.
+
+### Key Changes (Incremental)
+
+- Added auth middleware requirement to direct discussion logger execution path.
+- Added CSRF verification and token rendering to backorder receive flow.
+- Added shared request guard enforcement to contract edit POST flow.
+- Added shared request guard enforcement to add discussion handler.
+- Added shared request guard enforcement to legacy update contact handler.
+- Re-ran residual scan to identify remaining pages for next focused hardening wave.
+
+### Important Files (Incremental)
+
+- discussion_logger.php
+- backorders_list.php
+- contract_edit.php
+- add_discussion.php
+- update_contact.php
+- WORKLOG.md
+
+### Validation (Incremental)
+
+- Diagnostics check returned no errors in all newly edited files.
+
+### Notes (Incremental)
+
+- Remaining residual list now primarily includes larger module pages (purchase order, inventory ledger, and selected list pages) plus intentional public endpoints.
+
+## 2026-05-20 - Security Hardening Phase 3 (Secrets + Guard Helper + Debug Cleanup)
+
+### Scope (Phase 3)
+
+- Remove committed credential values from fallback configuration.
+- Introduce shared request guard helper for auth + POST + CSRF enforcement.
+- Remove active debug UI/diagnostic noise from key user-facing pages.
+
+### Key Changes (Phase 3)
+
+- Reworked fallback config to avoid hardcoded plaintext DB secrets and source from env/placeholders.
+- Improved DB connection env resolution to use complete env sets and clean fallback behavior.
+- Added reusable request guard helper (`request_guard.php`) with HTML and JSON variants.
+- Migrated multiple endpoints to the shared guard helper for consistent enforcement.
+- Removed debug banner/test marker from task calendar page and removed verbose debug blocks from CSV import preview page.
+- Fixed duplicate post-loop increment block in calendar rendering logic.
+
+### Important Files (Phase 3)
+
+- config.local.php
+- db_mysql.php
+- request_guard.php
+- add_tasks.php
+- archive_task.php
+- calendar_task_ajax.php
+- bulk_action.php
+- update_opportunity_inline.php
+- contact_enrich.php
+- import_discussion_log.php
+- import_discussion_log_manual.php
+- commit_import.php
+- index.php
+- import_contacts.php
+
+### Validation (Phase 3)
+
+- Diagnostics check returned no errors in all edited files.
+
+### Notes (Phase 3)
+
+- Credential values should still be rotated in the DB and reissued in deployment secrets, even after source cleanup.
+
+## 2026-05-20 - Security Hardening Pass (Auth + CSRF + Endpoint Lockdown)
+
+### Scope (Security Hardening)
+
+- Harden exposed state-changing endpoints that were missing auth and/or CSRF enforcement.
+- Restrict diagnostic/data-dump scripts to authenticated sessions.
+- Remove sensitive session/cookie debug leakage in import commit flow.
+
+### Key Changes (Security Hardening)
+
+- Added auth + CSRF guards to legacy/utility mutation endpoints (`add_tasks.php`, `archive_task.php`, `calendar_task_ajax.php`, `bulk_action.php`).
+- Added auth + CSRF protections to contract regeneration and discussion import execution routes.
+- Added auth protection to inline update/enrichment/task-edit handlers that previously relied only on CSRF or no guard.
+- Removed session/cookie debug output from `commit_import.php` and required auth there.
+- Gated diagnostics scripts (`php_info.php`, `check_db.php`, `_show_tables.php`) behind auth middleware.
+- Replaced broken root OAuth helper with an authenticated shim to vendor helper script.
+
+### Important Files (Security Hardening)
+
+- add_tasks.php
+- archive_task.php
+- calendar_task_ajax.php
+- bulk_action.php
+- contract_regenerations.php
+- update_opportunity_inline.php
+- contact_enrich.php
+- edit_task.php
+- import_discussion_log.php
+- import_discussion_log_manual.php
+- commit_import.php
+- php_info.php
+- check_db.php
+- _show_tables.php
+- get_oauth_token.php
+- WORKLOG.md
+
+### Validation (Security Hardening)
+
+- Diagnostics check returned no errors in all edited files.
+
+### Notes (Security Hardening)
+
+- This pass focused on endpoint-level security controls without broad feature refactors.
+- A follow-up cleanup pass is still recommended for debug UI remnants in page views and for credential rotation/removal from committed config.
+
+## 2026-05-14 - Contact View Encoding Cleanup + Enrichment Missing-Field Fix
+
+### Scope (Contact View + Enrichment)
+
+- Remove mojibake/corrupt UI glyph strings from contact view.
+- Fix enrichment behavior/message when fields are blank placeholders (like dashes) rather than true empty strings.
+
+### Key Changes (Contact View + Enrichment)
+
+- Replaced corrupted symbol strings in contact UI with safe entity-based icons/text.
+- Fixed fallback rendering so empty values show a visual dash, not literal `&mdash;` text.
+- Added missing-field detection in enrichment endpoint using placeholder-aware checks (`-`, `n/a`, `unknown`, `0000-00-00`, etc.).
+- Updated enrichment response messaging to explicitly list missing fields when no candidate data is found.
+- Added `missing_fields` to enrichment JSON response for better UI diagnostics.
+
+### Important Files (Contact View + Enrichment)
+
+- CRM/contact_view.php
+- CRM/contact_enrich.php
+
+### Validation (Contact View + Enrichment)
+
+- `php -l contact_view.php` passed.
+- `php -l contact_enrich.php` passed.
+
+### Notes (Contact View + Enrichment)
+
+- This prevents false “nothing missing” outcomes when stored data uses placeholder strings instead of true null/blank values.
+
 ## 2026-04-24 - Ledger Parity Monitoring Page
 
 ### Scope (Ledger Parity Monitoring Page)
