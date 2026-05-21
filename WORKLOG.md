@@ -3,6 +3,22 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-05-21 - Runtime Env Secret Scrub
+
+### Scope (Security Hygiene)
+
+- Remove live credentials from git-tracked runtime environment fallback file.
+
+### Key Changes (Security Hygiene)
+
+- Replaced real DB, API, and SMTP values in `.env.runtime` with placeholders.
+- Preserved `.env.runtime` structure so deployment fallback remains usable after filling server-side values.
+
+### Important Files (Security Hygiene)
+
+- .env.runtime
+- WORKLOG.md
+
 ## 2026-05-21 - Git-Tracked Runtime Env Fallback
 
 ### Scope (Deployment Reliability)
