@@ -379,6 +379,7 @@ $initials = strtoupper(substr($user_name, 0, 2));
       </ul>
     </div>
     
+    <?php if (($user_role ?? 'user') === 'admin'): ?>
     <!-- ADMIN SECTION -->
     <div class="nav-section">
       <div class="nav-section-title">Admin</div>
@@ -389,14 +390,12 @@ $initials = strtoupper(substr($user_name, 0, 2));
             <span>Dashboard</span>
           </a>
         </li>
-        <?php if (($user_role ?? 'user') === 'admin'): ?>
         <li class="nav-item">
           <a href="simple_auth/admin_users.php" class="nav-link <?= $currentPage === 'admin_users.php' ? 'active' : '' ?>">
             <span class="nav-icon">👥</span>
             <span>User Access</span>
           </a>
         </li>
-        <?php endif; ?>
         <li class="nav-item">
           <a href="admin_search.php" class="nav-link <?= $currentPage === 'admin_search.php' ? 'active' : '' ?>">
             <span class="nav-icon">🔍</span>
@@ -429,6 +428,7 @@ $initials = strtoupper(substr($user_name, 0, 2));
         </li>
       </ul>
     </div>
+    <?php endif; ?>
 
     <!-- TOOLS SECTION -->
     <div class="nav-section">

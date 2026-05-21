@@ -5,6 +5,9 @@
 
 require_once __DIR__ . '/../db_mysql.php';
 
+$authConfig = require __DIR__ . '/config.php';
+$adminEmail = trim((string) ($authConfig['app']['admin_email'] ?? ''));
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -64,8 +67,22 @@ try {
                 $insert = $conn->prepare('INSERT INTO auth_registration_requests (full_name, email, company, request_note, status) VALUES (?, ?, ?, ?, "pending")');
                 $insert->bind_param('ssss', $fullName, $email, $company, $note);
                 $insert->execute();
+                $requestId = (int) $insert->insert_id;
                 $insert->close();
                 $message = 'Request submitted. An administrator will contact you.';
+
+                // Best-effort notification for faster admin review.
+                if ($adminEmail !== '' && filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+                    $subject = 'New CRM Access Request #' . $requestId;
+                    $body = "A new CRM access request was submitted.\n\n"
+                        . "Request ID: " . $requestId . "\n"
+                        . "Name: " . $fullName . "\n"
+                        . "Email: " . $email . "\n"
+                        . "Company: " . ($company !== '' ? $company : 'n/a') . "\n"
+                        . "Note: " . ($note !== '' ? $note : 'n/a') . "\n\n"
+                        . "Review in admin: simple_auth/admin_users.php\n";
+                    @mail($adminEmail, $subject, $body);
+                }
             }
         }
     }

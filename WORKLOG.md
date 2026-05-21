@@ -3,6 +3,29 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-05-21 - Admin Access Governance Follow-Up
+
+### Scope (Security Hardening)
+
+- Complete follow-up hardening for internet-exposed auth workflows after adding user administration.
+
+### Key Changes (Security Hardening)
+
+- Restricted the entire Admin sidebar section to admin role users only.
+- Added best-effort admin email notification when a new access request is submitted from the public request-access page.
+- Removed temporary diagnostics endpoint (`simple_auth/diag.php`) after successful production stabilization.
+
+### Important Files (Security Hardening)
+
+- navbar-sidebar.php
+- simple_auth/request_access.php
+- simple_auth/diag.php (removed)
+- WORKLOG.md
+
+### Validation (Security Hardening)
+
+- PHP syntax checks passed for modified files.
+
 ## 2026-05-21 - Access Control Hardening + User Admin Workflow
 
 ### Scope (Authentication Security)
