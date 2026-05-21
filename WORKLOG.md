@@ -3,6 +3,29 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-05-21 - Login Reliability + Error Visibility Hardening
+
+### Scope (Production Login Blank-Page Triage)
+
+- Eliminate silent auth/login failures on production and ensure errors are captured in project logs.
+
+### Key Changes (Production Login Blank-Page Triage)
+
+- Added login bootstrap logging in `simple_auth/login.php` to ensure `logs/` exists and direct PHP runtime errors to `logs/errors.log`.
+- Added defensive `try/catch` around auth initialization in `simple_auth/login.php` with safe 500 response text for bootstrap failures.
+- Removed unconditional reliance on `mysqli_stmt::get_result()` in auth/session fetch paths by adding mysqlnd-safe fallback row extraction in `simple_auth/Auth.php` and `simple_auth/SessionDataStore.php`.
+
+### Important Files (Production Login Blank-Page Triage)
+
+- simple_auth/login.php
+- simple_auth/Auth.php
+- simple_auth/SessionDataStore.php
+- WORKLOG.md
+
+### Validation (Production Login Blank-Page Triage)
+
+- PHP syntax checks passed for all modified auth files.
+
 ## 2026-05-21 - Admin Access Governance Follow-Up
 
 ### Scope (Security Hardening)

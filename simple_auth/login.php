@@ -3,6 +3,16 @@
 /**
  * User Login Page
  */
+if (!is_dir(__DIR__ . '/../logs')) {
+    @mkdir(__DIR__ . '/../logs', 0755, true);
+}
+@ini_set('log_errors', '1');
+@ini_set('error_log', __DIR__ . '/../logs/errors.log');
+
+if (file_exists(__DIR__ . '/../error_handler.php')) {
+    require_once __DIR__ . '/../error_handler.php';
+}
+
 require_once __DIR__ . '/Auth.php';
 
 // Load config
@@ -12,7 +22,14 @@ if (!file_exists($configFile)) {
 }
 $config = require $configFile;
 
-$auth = new Auth($config);
+try {
+    $auth = new Auth($config);
+} catch (Throwable $e) {
+    @error_log('simple_auth/login.php bootstrap failure: ' . $e->getMessage());
+    http_response_code(500);
+    echo 'Login is temporarily unavailable. Please contact support.';
+    exit;
+}
 $error = null; // Always initialize $error
 $reason = $_GET['reason'] ?? '';
 $notice = null;

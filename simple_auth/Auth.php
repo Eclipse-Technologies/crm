@@ -31,6 +31,43 @@ class Auth {
     // private $store; // CSV support removed
     private $sessionStore;
     private $config;
+
+    /**
+     * Fetch a single associative row from a prepared statement with mysqlnd fallback.
+     */
+    private function fetchAssocFromStmt(mysqli_stmt $stmt): ?array {
+        if (method_exists($stmt, 'get_result')) {
+            $result = $stmt->get_result();
+            if ($result === false) {
+                return null;
+            }
+            $row = $result->fetch_assoc();
+            return $row ?: null;
+        }
+
+        $meta = $stmt->result_metadata();
+        if (!$meta) {
+            return null;
+        }
+
+        $fields = [];
+        $row = [];
+        while ($field = $meta->fetch_field()) {
+            $fields[] = &$row[$field->name];
+        }
+        call_user_func_array([$stmt, 'bind_result'], $fields);
+
+        if (!$stmt->fetch()) {
+            return null;
+        }
+
+        $out = [];
+        foreach ($row as $key => $value) {
+            $out[$key] = $value;
+        }
+
+        return $out;
+    }
     
     public function __construct($config) {
         $this->config = $config;
@@ -291,8 +328,7 @@ class Auth {
         $stmt = $conn->prepare('SELECT id, username, email, role, created_at, last_login, is_active FROM users WHERE id = ? LIMIT 1');
         $stmt->bind_param('i', $userId);
         $stmt->execute();
-        $result = $stmt->get_result();
-        $row = $result ? $result->fetch_assoc() : null;
+        $row = $this->fetchAssocFromStmt($stmt);
         $stmt->close();
         $conn->close();
 
@@ -451,8 +487,7 @@ class Auth {
         $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ? LIMIT 1");
         $stmt->bind_param('ss', $usernameOrEmail, $usernameOrEmail);
         $stmt->execute();
-        $result = $stmt->get_result();
-        $user = $result->fetch_assoc();
+        $user = $this->fetchAssocFromStmt($stmt);
         $stmt->close();
         $conn->close();
         return $user ?: null;
