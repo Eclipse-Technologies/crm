@@ -179,7 +179,21 @@ if (isset($_POST['mark_called_contact'])) {
     $dailyConn->close();
   }
 
-  header('Location: contacts_list.php?daily_call_status=marked');
+  // Preserve current table state and return near the contact that was just updated.
+  $redirectParams = [];
+  $paramsToPropagate = ['page', 'query', 'sort', 'direction', 'per_page', 'field', 'call_ready'];
+  foreach ($paramsToPropagate as $p) {
+    if (isset($_GET[$p])) {
+      $redirectParams[$p] = $_GET[$p];
+    }
+  }
+  if (isset($_GET['display'])) {
+    $redirectParams['display'] = $_GET['display'];
+  }
+  $redirectParams['daily_call_status'] = 'marked';
+
+  $fragment = $contactIdToMark !== '' ? '#contact-' . rawurlencode($contactIdToMark) : '';
+  header('Location: contacts_list.php?' . http_build_query($redirectParams) . $fragment);
   exit;
 }
 
@@ -593,7 +607,7 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
                 $isDuplicate = !empty($email) && $emailCount[strtolower(trim($email))] > 1;
                 $isCalled = !empty($calledContactMap[(string) $id]);
               ?>
-                <tr class="contact-row" data-contact-id="<?= escapeAttr($id) ?>">
+                <tr id="contact-<?= escapeAttr($id) ?>" class="contact-row" data-contact-id="<?= escapeAttr($id) ?>">
                 <td>
                   <div class="btn-group" role="group">
                     <a href="contact_view.php?id=<?= escapeAttr($id) ?>" class="btn btn-sm btn-outline-primary" title="View contact"><i class="bi bi-person-lines-fill"></i></a>
