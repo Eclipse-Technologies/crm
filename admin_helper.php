@@ -170,6 +170,10 @@ function getActiveUsers(): array {
         LEFT JOIN users u
             ON CAST(u.id AS CHAR) = CAST(al.user_id AS CHAR)
             OR u.username = CAST(al.user_id AS CHAR)
+        WHERE al.user_id IS NOT NULL
+            AND TRIM(CAST(al.user_id AS CHAR)) <> ''
+            AND TRIM(CAST(al.user_id AS CHAR)) <> '0'
+            AND LOWER(TRIM(CAST(al.user_id AS CHAR))) <> 'unknown'
         GROUP BY al.user_id, u.username, u.email, u.role
         ORDER BY action_count DESC
         LIMIT 10");
