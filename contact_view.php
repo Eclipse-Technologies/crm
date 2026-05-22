@@ -946,17 +946,6 @@ else                                          { $statusColor = '#6B7280'; }
                 <textarea id="entry_text" name="entry_text" class="form-control" rows="4" required placeholder="Enter details of your call, meeting, email, or note..."></textarea>
               </div>
               <div class="form-group">
-                <label for="linked_opportunity_id">Linked Opportunity (Optional)</label>
-                <select id="linked_opportunity_id" name="linked_opportunity_id" class="form-control">
-                  <option value="">-- None --</option>
-                  <?php foreach ($contactOpportunities as $opp): ?>
-                    <option value="<?= htmlspecialchars($opp['opportunity_id']) ?>">
-                      <?= htmlspecialchars($opp['name'] ?? $opp['opportunity_id']) ?> (<?= htmlspecialchars($opp['stage'] ?? '') ?>)
-                    </option>
-                  <?php endforeach; ?>
-                </select>
-              </div>
-              <div class="form-group">
                 <label for="author">Your Name</label>
                 <input type="text" id="author" name="author" class="form-control" value="<?= htmlspecialchars($_SESSION['username'] ?? '') ?>" required>
               </div>
@@ -965,7 +954,7 @@ else                                          { $statusColor = '#6B7280'; }
               </div>
             </form>
             <div class="tip-text">
-              <strong>Tip:</strong> Log communications before, during, or after an opportunity. Link to an opportunity if relevant.
+              <strong>Tip:</strong> Log communications before, during, or after customer interactions.
             </div>
           </div>
         </div>
