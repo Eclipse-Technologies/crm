@@ -159,7 +159,20 @@ function getRecentActivity(int $limit = 10): array {
 function getActiveUsers(): array {
     $conn = get_mysql_connection();
     $rows = [];
-    $r = $conn->query("SELECT user_id, COUNT(*) AS action_count FROM audit_log GROUP BY user_id ORDER BY action_count DESC LIMIT 10");
+    $r = $conn->query("SELECT
+            al.user_id,
+            COALESCE(NULLIF(u.username, ''), CAST(al.user_id AS CHAR)) AS username,
+            COALESCE(u.email, '') AS email,
+            COALESCE(u.role, '') AS role,
+            COUNT(*) AS action_count,
+            MAX(al.timestamp) AS last_action_at
+        FROM audit_log al
+        LEFT JOIN users u
+            ON CAST(u.id AS CHAR) = CAST(al.user_id AS CHAR)
+            OR u.username = CAST(al.user_id AS CHAR)
+        GROUP BY al.user_id, u.username, u.email, u.role
+        ORDER BY action_count DESC
+        LIMIT 10");
     if ($r) {
         while ($row = $r->fetch_assoc()) { $rows[] = $row; }
         $r->free();

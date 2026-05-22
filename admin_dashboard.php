@@ -183,14 +183,20 @@ $daily_call_status = getDailyCallStatus();
         <thead>
           <tr>
             <th>User</th>
+            <th>Email</th>
+            <th>Role</th>
             <th>Actions</th>
+            <th>Last Activity</th>
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($active_users as $user => $count): ?>
+          <?php foreach ($active_users as $row): ?>
             <tr>
-              <td><?= htmlspecialchars($user) ?></td>
-              <td><?= $count ?></td>
+              <td><?= htmlspecialchars((string) ($row['username'] ?? $row['user_id'] ?? 'unknown')) ?></td>
+              <td><?= htmlspecialchars((string) ($row['email'] ?? '')) ?></td>
+              <td><?= htmlspecialchars((string) ($row['role'] ?? '')) ?></td>
+              <td><?= (int) ($row['action_count'] ?? 0) ?></td>
+              <td><?= htmlspecialchars((string) ($row['last_action_at'] ?? '')) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
