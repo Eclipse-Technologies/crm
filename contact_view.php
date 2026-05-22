@@ -507,6 +507,23 @@ else                                          { $statusColor = '#6B7280'; }
   .section { margin-bottom: 25px; }
   .section:last-child { margin-bottom: 0; }
   .section-title { font-size: 12px; font-weight: 700; color: #1a1a1a; text-transform: uppercase; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; }
+  .section-subtext { font-size: 12px; color: #666; margin-bottom: 10px; }
+  .empty-state { padding: 16px; background: #f8f9fa; border-radius: 6px; color: #6b7280; text-align: center; font-size: 13px; }
+  .info-note { padding: 10px; background: #f0f7ff; border-radius: 4px; margin-top: 12px; font-size: 12px; color: #666; }
+  .tip-text { font-size: 12px; color: #6b7280; margin-top: 8px; }
+  .timeline-entry {
+    width: 100%;
+    padding: 15px;
+    margin-bottom: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #3B82F6;
+  }
+  .timeline-head { display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px; }
+  .timeline-author { color: #1a1a1a; font-size: 14px; font-weight: 700; }
+  .timeline-meta { color: #666; font-size: 11px; margin-bottom: 8px; }
+  .timeline-body { color: #1a1a1a; font-size: 13px; line-height: 1.5; margin-bottom: 6px; }
+  .linked-note { margin-top: 8px; padding: 8px; background: white; border-left: 3px solid #10B981; border-radius: 3px; font-size: 11px; color: #666; }
   .field-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .field { }
   .field-label { font-size: 11px; color: #999; text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
@@ -972,11 +989,11 @@ else                                          { $statusColor = '#6B7280'; }
                 </div>
               </div>
             <?php endforeach; ?>
-            <div style="padding: 10px; background: #f0f7ff; border-radius: 4px; margin-top: 12px; font-size: 12px; color: #666;">
+            <div class="info-note">
               <strong style="color: #1976d2;">Total Opportunity Value:</strong> <?= formatCurrency($opportunityValue) ?>
             </div>
           <?php else: ?>
-            <div style="padding: 15px; background: #f8f9fa; border-radius: 4px; color: #999; text-align: center; font-size: 13px;">
+            <div class="empty-state">
               No opportunities linked to this contact yet.
             </div>
           <?php endif; ?>
@@ -985,7 +1002,7 @@ else                                          { $statusColor = '#6B7280'; }
         <?php if (!empty($orphanedOpportunities)): ?>
         <div class="section" style="margin-top:30px;">
           <div class="section-title" style="color:#d32f2f;">Orphaned Opportunities (Admin Only)</div>
-          <p style="font-size:13px;">The following opportunities match this company but are not linked to any contact. You can link them below:</p>
+          <p class="section-subtext">The following opportunities match this company but are not linked to any contact. You can link them below:</p>
           <?php foreach ($orphanedOpportunities as $opp): ?>
             <?php $oppId = $opp['opportunity_id'] ?? $opp['id'] ?? ''; ?>
             <form method="post" style="margin-bottom:10px;display:inline-block;">
@@ -1047,7 +1064,7 @@ else                                          { $statusColor = '#6B7280'; }
                 <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
               </div>
             </form>
-            <div style="font-size:12px;color:#888;margin-top:8px;">
+            <div class="tip-text">
               <strong>Tip:</strong> Log communications before, during, or after an opportunity. Link to an opportunity if relevant.
             </div>
           </div>
@@ -1056,26 +1073,26 @@ else                                          { $statusColor = '#6B7280'; }
         <!-- Discussion History -->
         <div class="section">
           <div class="section-title">&#128210; Activity & History</div>
-          <div style="font-size:12px;color:#666;margin-bottom:10px;">
+          <div class="section-subtext">
             Linked Tasks, Opportunities, and Discussions for this Contact
           </div>
           <?php if (!empty($contactDiscussions)): ?>
             <?php foreach ($contactDiscussions as $disc): ?>
-              <div class="timeline-item" style="padding: 15px; margin-bottom: 12px; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #3B82F6;">
-                <div style="width: 100%;">
-                  <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-                    <strong style="color: #1a1a1a; font-size: 14px;"><?= htmlspecialchars($disc['author'] ?? 'Unknown') ?></strong>
+              <div class="timeline-entry">
+                <div>
+                  <div class="timeline-head">
+                    <strong class="timeline-author"><?= htmlspecialchars($disc['author'] ?? 'Unknown') ?></strong>
                     <span style="background: <?= ($disc['visibility'] ?? 'public') === 'public' ? '#e3f2fd' : (($disc['visibility'] ?? '') === 'internal' ? '#fff3cd' : '#f8d7da') ?>; color: <?= ($disc['visibility'] ?? 'public') === 'public' ? '#1976d2' : (($disc['visibility'] ?? '') === 'internal' ? '#856404' : '#721c24') ?>; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase;">
                       <?= htmlspecialchars($disc['visibility'] ?? 'public') ?>
                     </span>
                   </div>
-                  <div style="color: #666; font-size: 11px; margin-bottom: 8px;">
+                  <div class="timeline-meta">
                     &#128197; <?= !empty(trim((string)($disc['timestamp'] ?? ''))) ? htmlspecialchars($disc['timestamp']) : '&mdash;' ?>
                     <?php if (!empty($disc['manual_contact_id'])): ?>
                       <span style="margin-left:10px; color:#8B5CF6; font-weight:600; font-size:11px;">&#128279; Linked by manual_contact_id: <?= htmlspecialchars($disc['manual_contact_id']) ?></span>
                     <?php endif; ?>
                   </div>
-                  <div style="color: #1a1a1a; font-size: 13px; line-height: 1.5; margin-bottom: 6px;">
+                  <div class="timeline-body">
                     <?= nl2br(htmlspecialchars($disc['entry_text'] ?? '')) ?>
                   </div>
                   <?php if (!empty($disc['linked_opportunity_id'])): ?>
@@ -1088,7 +1105,7 @@ else                                          { $statusColor = '#6B7280'; }
                         }
                       }
                     ?>
-                    <div style="margin-top: 8px; padding: 8px; background: white; border-left: 3px solid #10B981; border-radius: 3px; font-size: 11px; color: #666;">
+                    <div class="linked-note">
                       <strong>&#128206; Linked to Opportunity:
                         <?= htmlspecialchars($linkedOpp['name'] ?? ('#' . $disc['linked_opportunity_id'])) ?>
                         <span style="color:#888;font-size:11px;">#<?= htmlspecialchars($disc['linked_opportunity_id']) ?></span>
@@ -1102,7 +1119,7 @@ else                                          { $statusColor = '#6B7280'; }
               </div>
             <?php endforeach; ?>
           <?php else: ?>
-            <div style="padding: 20px; background: #f8f9fa; border-radius: 4px; color: #999; text-align: center; font-size: 13px;">
+            <div class="empty-state">
               No discussions logged yet. Use the Add Discussion section above to create the first entry.
             </div>
           <?php endif; ?>
