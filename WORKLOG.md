@@ -3,6 +3,26 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-05-21 - cPanel MySQL Prefix Fallback
+
+### Scope (Production DB Connectivity)
+
+- Reduce GoDaddy/cPanel credential mismatch failures by trying account-prefixed DB user/database names automatically.
+
+### Key Changes (Production DB Connectivity)
+
+- Added candidate connection attempts in `db_mysql.php`: primary credentials first, then cPanel-prefixed user/db fallback (derived from `CPANEL_ACCOUNT`/`CPANEL_DB_PREFIX` or inferred account path).
+- Added structured attempt logging to `error_log` for faster diagnosis when all attempts fail.
+
+### Important Files (Production DB Connectivity)
+
+- db_mysql.php
+- WORKLOG.md
+
+### Validation (Production DB Connectivity)
+
+- PHP syntax check passed for `db_mysql.php`.
+
 ## 2026-05-21 - Daily Call Status Widget (Admin Dashboard)
 
 ### Scope (Operations Visibility)
