@@ -33,6 +33,8 @@ if ($errorCode !== '' && isset($errorMap[$errorCode])) {
   $pageError = $errorMap[$errorCode];
 }
 
+$openEditByQuery = (($_GET['updated'] ?? '') === '1') || (($_GET['edit'] ?? '') === '1');
+
 function redirect_safely(string $url): void {
   if (!headers_sent()) {
     header('Location: ' . $url);
@@ -77,7 +79,7 @@ if ($isDiscussionPost) {
         $stmt->bind_param('sssss', $contactId, $author, $entryText, $linkedOppIdNull, $visibility);
         if ($stmt->execute()) {
           file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " SUCCESS: Inserted discussion for contact_id=$contactId, author=$author\n", FILE_APPEND);
-          redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&log_added=1");
+          redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&log_added=1#discussions");
         } else {
           file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " ERROR: Insert failed - " . $stmt->error . "\n", FILE_APPEND);
           redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&error=discussion_insert");
@@ -185,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id']) && !$is
 
     // Reload the page to show updated info and avoid resubmission
     if ($saveSuccess) {
-      redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&updated=1");
+      redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&updated=1#edit");
     }
   }
 }
@@ -550,6 +552,25 @@ else                                          { $statusColor = '#6B7280'; }
   .btn-secondary:hover { background: #e5e7eb; }
   .btn-secondary:active { background: #d1d5db; }
   .success-alert { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 12px; border-radius: 4px; margin-bottom: 15px; }
+  .success-alert a { color: #155724; font-weight: 700; }
+  .section-jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 14px 0;
+  }
+  .section-jump a {
+    display: inline-block;
+    padding: 8px 12px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+  }
+  .section-jump a:hover { background: #dbeafe; }
 
   /* Mobile Responsiveness */
   @media (max-width: 900px) {
@@ -647,7 +668,10 @@ else                                          { $statusColor = '#6B7280'; }
   </div>
 
   <?php if (isset($_GET['updated']) && $_GET['updated'] === '1'): ?>
-    <div class="success-alert">&#10003; Changes saved successfully.</div>
+    <div class="success-alert">
+      &#10003; Contact saved successfully.
+      <span style="margin-left:10px;">Continue in <a href="#edit">Edit Details</a> or jump to <a href="#overview">Overview</a>.</span>
+    </div>
   <?php endif; ?>
 
   <?php if (isset($_GET['log_added']) && $_GET['log_added'] === '1'): ?>
@@ -659,6 +683,13 @@ else                                          { $statusColor = '#6B7280'; }
       <strong>Error:</strong> <?= htmlspecialchars($pageError) ?>
     </div>
   <?php endif; ?>
+
+  <div class="section-jump" aria-label="Quick section navigation">
+    <a href="#overview">Overview</a>
+    <a href="#edit">Edit Details</a>
+    <a href="#opportunities">Opportunities</a>
+    <a href="#discussions">Discussions</a>
+  </div>
 
 
   <!-- Stats Bar -->
@@ -733,7 +764,7 @@ else                                          { $statusColor = '#6B7280'; }
   <!-- ACCORDION SECTIONS -->
   
   <!-- Overview Section -->
-  <div class="accordion">
+  <div class="accordion" id="overview">
     <div class="accordion-header active" onclick="toggleAccordion(this)">
       <div class="accordion-title">
         <span>&#128203;</span>
@@ -832,15 +863,15 @@ else                                          { $statusColor = '#6B7280'; }
   </div>
 
   <!-- Edit Details Section -->
-  <div class="accordion">
-    <div class="accordion-header" onclick="toggleAccordion(this)">
+  <div class="accordion" id="edit">
+    <div class="accordion-header <?= $openEditByQuery ? 'active' : '' ?>" onclick="toggleAccordion(this)">
       <div class="accordion-title">
         <span>&#9998;</span>
         <span>Edit Contact Details</span>
       </div>
       <div class="accordion-icon">&#9654;</div>
     </div>
-    <div class="accordion-content">
+    <div class="accordion-content <?= $openEditByQuery ? 'active' : '' ?>">
       <div class="accordion-body">
         <form method="post">
           <?php renderCSRFInput(); ?>
@@ -848,7 +879,7 @@ else                                          { $statusColor = '#6B7280'; }
 
           <!-- Quick Status Section -->
           <div class="form-section" style="background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%); border: 1px solid #bfdbfe; padding: 14px; margin-bottom: 16px;">
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; font-size: 12px;">
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 16px; font-size: 12px;">
               <div>
                 <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">&#128197; Created</div>
                 <div style="color: #666;"><?= date('M d, Y', strtotime($createdAt)) ?></div>
@@ -1001,7 +1032,7 @@ else                                          { $statusColor = '#6B7280'; }
   </div>
 
   <!-- Opportunities Section -->
-  <div class="accordion">
+  <div class="accordion" id="opportunities">
     <div class="accordion-header" onclick="toggleAccordion(this)">
       <div class="accordion-title">
         <span>&#128188;</span>
@@ -1067,7 +1098,7 @@ else                                          { $statusColor = '#6B7280'; }
   </div>
 
   <!-- Discussions Section -->
-  <div class="accordion">
+  <div class="accordion" id="discussions">
     <div class="accordion-header" onclick="toggleAccordion(this)">
       <div class="accordion-title">
         <span>&#128172;</span>
@@ -1136,6 +1167,8 @@ else                                          { $statusColor = '#6B7280'; }
 </div>
 
 <script>
+  const OPEN_EDIT_ON_LOAD = <?= $openEditByQuery ? 'true' : 'false' ?>;
+
   // Accordion toggle function
   function toggleAccordion(header) {
     const content = header.nextElementSibling;
@@ -1144,6 +1177,48 @@ else                                          { $statusColor = '#6B7280'; }
     header.classList.toggle('active');
     content.classList.toggle('active');
   }
+
+  function openAccordionByContainerId(containerId, shouldScroll) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const header = container.querySelector('.accordion-header');
+    const content = container.querySelector('.accordion-content');
+    if (!header || !content) return;
+
+    if (!header.classList.contains('active')) {
+      header.classList.add('active');
+      content.classList.add('active');
+    }
+
+    if (shouldScroll) {
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const hash = (window.location.hash || '').toLowerCase();
+
+    if (hash === '#edit') {
+      openAccordionByContainerId('edit', true);
+      return;
+    }
+    if (hash === '#opportunities') {
+      openAccordionByContainerId('opportunities', true);
+      return;
+    }
+    if (hash === '#discussions') {
+      openAccordionByContainerId('discussions', true);
+      return;
+    }
+    if (hash === '#overview') {
+      openAccordionByContainerId('overview', true);
+      return;
+    }
+
+    if (OPEN_EDIT_ON_LOAD) {
+      openAccordionByContainerId('edit', false);
+    }
+  });
 
   // Tag management
   function addNewTag(element) {
@@ -1466,14 +1541,7 @@ else                                          { $statusColor = '#6B7280'; }
     modal.remove();
 
     // Scroll to form and show success
-    const editSection = document.querySelector('.accordion-header:has(+ .accordion-content:has(form))');
-    if (editSection) {
-      // Expand the edit section if collapsed
-      if (!editSection.classList.contains('active')) {
-        editSection.click();
-      }
-      editSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    openAccordionByContainerId('edit', true);
 
     // Show confirmation alert
     const alert = document.createElement('div');
