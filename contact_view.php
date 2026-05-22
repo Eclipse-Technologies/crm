@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id']) && !$is
   } else {
     $fields = [
       'first_name', 'last_name', 'company', 'email', 'phone', 'address',
-      'city', 'province', 'postal_code', 'country', 'notes', 'tags', 'is_customer', 'status'
+      'city', 'province', 'postal_code', 'country', 'notes', 'status'
     ];
 
     // Fetch old contact data before update for audit logging
@@ -685,7 +685,7 @@ else                                          { $statusColor = '#6B7280'; }
   <?php if (isset($_GET['updated']) && $_GET['updated'] === '1'): ?>
     <div class="success-alert">
       &#10003; Contact saved successfully.
-      <span style="margin-left:10px;">Continue in <a href="#edit">Edit Details</a> or jump to <a href="#overview">Overview</a>.</span>
+      <span style="margin-left:10px;">Continue in <a href="#edit">Edit Details</a>.</span>
     </div>
   <?php endif; ?>
 
@@ -700,7 +700,6 @@ else                                          { $statusColor = '#6B7280'; }
   <?php endif; ?>
 
   <div class="section-jump" aria-label="Quick section navigation">
-    <a href="#overview">Overview</a>
     <a href="#edit">Edit Details</a>
     <a href="#opportunities">Opportunities</a>
     <a href="#discussions">Discussions</a>
@@ -743,73 +742,6 @@ else                                          { $statusColor = '#6B7280'; }
 
   <!-- ACCORDION SECTIONS -->
   
-  <!-- Overview Section -->
-  <div class="accordion" id="overview">
-    <div class="accordion-header" onclick="toggleAccordion(this)">
-      <div class="accordion-title">
-        <span>&#128203;</span>
-        <span>Overview</span>
-      </div>
-      <div class="accordion-icon">&#9654;</div>
-    </div>
-    <div class="accordion-content">
-      <div class="accordion-body">
-        <div class="section">
-          <div class="section-title">&#128205; Location & Contact</div>
-          <div class="field-grid">
-            <div class="field">
-              <div class="field-label">Email</div>
-              <div class="field-value <?= empty($contact['email']) ? 'empty' : '' ?>">
-                <?= $contact['email'] ? '<a href="mailto:' . htmlspecialchars($contact['email']) . '" style="color:#3B82F6;">' . htmlspecialchars($contact['email']) . '</a>' : '&mdash;' ?>
-              </div>
-            </div>
-            <div class="field">
-              <div class="field-label">Phone</div>
-              <div class="field-value <?= empty($contact['phone']) ? 'empty' : '' ?>">
-                <?= $contact['phone'] ? '<a href="tel:' . htmlspecialchars($contact['phone']) . '" style="color:#3B82F6;">' . htmlspecialchars($contact['phone']) . '</a>' : '&mdash;' ?>
-              </div>
-            </div>
-            <div class="field">
-              <div class="field-label">City</div>
-              <div class="field-value <?= empty($contact['city']) ? 'empty' : '' ?>"><?= !empty(trim((string)($contact['city'] ?? ''))) ? htmlspecialchars($contact['city']) : '&mdash;' ?></div>
-            </div>
-            <div class="field">
-              <div class="field-label">Province</div>
-              <div class="field-value <?= empty($contact['province']) ? 'empty' : '' ?>"><?= !empty(trim((string)($contact['province'] ?? ''))) ? htmlspecialchars($contact['province']) : '&mdash;' ?></div>
-            </div>
-            <div class="field">
-              <div class="field-label">Postal Code</div>
-              <div class="field-value <?= empty($contact['postal_code']) ? 'empty' : '' ?>"><?= !empty(trim((string)($contact['postal_code'] ?? ''))) ? htmlspecialchars($contact['postal_code']) : '&mdash;' ?></div>
-            </div>
-            <div class="field">
-              <div class="field-label">Country</div>
-              <div class="field-value <?= empty($contact['country']) ? 'empty' : '' ?>"><?= !empty(trim((string)($contact['country'] ?? ''))) ? htmlspecialchars($contact['country']) : '&mdash;' ?></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-title">&#128278; Tags</div>
-          <div class="tags-container">
-            <?php foreach ($tags as $tag): ?>
-              <span class="tag"><?= htmlspecialchars($tag) ?></span>
-            <?php endforeach; ?>
-            <?php if (empty($tags)): ?>
-              <p style="font-size: 12px; color: #999; margin: 0;">No tags</p>
-            <?php endif; ?>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-title">&#128221; Notes</div>
-          <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.5;">
-            <?= $contact['notes'] ? htmlspecialchars($contact['notes']) : '<span style="color: #ccc;">No notes</span>' ?>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Edit Details Section -->
   <div class="accordion" id="edit">
     <div class="accordion-header" onclick="toggleAccordion(this)">
@@ -876,23 +808,6 @@ else                                          { $statusColor = '#6B7280'; }
                   <option value="Prospect" <?= ($contact['status'] ?? '') === 'Prospect' ? 'selected' : '' ?>>Prospect</option>
                 </select>
               </div>
-              <div class="form-group">
-                <label>Tags</label>
-                <div class="tags-container" style="margin-bottom: 10px;">
-                  <?php foreach ($tags as $tag): ?>
-                    <span class="tag"><?= htmlspecialchars($tag) ?> <span class="tag-remove" onclick="removeTag(this)">&#10005;</span></span>
-                  <?php endforeach; ?>
-                  <span class="tag-new" onclick="addNewTag(this)">+ Add tag</span>
-                </div>
-                <input type="hidden" name="tags" id="tags_input" value="<?= htmlspecialchars($contact['tags'] ?? '') ?>">
-              </div>
-              <div class="form-group">
-                <label>Customer</label>
-                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
-                  <input type="checkbox" name="is_customer" value="1" <?= ($isCustomer ? 'checked' : '') ?> style="width: 16px; height: 16px; cursor: pointer;">
-                  <span>Is an Active Customer</span>
-                </label>
-              </div>
             </div>
           </div>
 
@@ -919,21 +834,6 @@ else                                          { $statusColor = '#6B7280'; }
               <div class="form-group">
                 <label>Country</label>
                 <input type="text" name="country" value="<?= htmlspecialchars($contact['country'] ?? '') ?>">
-              </div>
-            </div>
-          </div>
-
-          <!-- Business/Logistics Section -->
-          <div class="form-section">
-            <h3>Business / Logistics</h3>
-            <div class="form-grid">
-              <div class="form-group">
-                <label>Tank Number</label>
-                <input type="text" name="tank_number" value="<?= htmlspecialchars($contact['tank_number'] ?? '') ?>">
-              </div>
-              <div class="form-group">
-                <label>Delivery Date</label>
-                <input type="text" name="delivery_date" placeholder="YYYY-MM-DD" value="<?= htmlspecialchars($contact['delivery_date'] ?? '') ?>">
               </div>
             </div>
           </div>
