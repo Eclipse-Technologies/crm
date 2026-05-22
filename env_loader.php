@@ -20,8 +20,11 @@ function crm_apply_env_file(string $envFile): void {
 }
 
 function load_env($envFile = __DIR__ . '/.env') {
-    // Load server-managed .env first, then git-tracked .env.runtime overrides.
-    // This supports "update locally and deploy via git" workflows.
-    crm_apply_env_file($envFile);
+    // Prefer server-managed .env. Use .env.runtime only when .env is missing.
+    if (file_exists($envFile)) {
+        crm_apply_env_file($envFile);
+        return;
+    }
+
     crm_apply_env_file(__DIR__ . '/.env.runtime');
 }

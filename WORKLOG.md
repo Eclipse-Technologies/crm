@@ -3,6 +3,26 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-05-21 - Env Precedence Correction (Deep Dive)
+
+### Scope (Production Credential Resolution)
+
+- Correct environment loading precedence that could cause production to keep stale Git-tracked credentials.
+
+### Key Changes (Production Credential Resolution)
+
+- Updated `env_loader.php` so server `.env` is authoritative when present.
+- `.env.runtime` is now loaded only when `.env` is absent.
+
+### Important Files (Production Credential Resolution)
+
+- env_loader.php
+- WORKLOG.md
+
+### Validation (Production Credential Resolution)
+
+- PHP syntax check passed for `env_loader.php`.
+
 ## 2026-05-21 - cPanel MySQL Prefix Fallback
 
 ### Scope (Production DB Connectivity)
