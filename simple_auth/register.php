@@ -75,6 +75,51 @@ $showDebug = ($_SERVER['SERVER_NAME'] ?? '') === 'localhost' || ($_SERVER['REMOT
     <title>Register - CRM System</title>
     <link rel="stylesheet" href="../style.css">
     <style>
+        body {
+            margin: 0;
+            background: #f8fafc;
+            color: #0f172a;
+            font-family: Arial, sans-serif;
+        }
+        .page-shell { display: flex; min-height: 100vh; }
+        .side-nav {
+            width: 250px;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            padding: 20px 14px;
+            box-shadow: 2px 0 12px rgba(15, 23, 42, 0.18);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .side-brand { font-size: 18px; font-weight: 700; margin: 4px 8px 16px; letter-spacing: 0.2px; }
+        .side-group { margin-bottom: 14px; }
+        .side-title {
+            margin: 0 8px 8px;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            font-weight: 700;
+        }
+        .side-link {
+            display: block;
+            padding: 10px 12px;
+            margin: 2px 0;
+            border-radius: 8px;
+            color: #e2e8f0;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background 0.2s ease;
+        }
+        .side-link:hover { background: rgba(148, 163, 184, 0.18); }
+        .side-link.active {
+            background: rgba(59, 130, 246, 0.28);
+            color: #dbeafe;
+            font-weight: 700;
+        }
+        .content-shell { flex: 1; min-width: 0; }
         .auth-container {
             max-width: 450px;
             margin: 60px auto;
@@ -168,9 +213,45 @@ $showDebug = ($_SERVER['SERVER_NAME'] ?? '') === 'localhost' || ($_SERVER['REMOT
             color: #666;
             margin-top: 5px;
         }
+        @media (max-width: 980px) {
+            .page-shell { flex-direction: column; }
+            .side-nav {
+                width: 100%;
+                height: auto;
+                position: static;
+                padding: 12px;
+                box-shadow: none;
+            }
+            .side-group { display: flex; flex-wrap: wrap; gap: 6px; }
+            .side-title { width: 100%; margin-bottom: 6px; }
+            .side-link { margin: 0; }
+            .auth-container {
+                margin: 18px auto;
+                padding: 24px;
+            }
+        }
     </style>
 </head>
 <body>
+    <div class="page-shell">
+    <aside class="side-nav" aria-label="Authentication navigation">
+        <div class="side-brand">Auth Access</div>
+
+        <div class="side-group">
+            <div class="side-title">Access</div>
+            <a class="side-link" href="login.php">Login</a>
+            <a class="side-link" href="request_access.php">Request Access</a>
+            <a class="side-link active" href="register.php">Register</a>
+        </div>
+
+        <div class="side-group">
+            <div class="side-title">CRM</div>
+            <a class="side-link" href="../dashboard.php">CRM Dashboard</a>
+            <a class="side-link" href="../admin_dashboard.php">Admin Dashboard</a>
+        </div>
+    </aside>
+
+    <main class="content-shell">
     <div class="auth-container">
         <h1>🔐 Create Account</h1>
         <p class="subtitle">Join <?= htmlspecialchars($config['app']['name']) ?> today</p>
@@ -279,6 +360,8 @@ $showDebug = ($_SERVER['SERVER_NAME'] ?? '') === 'localhost' || ($_SERVER['REMOT
         <div class="auth-footer">
             Already have an account? <a href="login.php">Login here</a>
         </div>
+    </div>
+    </main>
     </div>
 </body>
 </html>

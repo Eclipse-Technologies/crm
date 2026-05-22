@@ -101,15 +101,87 @@ try {
     <title>Request Access</title>
     <link rel="stylesheet" href="../style.css">
     <style>
-        body { background: #f8fafc; font-family: Arial, sans-serif; }
+        body { background: #f8fafc; font-family: Arial, sans-serif; margin: 0; color: #0f172a; }
+        .page-shell { display: flex; min-height: 100vh; }
+        .side-nav {
+            width: 250px;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            padding: 20px 14px;
+            box-shadow: 2px 0 12px rgba(15, 23, 42, 0.18);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .side-brand { font-size: 18px; font-weight: 700; margin: 4px 8px 16px; letter-spacing: 0.2px; }
+        .side-group { margin-bottom: 14px; }
+        .side-title {
+            margin: 0 8px 8px;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            font-weight: 700;
+        }
+        .side-link {
+            display: block;
+            padding: 10px 12px;
+            margin: 2px 0;
+            border-radius: 8px;
+            color: #e2e8f0;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background 0.2s ease;
+        }
+        .side-link:hover { background: rgba(148, 163, 184, 0.18); }
+        .side-link.active {
+            background: rgba(59, 130, 246, 0.28);
+            color: #dbeafe;
+            font-weight: 700;
+        }
+        .content-shell { flex: 1; min-width: 0; }
         .panel { max-width: 540px; margin: 40px auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; }
         input, textarea, button { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 8px; }
         button { background: #0f766e; color: #fff; border: none; cursor: pointer; }
         .msg { background: #ecfeff; border: 1px solid #a5f3fc; color: #155e75; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
         .err { background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+        @media (max-width: 980px) {
+            .page-shell { flex-direction: column; }
+            .side-nav {
+                width: 100%;
+                height: auto;
+                position: static;
+                padding: 12px;
+                box-shadow: none;
+            }
+            .side-group { display: flex; flex-wrap: wrap; gap: 6px; }
+            .side-title { width: 100%; margin-bottom: 6px; }
+            .side-link { margin: 0; }
+            .panel { margin: 18px auto; }
+        }
     </style>
 </head>
 <body>
+<div class="page-shell">
+    <aside class="side-nav" aria-label="Authentication navigation">
+        <div class="side-brand">Auth Access</div>
+
+        <div class="side-group">
+            <div class="side-title">Access</div>
+            <a class="side-link" href="login.php">Login</a>
+            <a class="side-link active" href="request_access.php">Request Access</a>
+            <a class="side-link" href="register.php">Register</a>
+        </div>
+
+        <div class="side-group">
+            <div class="side-title">CRM</div>
+            <a class="side-link" href="../dashboard.php">CRM Dashboard</a>
+            <a class="side-link" href="../admin_dashboard.php">Admin Dashboard</a>
+        </div>
+    </aside>
+
+    <main class="content-shell">
 <div class="panel">
     <h1>Request CRM Access</h1>
     <p>Public registration is disabled. Submit this form and an administrator will review your request.</p>
@@ -135,6 +207,8 @@ try {
     </form>
 
     <p style="margin-top:12px;"><a href="login.php">Back to login</a></p>
+</div>
+</main>
 </div>
 </body>
 </html>
