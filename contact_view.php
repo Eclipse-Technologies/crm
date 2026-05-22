@@ -710,41 +710,6 @@ else                                          { $statusColor = '#6B7280'; }
     </div>
   </div>
 
-  <!-- Discussion Log Entry Form -->
-  <div class="form-section" style="margin-bottom:32px;">
-    <h3>Add Communication / Discussion Log</h3>
-    <form method="post" action="">
-      <?php renderCSRFInput(); ?>
-      <input type="hidden" name="form_action" value="add_discussion">
-      <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
-      <div class="form-group">
-        <label for="entry_text">Notes / Communication</label>
-        <textarea id="entry_text" name="entry_text" class="form-control" rows="4" required placeholder="Enter details of your call, meeting, email, or note..."></textarea>
-      </div>
-      <div class="form-group">
-        <label for="linked_opportunity_id">Linked Opportunity (Optional)</label>
-        <select id="linked_opportunity_id" name="linked_opportunity_id" class="form-control">
-          <option value="">-- None --</option>
-          <?php foreach ($contactOpportunities as $opp): ?>
-            <option value="<?= htmlspecialchars($opp['opportunity_id']) ?>">
-              <?= htmlspecialchars($opp['name'] ?? $opp['opportunity_id']) ?> (<?= htmlspecialchars($opp['stage'] ?? '') ?>)
-            </option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="author">Your Name</label>
-        <input type="text" id="author" name="author" class="form-control" value="<?= htmlspecialchars($_SESSION['username'] ?? '') ?>" required>
-      </div>
-      <div class="submit-actions">
-        <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
-      </div>
-    </form>
-    <div style="font-size:12px;color:#888;margin-top:8px;">
-      <strong>Tip:</strong> You can log communications before, during, or after an opportunity. Link to an opportunity if relevant, or leave blank for general notes.
-    </div>
-  </div>
-
   <!-- AI Panel -->
   <div class="ai-panel" id="aiPanel">
     <div class="ai-panel-header">
@@ -819,38 +784,6 @@ else                                          { $statusColor = '#6B7280'; }
         </div>
 
         <div class="section">
-          <div class="section-title">&#128202; Quick Stats</div>
-          <div class="field-grid">
-            <div class="field">
-              <div class="field-label">Total Value</div>
-              <div class="field-value" style="color: #28a745; font-weight: 600; font-size: 16px;">
-                <?php
-                  $totalValue = 0;
-                  if (is_array($contactOpportunities)) {
-                    foreach ($contactOpportunities as $opp) {
-                      $totalValue += (float)($opp['value'] ?? 0);
-                    }
-                  }
-                  echo formatCurrency($totalValue);
-                ?>
-              </div>
-            </div>
-            <div class="field">
-              <div class="field-label">Open Opportunities</div>
-              <div class="field-value" style="color: #3B82F6; font-weight: 600; font-size: 16px;">
-                <?= is_array($contactOpportunities) ? count($contactOpportunities) : 0 ?>
-              </div>
-            </div>
-            <div class="field">
-              <div class="field-label">Discussions</div>
-              <div class="field-value" style="color: #8B5CF6; font-weight: 600; font-size: 16px;">
-                <?= is_array($contactDiscussions) ? count($contactDiscussions) : 0 ?>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="section">
           <div class="section-title">&#128221; Notes</div>
           <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.5;">
             <?= $contact['notes'] ? htmlspecialchars($contact['notes']) : '<span style="color: #ccc;">No notes</span>' ?>
@@ -874,29 +807,6 @@ else                                          { $statusColor = '#6B7280'; }
         <form method="post">
           <?php renderCSRFInput(); ?>
           <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
-
-          <!-- Quick Status Section -->
-          <div class="form-section" style="background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%); border: 1px solid #bfdbfe; padding: 14px; margin-bottom: 16px;">
-            <div style="display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 16px; font-size: 12px;">
-              <div>
-                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">&#128197; Created</div>
-                <div style="color: #666;"><?= date('M d, Y', strtotime($createdAt)) ?></div>
-              </div>
-              <div>
-                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">&#128260; Last Modified</div>
-                <div style="color: #666;"><?= $lastModified ? date('M d, Y', strtotime($lastModified)) : '&mdash;' ?></div>
-              </div>
-              <div>
-                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">&#128188; Opportunities</div>
-                <div style="color: #666;"><?= is_array($contactOpportunities) ? count($contactOpportunities) : 0 ?> active</div>
-              </div>
-              <div>
-                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">&#128172; Discussions</div>
-                <div style="color: #666;"><?= is_array($contactDiscussions) ? count($contactDiscussions) : 0 ?> logged</div>
-              </div>
-            </div>
-          </div>
-
 
           <!-- Optimized Contact Info Section -->
           <div class="form-section">
@@ -1106,6 +1016,43 @@ else                                          { $statusColor = '#6B7280'; }
     </div>
     <div class="accordion-content">
       <div class="accordion-body">
+        <div class="section">
+          <div class="section-title">&#10133; Add Discussion</div>
+          <div class="form-section" style="margin-bottom:0;">
+            <h3>Add Communication / Discussion Log</h3>
+            <form method="post" action="">
+              <?php renderCSRFInput(); ?>
+              <input type="hidden" name="form_action" value="add_discussion">
+              <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
+              <div class="form-group">
+                <label for="entry_text">Notes / Communication</label>
+                <textarea id="entry_text" name="entry_text" class="form-control" rows="4" required placeholder="Enter details of your call, meeting, email, or note..."></textarea>
+              </div>
+              <div class="form-group">
+                <label for="linked_opportunity_id">Linked Opportunity (Optional)</label>
+                <select id="linked_opportunity_id" name="linked_opportunity_id" class="form-control">
+                  <option value="">-- None --</option>
+                  <?php foreach ($contactOpportunities as $opp): ?>
+                    <option value="<?= htmlspecialchars($opp['opportunity_id']) ?>">
+                      <?= htmlspecialchars($opp['name'] ?? $opp['opportunity_id']) ?> (<?= htmlspecialchars($opp['stage'] ?? '') ?>)
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="author">Your Name</label>
+                <input type="text" id="author" name="author" class="form-control" value="<?= htmlspecialchars($_SESSION['username'] ?? '') ?>" required>
+              </div>
+              <div class="submit-actions">
+                <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
+              </div>
+            </form>
+            <div style="font-size:12px;color:#888;margin-top:8px;">
+              <strong>Tip:</strong> Log communications before, during, or after an opportunity. Link to an opportunity if relevant.
+            </div>
+          </div>
+        </div>
+
         <!-- Discussion History -->
         <div class="section">
           <div class="section-title">&#128210; Activity & History</div>
@@ -1156,7 +1103,7 @@ else                                          { $statusColor = '#6B7280'; }
             <?php endforeach; ?>
           <?php else: ?>
             <div style="padding: 20px; background: #f8f9fa; border-radius: 4px; color: #999; text-align: center; font-size: 13px;">
-              No discussions logged yet. Start by adding the first discussion above.
+              No discussions logged yet. Use the Add Discussion section above to create the first entry.
             </div>
           <?php endif; ?>
         </div>
