@@ -195,6 +195,12 @@ if ($customerId !== '') {
 .cv-timeline-meta { color: #666; font-size: 11px; margin-bottom: 8px; }
 .cv-timeline-body { color: #1a1a1a; font-size: 13px; line-height: 1.5; margin-bottom: 6px; }
 .cv-linked { margin-top: 8px; padding: 8px; background: white; border-left: 3px solid #10B981; border-radius: 3px; font-size: 11px; color: #666; }
+.cv-discussions { margin-bottom: 32px; }
+.cv-visibility-badge { padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+.cv-visibility-public { background: #e3f2fd; color: #1976d2; }
+.cv-visibility-internal { background: #fff3cd; color: #856404; }
+.cv-visibility-private { background: #f8d7da; color: #721c24; }
+.cv-manual-link { margin-left: 10px; color: #8B5CF6; font-weight: 600; font-size: 11px; }
 </style>
 <div class="main-content">
     <div class="content-container">
@@ -652,7 +658,7 @@ if ($customerId !== '') {
 
     // Note: $discussions now populated for all contacts under this customer.
     ?>
-    <div class="accordion" style="margin-bottom:32px;">
+    <div class="accordion cv-discussions">
             <div class="accordion-header" onclick="toggleAccordion(this)">
                 <div class="accordion-title">
                     <span>💬</span>
@@ -665,18 +671,27 @@ if ($customerId !== '') {
                     <div class="section-title">📒 Activity & History</div>
                     <?php if (!empty($discussions)): ?>
                         <?php foreach ($discussions as $disc): ?>
+                            <?php
+                            $visibility = strtolower((string) ($disc['visibility'] ?? 'public'));
+                            $visibilityClass = 'cv-visibility-public';
+                            if ($visibility === 'internal') {
+                                $visibilityClass = 'cv-visibility-internal';
+                            } elseif ($visibility === 'private') {
+                                $visibilityClass = 'cv-visibility-private';
+                            }
+                            ?>
                             <div class="timeline-item cv-timeline-item">
                                 <div style="width: 100%;">
                                     <div class="cv-timeline-head">
                                         <strong class="cv-timeline-author"><?= htmlspecialchars($disc['author'] ?? 'Unknown') ?></strong>
-                                        <span style="background: <?= ($disc['visibility'] ?? 'public') === 'public' ? '#e3f2fd' : (($disc['visibility'] ?? '') === 'internal' ? '#fff3cd' : '#f8d7da') ?>; color: <?= ($disc['visibility'] ?? 'public') === 'public' ? '#1976d2' : (($disc['visibility'] ?? '') === 'internal' ? '#856404' : '#721c24') ?>; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase;">
+                                        <span class="cv-visibility-badge <?= htmlspecialchars($visibilityClass) ?>">
                                             <?= htmlspecialchars($disc['visibility'] ?? 'public') ?>
                                         </span>
                                     </div>
                                     <div class="cv-timeline-meta">
                                         📅 <?= htmlspecialchars($disc['timestamp'] ?? '—') ?>
                                         <?php if (!empty($disc['manual_contact_id'])): ?>
-                                            <span style="margin-left:10px; color:#8B5CF6; font-weight:600; font-size:11px;">🔗 Linked by manual_contact_id: <?= htmlspecialchars($disc['manual_contact_id']) ?></span>
+                                            <span class="cv-manual-link">🔗 Linked by manual_contact_id: <?= htmlspecialchars($disc['manual_contact_id']) ?></span>
                                         <?php endif; ?>
                                     </div>
                                     <div class="cv-timeline-body">
