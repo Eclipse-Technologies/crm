@@ -53,18 +53,29 @@ function crm_build_connection_candidates(string $host, string $dbname, string $u
     $accountPrefix = $account . '_';
     $prefixedUser = (strpos($user, $accountPrefix) === 0) ? $user : ($accountPrefix . $user);
     $prefixedDb = (strpos($dbname, $accountPrefix) === 0) ? $dbname : ($accountPrefix . $dbname);
+    $strippedUser = (strpos($user, $accountPrefix) === 0) ? substr($user, strlen($accountPrefix)) : $user;
+    $strippedDb = (strpos($dbname, $accountPrefix) === 0) ? substr($dbname, strlen($accountPrefix)) : $dbname;
 
-    if ($prefixedUser !== $user || $prefixedDb !== $dbname) {
-        // Try cPanel-prefixed identities first on hosted production.
-        $prefixed = [
-            'host' => $host,
-            'dbname' => $prefixedDb,
-            'user' => $prefixedUser,
-            'password' => $password,
-            'label' => 'cpanel-prefixed',
-        ];
-        $candidates = [$prefixed, $primary];
+    // Build a de-duplicated list: prefixed first, then provided, then stripped fallback.
+    $seen = [];
+    $built = [];
+
+    $variants = [
+        ['label' => 'cpanel-prefixed', 'host' => $host, 'dbname' => $prefixedDb, 'user' => $prefixedUser, 'password' => $password],
+        ['label' => 'primary', 'host' => $host, 'dbname' => $dbname, 'user' => $user, 'password' => $password],
+        ['label' => 'cpanel-unprefixed', 'host' => $host, 'dbname' => $strippedDb, 'user' => $strippedUser, 'password' => $password],
+    ];
+
+    foreach ($variants as $variant) {
+        $key = $variant['user'] . '|' . $variant['dbname'];
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $built[] = $variant;
     }
+
+    $candidates = $built;
 
     return $candidates;
 }
