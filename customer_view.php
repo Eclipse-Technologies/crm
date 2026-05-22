@@ -171,6 +171,31 @@ if ($customerId !== '') {
     $conn->close();
 }
 ?>
+<style>
+.cv-header-meta { margin-bottom: 14px; color: #4b5563; }
+.cv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.cv-grid-tight { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.cv-fieldset { margin-bottom: 20px; }
+.cv-table-wrap { overflow-x: auto; }
+.cv-muted { color: #6b7280; font-size: 13px; }
+.cv-readonly { background: #eee; }
+.cv-kpi-wrap { max-width: 340px; margin-bottom: 16px; }
+.cv-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.cv-kpi-card { background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center; }
+.cv-kpi-label { font-size: 13px; color: #6b7280; font-weight: 600; text-transform: uppercase; }
+.cv-kpi-value { font-size: 28px; font-weight: 700; }
+.cv-kpi-sub { font-size: 12px; color: #9ca3af; }
+.cv-action-row { margin-top: 12px; }
+.cv-nav { margin-top: 32px; display: flex; gap: 12px; justify-content: flex-end; }
+.cv-tip { font-size: 12px; color: #888; margin-top: 8px; }
+.cv-empty { padding: 20px; background: #f8f9fa; border-radius: 4px; color: #999; text-align: center; font-size: 13px; }
+.cv-timeline-item { padding: 15px; margin-bottom: 12px; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #3B82F6; }
+.cv-timeline-head { display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px; }
+.cv-timeline-author { color: #1a1a1a; font-size: 14px; }
+.cv-timeline-meta { color: #666; font-size: 11px; margin-bottom: 8px; }
+.cv-timeline-body { color: #1a1a1a; font-size: 13px; line-height: 1.5; margin-bottom: 6px; }
+.cv-linked { margin-top: 8px; padding: 8px; background: white; border-left: 3px solid #10B981; border-radius: 3px; font-size: 11px; color: #666; }
+</style>
 <div class="main-content">
     <div class="content-container">
         <div class="container">
@@ -178,7 +203,7 @@ if ($customerId !== '') {
 
         <!-- Header -->
         <h2>🏢 <?= htmlspecialchars($customer['address'] ?? 'Customer ' . $customerId) ?></h2>
-        <div style="margin-bottom:12px;">
+        <div class="cv-header-meta">
             <strong>Customer ID:</strong> <?= htmlspecialchars($customerId) ?><br>
             <?php if ($contact): ?>
                 <strong>Contact:</strong> <?= htmlspecialchars($contact['company'] ?? 'N/A') ?><br>
@@ -190,14 +215,14 @@ if ($customerId !== '') {
         <form method="post" style="margin-bottom:24px;">
             <?php renderCSRFInput(); ?>
             <input type="hidden" name="action" value="update_customer">
-            <fieldset style="margin-bottom:20px;">
+            <fieldset class="cv-fieldset">
                 <legend><strong>📋 Customer Information</strong></legend>
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px;">
+                <div class="cv-grid">
                     <?php foreach ($customerSchema as $field): ?>
                         <div>
                             <label><strong><?= ucfirst(str_replace('_', ' ', $field)) ?></strong></label><br>
                             <?php if ($field === 'customer_id'): ?>
-                                <input type="text" value="<?= htmlspecialchars($customer[$field]) ?>" readonly style="background:#eee;">
+                                <input type="text" value="<?= htmlspecialchars($customer[$field]) ?>" readonly class="cv-readonly">
                             <?php elseif ($field === 'contact_id'): ?>
                                 <select name="<?= $field ?>">
                                     <option value="">-- Select Contact --</option>
@@ -225,8 +250,6 @@ if ($customerId !== '') {
     <!-- ── RENTED TANKS SUMMARY ───────────────────────────────────────────── -->
 
     <?php
-    // DEBUG: Show current $contact['contact_id']
-    echo "<div style='background:#ffeeba;color:#856404;padding:8px;margin:8px 0;'>[DEBUG] contact['contact_id']: " . htmlspecialchars($contact['contact_id'] ?? 'NULL') . " (type: " . gettype($contact['contact_id'] ?? null) . ")</div>";
     // New logic: rented tanks summary is based on serviceEquipment
     $rentedCount = count($serviceEquipment);
     $rentedSizes = array_map(function($item) {
@@ -234,7 +257,7 @@ if ($customerId !== '') {
     }, $serviceEquipment);
     ?>
 
-        <fieldset style="margin-bottom:20px;">
+        <fieldset class="cv-fieldset">
             <legend><strong>🛢️ Rented Tanks Summary</strong></legend>
             <div>
                 <strong>Number of Rented Tanks:</strong> <?= $rentedCount ?><br>
@@ -250,7 +273,7 @@ if ($customerId !== '') {
             <input type="hidden" name="action" value="assign_tank_from_pool">
             <fieldset>
                 <legend><strong>🛢️ Assign Tank from Pool</strong></legend>
-                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px;">
+                <div class="cv-grid">
                     <div>
                         <label><strong>Number of Pool Tanks Assigned</strong></label><br>
                         <?php
@@ -266,7 +289,7 @@ if ($customerId !== '') {
                         $conn->close();
                         ?>
                         <input type="number" name="pool_tank_count" min="0" max="<?= $maxPool ?>" value="<?= $currentAssigned ?>" style="width:100px;">
-                        <span style="color:#888; font-size:13px;">(of <?= $maxPool ?> available in pool)</span>
+                        <span class="cv-muted">(of <?= $maxPool ?> available in pool)</span>
                     </div>
                 </div>
             </fieldset>
@@ -276,11 +299,11 @@ if ($customerId !== '') {
     <!-- ── CONTACT INFORMATION ────────────────────────────────────────────────── -->
 
         <?php if ($contact): ?>
-            <fieldset style="margin-bottom:20px;">
+            <fieldset class="cv-fieldset">
                 <legend><strong>👤 Linked Contact</strong></legend>
-                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px;">
+                <div class="cv-grid-tight">
                     <div><strong>Company:</strong> <?= htmlspecialchars($contact['company'] ?? 'N/A') ?></div>
-                    <div><strong>Contact Person:</strong> <?= htmlspecialchars($contact['name'] ?? 'N/A') ?></div>
+                    <div><strong>Contact Person:</strong> <?= htmlspecialchars(trim((string) (($contact['first_name'] ?? '') . ' ' . ($contact['last_name'] ?? ''))) ?: 'N/A') ?></div>
                     <div><strong>Phone:</strong> <?= htmlspecialchars($contact['phone'] ?? 'N/A') ?></div>
                     <div><strong>Email:</strong> <a href="mailto:<?= htmlspecialchars($contact['email'] ?? '') ?>"><?= htmlspecialchars($contact['email'] ?? 'N/A') ?></a></div>
                     <div style="grid-column:1/-1;"><strong>Address:</strong> <?= htmlspecialchars($contact['address'] ?? 'N/A') ?></div>
@@ -290,7 +313,7 @@ if ($customerId !== '') {
 
     <!-- ── EQUIPMENT INVENTORY ────────────────────────────────────────────────── -->
 
-        <fieldset style="margin-bottom:20px;">
+        <fieldset class="cv-fieldset">
             <legend><strong>🛢️ Customer-Owned Tanks (<?= count($customerOwnedEquipment ?? []) ?>)</strong></legend>
             <div class="location-legend mb-2">
                 <span class="location-chip location-pool">pool</span>
@@ -299,7 +322,7 @@ if ($customerId !== '') {
                 <span class="location-chip location-customer-site">customer site</span>
             </div>
             <?php if (!empty($customerOwnedEquipment)): ?>
-                <div style="overflow-x:auto;">
+                <div class="cv-table-wrap">
                     <table class="table table-striped table-hover align-middle">
                         <thead class="table-light">
                             <tr>
@@ -370,10 +393,10 @@ if ($customerId !== '') {
         </fieldset>
 
 
-        <fieldset style="margin-bottom:20px;">
+        <fieldset class="cv-fieldset">
             <legend><strong>🔁 Service and Rental Tanks At This Site (<?= count($serviceEquipment ?? []) ?>)</strong></legend>
             <?php if (!empty($serviceEquipment)): ?>
-                <div style="overflow-x:auto;">
+            <div class="cv-table-wrap">
                     <table class="table table-striped table-hover align-middle">
                         <thead class="table-light">
                             <tr>
@@ -449,7 +472,7 @@ if ($customerId !== '') {
                         </tbody>
                     </table>
                 </div>
-                <div style="margin-top:12px;">
+                <div class="cv-action-row">
                     <a href="add_customer.php?contact_id=<?= urlencode($customer['contact_id']) ?>" class="btn-outline">➕ Add Equipment</a>
                 </div>
             <?php else: ?>
@@ -460,31 +483,31 @@ if ($customerId !== '') {
     <!-- ── CONTRACTS & REVENUE ────────────────────────────────────────────────── -->
 
     <?php if ($activeCount > 0): ?>
-        <div style="max-width:340px;margin-bottom:16px;">
-            <div style="background:#f8f9fa;padding:16px;border-radius:8px;text-align:center;">
-                <div style="font-size:13px;color:#6B7280;font-weight:600;text-transform:uppercase;">Annual Value</div>
-                <div style="font-size:28px;font-weight:700;">$<?= number_format($totalARR, 2) ?></div>
+        <div class="cv-kpi-wrap">
+            <div class="cv-kpi-card">
+                <div class="cv-kpi-label">Annual Value</div>
+                <div class="cv-kpi-value">$<?= number_format($totalARR, 2) ?></div>
             </div>
         </div>
     <?php endif; ?>
 
-    <fieldset style="margin-bottom:20px;">
+    <fieldset class="cv-fieldset">
         <legend><strong>💰 Service Contracts & Revenue</strong></legend>
         <?php if ($activeCount > 0): ?>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px;">
-                <div style="background:#f8f9fa;padding:16px;border-radius:8px;text-align:center;">
-                    <div style="font-size:13px;color:#6B7280;font-weight:600;text-transform:uppercase;">Active Contracts</div>
-                    <div style="font-size:28px;font-weight:700;"><?= $activeCount ?></div>
+            <div class="cv-kpi-grid">
+                <div class="cv-kpi-card">
+                    <div class="cv-kpi-label">Active Contracts</div>
+                    <div class="cv-kpi-value"><?= $activeCount ?></div>
                 </div>
-                <div style="background:#f8f9fa;padding:16px;border-radius:8px;text-align:center;">
-                    <div style="font-size:13px;color:#6B7280;font-weight:600;text-transform:uppercase;">Monthly Recurring Revenue</div>
-                    <div style="font-size:28px;font-weight:700;">$<?= number_format($totalMRR, 2) ?></div>
-                    <div style="font-size:12px;color:#9CA3AF;"><?= $activeCount ?> active contract<?= $activeCount !== 1 ? 's' : '' ?></div>
+                <div class="cv-kpi-card">
+                    <div class="cv-kpi-label">Monthly Recurring Revenue</div>
+                    <div class="cv-kpi-value">$<?= number_format($totalMRR, 2) ?></div>
+                    <div class="cv-kpi-sub"><?= $activeCount ?> active contract<?= $activeCount !== 1 ? 's' : '' ?></div>
                 </div>
             </div>
         <?php endif; ?>
         <?php if (!empty($contracts)): ?>
-            <div style="overflow-x:auto;">
+            <div class="cv-table-wrap">
                 <table class="table table-striped table-hover align-middle">
                     <thead class="table-light">
                         <tr>
@@ -521,7 +544,7 @@ if ($customerId !== '') {
                     </tbody>
                 </table>
             </div>
-            <div style="margin-top:12px;">
+            <div class="cv-action-row">
                 <a href="contract_form.php?customer_id=<?= urlencode($customerId) ?>" class="btn-outline">➕ New Contract</a>
             </div>
         <?php else: ?>
@@ -585,7 +608,7 @@ if ($customerId !== '') {
                 <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
             </div>
         </form>
-        <div style="font-size:12px;color:#888;margin-top:8px;">
+        <div class="cv-tip">
             <strong>Tip:</strong> You can log communications before, during, or after an opportunity. Link to an opportunity if relevant, or leave blank for general notes.
         </div>
     </div>
@@ -642,25 +665,25 @@ if ($customerId !== '') {
                     <div class="section-title">📒 Activity & History</div>
                     <?php if (!empty($discussions)): ?>
                         <?php foreach ($discussions as $disc): ?>
-                            <div class="timeline-item" style="padding: 15px; margin-bottom: 12px; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #3B82F6;">
+                            <div class="timeline-item cv-timeline-item">
                                 <div style="width: 100%;">
-                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-                                        <strong style="color: #1a1a1a; font-size: 14px;"><?= htmlspecialchars($disc['author'] ?? 'Unknown') ?></strong>
+                                    <div class="cv-timeline-head">
+                                        <strong class="cv-timeline-author"><?= htmlspecialchars($disc['author'] ?? 'Unknown') ?></strong>
                                         <span style="background: <?= ($disc['visibility'] ?? 'public') === 'public' ? '#e3f2fd' : (($disc['visibility'] ?? '') === 'internal' ? '#fff3cd' : '#f8d7da') ?>; color: <?= ($disc['visibility'] ?? 'public') === 'public' ? '#1976d2' : (($disc['visibility'] ?? '') === 'internal' ? '#856404' : '#721c24') ?>; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase;">
                                             <?= htmlspecialchars($disc['visibility'] ?? 'public') ?>
                                         </span>
                                     </div>
-                                    <div style="color: #666; font-size: 11px; margin-bottom: 8px;">
+                                    <div class="cv-timeline-meta">
                                         📅 <?= htmlspecialchars($disc['timestamp'] ?? '—') ?>
                                         <?php if (!empty($disc['manual_contact_id'])): ?>
                                             <span style="margin-left:10px; color:#8B5CF6; font-weight:600; font-size:11px;">🔗 Linked by manual_contact_id: <?= htmlspecialchars($disc['manual_contact_id']) ?></span>
                                         <?php endif; ?>
                                     </div>
-                                    <div style="color: #1a1a1a; font-size: 13px; line-height: 1.5; margin-bottom: 6px;">
+                                    <div class="cv-timeline-body">
                                         <?= nl2br(htmlspecialchars($disc['entry_text'] ?? '')) ?>
                                     </div>
                                     <?php if (!empty($disc['linked_opportunity_id'])): ?>
-                                        <div style="margin-top: 8px; padding: 8px; background: white; border-left: 3px solid #10B981; border-radius: 3px; font-size: 11px; color: #666;">
+                                        <div class="cv-linked">
                                             <strong>📎 Linked to Opportunity: #<?= htmlspecialchars($disc['linked_opportunity_id']) ?></strong>
                                         </div>
                                     <?php endif; ?>
@@ -668,7 +691,7 @@ if ($customerId !== '') {
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <div style="padding: 20px; background: #f8f9fa; border-radius: 4px; color: #999; text-align: center; font-size: 13px;">
+                        <div class="cv-empty">
                             No discussions logged yet for this contact.
                         </div>
                     <?php endif; ?>
@@ -678,7 +701,7 @@ if ($customerId !== '') {
 
     <!-- Navigation -->
 
-        <div style="margin-top:32px;display:flex;gap:12px;justify-content:flex-end;">
+        <div class="cv-nav">
             <a href="customers_list.php" class="btn-outline">⬅ Back to Customers</a>
             <a href="index.php" class="btn-outline">⬅ Back to Home</a>
         </div>
