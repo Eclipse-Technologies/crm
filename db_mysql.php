@@ -120,7 +120,15 @@ function get_mysql_connection() {
             continue;
         }
 
-        if (!$conn->select_db($attempt['dbname'])) {
+        try {
+            $selected = $conn->select_db($attempt['dbname']);
+        } catch (Throwable $e) {
+            $errors[] = $attempt['label'] . ': select db exception for user=' . $attempt['user'] . ' db=' . $attempt['dbname'] . ' error=' . $e->getMessage();
+            $conn->close();
+            continue;
+        }
+
+        if (!$selected) {
             $errors[] = $attempt['label'] . ': select db failed for user=' . $attempt['user'] . ' db=' . $attempt['dbname'] . ' error=' . $conn->error;
             $conn->close();
             continue;
