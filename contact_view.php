@@ -726,6 +726,30 @@ else                                          { $statusColor = '#6B7280'; }
     </div>
   </div>
 
+  <!-- Discussion Log Entry Form -->
+  <div class="form-section" style="margin-bottom:32px;">
+    <h3>Add Communication / Discussion Log</h3>
+    <form method="post" action="">
+      <?php renderCSRFInput(); ?>
+      <input type="hidden" name="form_action" value="add_discussion">
+      <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
+      <div class="form-group">
+        <label for="entry_text">Notes / Communication</label>
+        <textarea id="entry_text" name="entry_text" class="form-control" rows="4" required placeholder="Enter details of your call, meeting, email, or note..."></textarea>
+      </div>
+      <div class="form-group">
+        <label for="author">Your Name</label>
+        <input type="text" id="author" name="author" class="form-control" value="<?= htmlspecialchars($_SESSION['username'] ?? '') ?>" required>
+      </div>
+      <div class="submit-actions">
+        <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
+      </div>
+    </form>
+    <div class="tip-text">
+      <strong>Tip:</strong> Log communications before, during, or after customer interactions.
+    </div>
+  </div>
+
   <!-- AI Panel -->
   <div class="ai-panel" id="aiPanel">
     <div class="ai-panel-header">
@@ -933,32 +957,6 @@ else                                          { $statusColor = '#6B7280'; }
     </div>
     <div class="accordion-content">
       <div class="accordion-body">
-        <div class="section">
-          <div class="section-title">&#10133; Add Discussion</div>
-          <div class="form-section" style="margin-bottom:0;">
-            <h3>Add Communication / Discussion Log</h3>
-            <form method="post" action="">
-              <?php renderCSRFInput(); ?>
-              <input type="hidden" name="form_action" value="add_discussion">
-              <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
-              <div class="form-group">
-                <label for="entry_text">Notes / Communication</label>
-                <textarea id="entry_text" name="entry_text" class="form-control" rows="4" required placeholder="Enter details of your call, meeting, email, or note..."></textarea>
-              </div>
-              <div class="form-group">
-                <label for="author">Your Name</label>
-                <input type="text" id="author" name="author" class="form-control" value="<?= htmlspecialchars($_SESSION['username'] ?? '') ?>" required>
-              </div>
-              <div class="submit-actions">
-                <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
-              </div>
-            </form>
-            <div class="tip-text">
-              <strong>Tip:</strong> Log communications before, during, or after customer interactions.
-            </div>
-          </div>
-        </div>
-
         <!-- Discussion History -->
         <div class="section">
           <div class="section-title">&#128210; Activity & History</div>
@@ -1009,7 +1007,7 @@ else                                          { $statusColor = '#6B7280'; }
             <?php endforeach; ?>
           <?php else: ?>
             <div class="empty-state">
-              No discussions logged yet. Use the Add Discussion section above to create the first entry.
+              No discussions logged yet. Use the Add Communication / Discussion Log form above to create the first entry.
             </div>
           <?php endif; ?>
         </div>
