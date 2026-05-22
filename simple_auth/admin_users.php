@@ -217,8 +217,47 @@ try {
     <title>User Administration</title>
     <link rel="stylesheet" href="../style.css">
     <style>
-        body { background: #f6f8fb; font-family: Arial, sans-serif; margin: 0; }
-        .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+        body { background: #f6f8fb; font-family: Arial, sans-serif; margin: 0; color: #0f172a; }
+        .page-shell { display: flex; min-height: 100vh; }
+        .side-nav {
+            width: 250px;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            padding: 20px 14px;
+            box-shadow: 2px 0 12px rgba(15, 23, 42, 0.18);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .side-brand { font-size: 18px; font-weight: 700; margin: 4px 8px 16px; letter-spacing: 0.2px; }
+        .side-group { margin-bottom: 14px; }
+        .side-title {
+            margin: 0 8px 8px;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            font-weight: 700;
+        }
+        .side-link {
+            display: block;
+            padding: 10px 12px;
+            margin: 2px 0;
+            border-radius: 8px;
+            color: #e2e8f0;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background 0.2s ease;
+        }
+        .side-link:hover { background: rgba(148, 163, 184, 0.18); }
+        .side-link.active {
+            background: rgba(59, 130, 246, 0.28);
+            color: #dbeafe;
+            font-weight: 700;
+        }
+        .content-shell { flex: 1; min-width: 0; }
+        .wrap { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
         .card { background: #fff; border: 1px solid #dde3ea; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
         h1 { margin: 0 0 12px 0; }
         table { width: 100%; border-collapse: collapse; }
@@ -232,10 +271,46 @@ try {
         .error { background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
         .help { color: #475569; font-size: 13px; }
         .grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
-        @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 980px) {
+            .page-shell { flex-direction: column; }
+            .side-nav {
+                width: 100%;
+                height: auto;
+                position: static;
+                padding: 12px;
+                box-shadow: none;
+            }
+            .side-group { display: flex; flex-wrap: wrap; gap: 6px; }
+            .side-title { width: 100%; margin-bottom: 6px; }
+            .side-link { margin: 0; }
+        }
+        @media (max-width: 800px) {
+            .grid { grid-template-columns: 1fr; }
+            th, td { font-size: 13px; }
+        }
     </style>
 </head>
 <body>
+<div class="page-shell">
+    <aside class="side-nav" aria-label="Admin navigation">
+        <div class="side-brand">Auth Admin</div>
+
+        <div class="side-group">
+            <div class="side-title">Management</div>
+            <a class="side-link active" href="admin_users.php">User Management</a>
+            <a class="side-link" href="request_access.php">Access Requests</a>
+            <a class="side-link" href="register.php">Manual Registration</a>
+        </div>
+
+        <div class="side-group">
+            <div class="side-title">System</div>
+            <a class="side-link" href="../admin_dashboard.php">CRM Admin Dashboard</a>
+            <a class="side-link" href="../dashboard.php">CRM Dashboard</a>
+            <a class="side-link" href="logout.php">Sign Out</a>
+        </div>
+    </aside>
+
+    <main class="content-shell">
 <div class="wrap">
     <div class="card">
         <h1>User Administration</h1>
@@ -362,6 +437,8 @@ try {
             </tbody>
         </table>
     </div>
+</div>
+</main>
 </div>
 </body>
 </html>
