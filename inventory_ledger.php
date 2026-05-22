@@ -2,6 +2,7 @@
 
 include_once(__DIR__ . '/layout_start.php');
 require_once 'db_pgsql.php';
+require_once __DIR__ . '/request_guard.php';
 
 $inventorySchema = require __DIR__ . '/inventory_schema.php';
 $customerSchema = require __DIR__ . '/customer_schema.php';
@@ -171,6 +172,10 @@ function build_customer_pairs($customers) {
 $customerPairs = build_customer_pairs($customers);
 
 $errors = [];
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+  require_post_with_csrf();
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_ledger'])) {
   $itemId = trim($_POST['item_id'] ?? '');
@@ -454,6 +459,7 @@ sort($statusOptions);
     <div style="background:#fafbfc; border:1px solid #e6e6e6; border-radius:8px; padding:16px;">
       <div style="font-weight:700; margin-bottom:10px;">RFID Scan</div>
       <form method="post" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px 16px;">
+        <?php renderCSRFInput(); ?>
         <input type="hidden" name="rfid_scan" value="1">
         <div>
           <label style="display:block; font-weight:600; margin-bottom:4px;">Serial Number</label>
@@ -496,6 +502,7 @@ sort($statusOptions);
     <div style="background:#fafbfc; border:1px solid #e6e6e6; border-radius:8px; padding:16px;">
       <div style="font-weight:700; margin-bottom:10px;">Add Ledger Entry</div>
       <form method="post" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px 16px;">
+        <?php renderCSRFInput(); ?>
         <input type="hidden" name="add_ledger" value="1">
         <div>
           <label style="display:block; font-weight:600; margin-bottom:4px;">Item ID</label>
@@ -560,6 +567,7 @@ sort($statusOptions);
     <div style="background:#fafbfc; border:1px solid #e6e6e6; border-radius:8px; padding:16px;">
       <div style="font-weight:700; margin-bottom:10px;">Serials and Client Assignment</div>
       <form method="post" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px 16px;">
+        <?php renderCSRFInput(); ?>
         <input type="hidden" name="save_serial" value="1">
         <div>
           <label style="display:block; font-weight:600; margin-bottom:4px;">Serial Number</label>
@@ -678,6 +686,7 @@ sort($statusOptions);
                 <td style="padding:8px;"><?= htmlspecialchars($row['note'] ?? '') ?></td>
                 <td style="padding:8px;">
                   <form method="post" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; align-items:center;">
+                    <?php renderCSRFInput(); ?>
                     <input type="hidden" name="update_serial" value="1">
                     <input type="hidden" name="serial_number" value="<?= htmlspecialchars($row['serial_number'] ?? '') ?>">
                     <select name="update_status" class="status-select" style="padding:4px 6px;">

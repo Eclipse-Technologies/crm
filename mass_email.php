@@ -232,8 +232,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Select at least one contact.';
       }
 
-      $selectedIds = array_values(array_filter(array_map('intval', (array) $selectedIds), function ($id) {
-        return $id > 0;
+      $selectedIds = array_values(array_filter(array_map(function ($id) {
+        return trim((string) $id);
+      }, (array) $selectedIds), function ($id) {
+        return $id !== '';
       }));
 
       if (count($selectedIds) === 0) {
@@ -260,7 +262,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
 
       if ($smtpAuthEnabled && ($smtpUsername === '' || $smtpPassword === '')) {
-        $errors[] = 'SMTP auth is enabled. Set SMTP_USERNAME and SMTP_PASSWORD in .env.';
+        $missingSmtpVars = [];
+        if ($smtpUsername === '') {
+          $missingSmtpVars[] = 'SMTP_USERNAME';
+        }
+        if ($smtpPassword === '') {
+          $missingSmtpVars[] = 'SMTP_PASSWORD';
+        }
+        $errors[] = 'SMTP auth is enabled. Missing: ' . implode(', ', $missingSmtpVars) . '. Set these in .env, or set SMTP_AUTH=false if your SMTP relay does not require authentication.';
       }
 
       if ($smtpHost !== '' && $smtpPort > 0 && !smtp_endpoint_reachable($smtpHost, $smtpPort, 5)) {
@@ -335,7 +344,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
       } else {
         $placeholders = implode(',', array_fill(0, count($selectedIds), '?'));
-        $types = str_repeat('i', count($selectedIds));
+        $types = str_repeat('s', count($selectedIds));
         $sql = "SELECT contact_id, first_name, last_name, company, email FROM contacts WHERE contact_id IN ($placeholders)";
         $stmt = $conn->prepare($sql);
 
@@ -624,12 +633,9 @@ $conn->close();
     </div>
     <div class="card-body">
       <!-- Segment filter bar -->
-      <form method="GET" class="row g-2 mb-3" id="segmentFilterForm">
-        <?php foreach (['subject','message','discussion_message','from_name','from_email'] as $carry): ?>
-          <input type="hidden" name="<?= $carry ?>" value="<?= htmlspecialchars($_GET[$carry] ?? '', ENT_QUOTES) ?>">
-        <?php endforeach; ?>
+      <div class="row g-2 mb-3" id="segmentFilterBar">
         <div class="col-auto">
-          <select name="filter_province" class="form-select form-select-sm" onchange="this.form.submit()">
+          <select name="filter_province" id="filter_province" class="form-select form-select-sm" onchange="applySegmentFilters()">
             <option value="">All Provinces</option>
             <?php foreach ($provinces as $pv): ?>
               <option value="<?= htmlspecialchars($pv) ?>" <?= $filter_province === $pv ? 'selected' : '' ?>><?= htmlspecialchars($pv) ?></option>
@@ -637,7 +643,7 @@ $conn->close();
           </select>
         </div>
         <div class="col-auto">
-          <select name="filter_status" class="form-select form-select-sm" onchange="this.form.submit()">
+          <select name="filter_status" id="filter_status" class="form-select form-select-sm" onchange="applySegmentFilters()">
             <option value="">All Statuses</option>
             <?php foreach ($statuses as $st): ?>
               <option value="<?= htmlspecialchars($st) ?>" <?= $filter_status === $st ? 'selected' : '' ?>><?= htmlspecialchars($st) ?></option>
@@ -655,7 +661,7 @@ $conn->close();
           <a href="mass_email.php" class="btn btn-sm btn-outline-danger">✕ Clear filters</a>
         </div>
         <?php endif; ?>
-      </form>
+      </div>
 
       <div style="max-height: 360px; overflow: auto;" id="recipientList">
         <?php if (empty($contactRows)): ?>
@@ -663,7 +669,14 @@ $conn->close();
         <?php else: ?>
           <?php foreach ($contactRows as $contact): ?>
             <?php
-              $cid = (int) ($contact['contact_id'] ?? 0);
+              $cid = trim((string) ($contact['contact_id'] ?? ''));
+              if ($cid === '') {
+                  continue;
+              }
+              $cidInputId = preg_replace('/[^a-zA-Z0-9_-]/', '_', $cid);
+              if ($cidInputId === '') {
+                  $cidInputId = 'contact_' . md5($cid);
+              }
               $label = trim(($contact['first_name'] ?? '') . ' ' . ($contact['last_name'] ?? ''));
               if ($label === '') {
                   $label = $contact['company'] ?: 'Unnamed Contact';
@@ -671,8 +684,8 @@ $conn->close();
               $isChecked = in_array($cid, $selectedIds, true);
             ?>
             <div class="form-check mb-2 recipient-row" data-search="<?= htmlspecialchars(strtolower($label . ' ' . ($contact['company'] ?? '')), ENT_QUOTES) ?>">
-              <input class="form-check-input recipient-checkbox" type="checkbox" name="contact_ids[]" value="<?= $cid ?>" id="contact_<?= $cid ?>" <?= $isChecked ? 'checked' : '' ?>>
-              <label class="form-check-label" for="contact_<?= $cid ?>">
+              <input class="form-check-input recipient-checkbox" type="checkbox" name="contact_ids[]" value="<?= htmlspecialchars($cid, ENT_QUOTES, 'UTF-8') ?>" id="<?= htmlspecialchars($cidInputId, ENT_QUOTES, 'UTF-8') ?>" <?= $isChecked ? 'checked' : '' ?>>
+              <label class="form-check-label" for="<?= htmlspecialchars($cidInputId, ENT_QUOTES, 'UTF-8') ?>">
                 <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
                 <span class="text-muted">(<?= htmlspecialchars($contact['company'] ?? '', ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars($contact['email'] ?? '', ENT_QUOTES, 'UTF-8') ?><?= $contact['province'] ? ' · ' . htmlspecialchars($contact['province']) : '' ?>)</span>
               </label>
@@ -690,6 +703,27 @@ $conn->close();
 </form>
 
 <script>
+function applySegmentFilters() {
+  const province = document.getElementById('filter_province');
+  const status = document.getElementById('filter_status');
+  const params = new URLSearchParams(window.location.search);
+
+  if (province && province.value) {
+    params.set('filter_province', province.value);
+  } else {
+    params.delete('filter_province');
+  }
+
+  if (status && status.value) {
+    params.set('filter_status', status.value);
+  } else {
+    params.delete('filter_status');
+  }
+
+  const query = params.toString();
+  window.location.href = 'mass_email.php' + (query ? ('?' + query) : '');
+}
+
 (function () {
   const toggleBtn = document.getElementById('toggleAllContacts');
   const checkboxes = document.querySelectorAll('.recipient-checkbox');

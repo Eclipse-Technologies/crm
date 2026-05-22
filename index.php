@@ -35,9 +35,6 @@ if ($nextMonth > 12) {
   $nextYear++;
 }
 
-// Place test marker at the very end
-// (HTML will be output after the PHP block below)
-
 ?>
 <div class="calendar-main-wrapper" style="max-width:1100px;margin:40px auto;padding:0 20px;">
 <style>
@@ -212,7 +209,6 @@ if ($nextMonth > 12) {
 </form>
 
 <form method="POST" action="add_task.php" class="calendar-add-form" onsubmit="return validateForm()">
-  <div style="background:#ff0;color:#000;padding:8px 12px;margin-bottom:10px;font-weight:bold;">DEBUG: index.php add task form loaded (2026-04-27)</div>
   <input type="text" name="title" id="title" placeholder="Task Title" required>
   <input type="date" name="due_date" id="due_date" required>
   <label for="task_status" style="margin-bottom:0;">Status:</label>
@@ -270,14 +266,6 @@ while ($day <= $daysInMonth) {
   $day++;
 }
 
-
-    if (count($week) == 7) {
-        echo "<tr>" . implode('', $week) . "</tr>";
-        $week = [];
-    }
-
-    $day++;
-
 if (!empty($week)) {
     while (count($week) < 7) {
         $week[] = "<td></td>";
@@ -325,6 +313,3 @@ function validateForm() {
 </script>
 
 <?php include 'layout_end.php'; ?>
-
-<!-- TEST MARKER: If you see this, HTML is rendering after PHP. -->
-<div style="background:#cfc;padding:20px;margin:20px 0;font-size:1.5em;">INDEX.PHP HTML OUTPUT TEST</div>

@@ -1,6 +1,7 @@
 <?php
 
 require_once 'contact_validator.php';
+require_once 'csrf_helper.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -12,6 +13,39 @@ $schema = require __DIR__ . '/contact_schema.php';
 $mail = new PHPMailer(true);
 
 try {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        http_response_code(405);
+        exit('Method Not Allowed');
+    }
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        header('Location: contact_form.php?status=error');
+        exit;
+    }
+
+    // Honeypot field: legitimate users leave this empty.
+    $hp = trim((string) ($_POST['website_url'] ?? ''));
+    if ($hp !== '') {
+        header('Location: contact_form.php?status=success');
+        exit;
+    }
+
+    // Basic per-IP cooldown to reduce spam bursts.
+    $clientIp = trim((string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+    $rateKey = 'crm_contact_' . md5($clientIp);
+    $rateFile = rtrim((string) sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $rateKey . '.txt';
+    $cooldownSeconds = 20;
+    $now = time();
+    if (file_exists($rateFile)) {
+        $last = (int) trim((string) @file_get_contents($rateFile));
+        if ($last > 0 && ($now - $last) < $cooldownSeconds) {
+            header('Location: contact_form.php?status=error');
+            exit;
+        }
+    }
+
+    @file_put_contents($rateFile, (string) $now, LOCK_EX);
+
     // Collect and sanitize form data
     $data = [];
     foreach ($schema as $field) {

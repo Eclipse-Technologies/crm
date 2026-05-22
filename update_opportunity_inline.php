@@ -1,19 +1,11 @@
 <?php
 require_once 'db_mysql.php';
 require_once 'sanitize_helper.php';
-require_once 'csrf_helper.php';
+require_once __DIR__ . '/request_guard.php';
 
 header('Content-Type: application/json');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-  echo json_encode(['error' => 'Invalid request']);
-  exit;
-}
-
-if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-  echo json_encode(['error' => 'CSRF validation failed']);
-  exit;
-}
+require_post_with_csrf_json();
 
 $id = $_POST['id'] ?? null;
 $field = $_POST['field'] ?? null;

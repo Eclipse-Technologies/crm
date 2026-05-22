@@ -1,11 +1,14 @@
-require_once __DIR__ . '/task_action_log.php';
 <?php
 // AJAX handler for calendar task add/edit/fetch
+require_once __DIR__ . '/task_action_log.php';
 require_once 'tasks_mysql.php';
+require_once __DIR__ . '/request_guard.php';
 header('Content-Type: application/json');
 
 $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'POST') {
+    require_post_with_csrf_json();
+
     $action = $_POST['action'] ?? '';
     if ($action === 'add') {
         $title = trim($_POST['title'] ?? '');

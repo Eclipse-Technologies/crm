@@ -1,6 +1,9 @@
 <?php include_once(__DIR__ . '/layout_start.php'); ?>
 <?php $currentPage = basename(__FILE__); ?>
 <?php
+require_once __DIR__ . '/request_guard.php';
+
+require_post_with_csrf('contacts_list.php?error=csrf');
 
 require_once 'contact_validator.php';require_once 'csv_handler.php';
 

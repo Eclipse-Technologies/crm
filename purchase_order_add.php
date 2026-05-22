@@ -2,6 +2,7 @@
 include_once(__DIR__ . '/layout_start.php');
 require_once 'db_mysql.php';
 require_once 'inventory_mysql.php';
+require_once __DIR__ . '/request_guard.php';
 
 
 $schema = require __DIR__ . '/purchase_order_schema.php';
@@ -72,9 +73,7 @@ function generate_po_number() {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  ini_set('display_errors', 1);
-  ini_set('display_startup_errors', 1);
-  error_reporting(E_ALL);
+  require_post_with_csrf();
   $po_number = generate_po_number();
   $date = date('Y-m-d');
   $created_at = date('Y-m-d H:i:s');
@@ -169,19 +168,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $itemStmt->close();
   }
   $conn->close();
-  echo '<div style="color:green; font-weight:bold;">[DEBUG] About to redirect to purchase_orders_list.php</div>';
-  if (function_exists('ob_clean')) { ob_clean(); }
   header('Location: purchase_orders_list.php');
   exit;
-}
-// Debug: If script reaches here, POST handler did not exit as expected
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  echo '<div style="color:red; font-weight:bold;">[DEBUG] Script reached end of POST handler without exit. Check for logic errors above.</div>';
 }
 ?>
 <div class="container">
   <h2>Add Purchase Order</h2>
   <form method="post" style="max-width:900px; margin:auto; background:#fafbfc; border-radius:8px; padding:24px 28px 18px 28px; box-shadow:0 2px 8px #0001;">
+    <?php renderCSRFInput(); ?>
     <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px 24px; margin-bottom:18px; align-items:end;">
       <?php foreach ($schema as $f):
         if (in_array($f, ['created_at','updated_at','po_number','date','item_id','item_name','quantity','unit','unit_price','discount','tax_rate','tax_amount','total'])) continue;

@@ -1,22 +1,8 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_name('CRM_SESSION');
-    session_start();
-}
-// Debug output for session and cookies
-if (!headers_sent()) {
-    echo '<div style="background:#ffe; color:#333; padding:8px; margin-bottom:8px; font-size:12px;">';
-    echo '<strong>SESSION DEBUG:</strong><br>$_SESSION: <pre>' . htmlspecialchars(print_r($_SESSION, true)) . '</pre>';
-    echo '$_COOKIE: <pre>' . htmlspecialchars(print_r($_COOKIE, true)) . '</pre>';
-    echo '</div>';
-}
 require_once 'db_mysql.php'; // Assumes you have a db connection helper
-require_once 'csrf_helper.php';
+require_once __DIR__ . '/request_guard.php';
 
-// CSRF token verification
-if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-    die('CSRF token validation failed. Import cancelled.');
-}
+require_post_with_csrf();
 
 if (!isset($_SESSION['import_preview']) || !is_array($_SESSION['import_preview'])) {
     die('No import data found.');

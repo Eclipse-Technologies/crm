@@ -8,6 +8,7 @@ error_reporting(E_ALL);
 ob_start();
 require_once 'layout_start.php';
 require_once 'db_mysql.php';
+require_once __DIR__ . '/request_guard.php';
 
 $pageTitle = 'Edit Service Contract';
 $contractSchema = require __DIR__ . '/contract_schema.php';
@@ -55,6 +56,7 @@ if (!$contract) {
 
 // 3. Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_post_with_csrf('contract_edit.php?id=' . urlencode((string)$contractId) . '&error=csrf');
 
     // ── Delete ──────────────────────────────────────────────────────────────
     if (!empty($_POST['delete_contract'])) {

@@ -1,5 +1,8 @@
 <?php
 require_once 'tasks_pgsql.php';
+require_once __DIR__ . '/request_guard.php';
+
+require_post_with_csrf();
 
 $title = $_POST['title'] ?? '';
 if (trim($title) === '') {

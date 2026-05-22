@@ -1,6 +1,7 @@
 <?php
 include_once(__DIR__ . '/layout_start.php');
 require_once 'csv_handler.php';
+require_once __DIR__ . '/request_guard.php';
 
 $schema = require __DIR__ . '/purchase_order_schema.php';
 $poFile = __DIR__ . '/purchase_orders.csv';
@@ -73,6 +74,7 @@ function init_inventory_row($schema, $itemId, $itemName) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['receive_po'])) {
+  require_post_with_csrf();
   $poNumber = trim($_POST['po_number'] ?? '');
   $receiveAll = ($_POST['receive_all'] ?? '') === 'yes';
   $note = trim($_POST['backorder_note'] ?? '');
@@ -150,6 +152,7 @@ $poRows = array_values(array_filter($orders, function($row) use ($poNumber) {
     </div>
   <?php else: ?>
     <form method="post" style="max-width:900px; margin:auto; background:#fafbfc; border-radius:8px; padding:24px 28px 18px 28px; box-shadow:0 2px 8px #0001;">
+      <?php renderCSRFInput(); ?>
       <input type="hidden" name="receive_po" value="1">
       <input type="hidden" name="po_number" value="<?= htmlspecialchars($poNumber) ?>">
       <div style="display:flex; flex-wrap:wrap; gap:12px 24px; margin-bottom:16px; align-items:center;">

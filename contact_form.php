@@ -51,6 +51,7 @@ $prefill_company = isset($_GET['company']) ? trim($_GET['company']) : '';
   <div class="card-body">
     <form id="contact-form" action="add_contact.php" method="POST" class="modern-form">
       <?php renderCSRFInput(); ?>
+      <input type="text" name="website_url" value="" autocomplete="off" tabindex="-1" aria-hidden="true" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">
       <div class="form-grid">
         <?php foreach ($schema as $field): ?>
           <?php if ($field === 'contact_id') continue; ?>

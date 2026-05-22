@@ -1,4 +1,5 @@
 <?php
+ob_start();
 // Security headers
 header('Content-Type: text/html; charset=utf-8');
 header('X-Content-Type-Options: nosniff;');
@@ -6,13 +7,31 @@ header('X-Content-Type-Options: nosniff;');
 // Page metadata
 $pageTitle = 'Contact Details';
 
-// Include layout and dependencies
-require_once('layout_start.php');
+// Load ONLY required functions BEFORE output - do NOT include layout_start.php yet!
 require_once 'db_mysql.php';
+require_once 'audit_handler.php';
+require_once __DIR__ . '/csrf_helper.php';
+initializeCSRFToken();
+require_once 'simple_auth/middleware.php';
 
-// Explicitly create the database connection after all includes
-$conn = get_mysql_connection();
+$crmConn = get_mysql_connection();
 $saveSuccess = false;
+$pageError = '';
+
+$errorMap = [
+  'csrf' => 'Security token validation failed. Refresh the page and try again.',
+  'missing_discussion_fields' => 'Please provide Your Name and Notes before adding a log entry.',
+  'discussion_prepare' => 'Could not prepare the discussion save operation. Please try again.',
+  'discussion_insert' => 'Could not save the discussion entry due to a database error.',
+  'update_prepare' => 'Could not prepare the contact update operation. Please try again.',
+  'update_execute' => 'Could not save contact changes due to a database error.',
+  'unknown_post' => 'The submitted form action was not recognized. Please retry from the page form.',
+];
+
+$errorCode = trim((string) ($_GET['error'] ?? ''));
+if ($errorCode !== '' && isset($errorMap[$errorCode])) {
+  $pageError = $errorMap[$errorCode];
+}
 
 function redirect_safely(string $url): void {
   if (!headers_sent()) {
@@ -29,95 +48,179 @@ function redirect_safely(string $url): void {
 // Handle contact update form submission
 
 // Handle discussion log form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
+$isDiscussionPost = (
+  $_SERVER['REQUEST_METHOD'] === 'POST'
+  && isset($_POST['contact_id'])
+  && (
+    isset($_POST['add_discussion'])
+    || (($_POST['form_action'] ?? '') === 'add_discussion')
+  )
+);
+
+if ($isDiscussionPost) {
+  file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " FORM RECEIVED: add_discussion POST\n", FILE_APPEND);
+  $contactId = trim((string) ($_POST['contact_id'] ?? ''));
   if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-    echo '<div class="alert alert-danger m-3">Security validation failed. Please refresh and try again.</div>';
+    file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " CSRF FAILED\n", FILE_APPEND);
+    redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&error=csrf");
   } else {
-    $contactId = trim((string) ($_POST['contact_id'] ?? ''));
     $author = trim((string) ($_POST['author'] ?? ''));
     $entryText = trim((string) ($_POST['entry_text'] ?? ''));
     $linkedOppId = trim((string) ($_POST['linked_opportunity_id'] ?? ''));
     $visibility = 'private';
+    file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " Fields: contactId=$contactId, author=$author, hasText=" . (!empty($entryText) ? 'yes' : 'no') . "\n", FILE_APPEND);
     if ($contactId && $author && $entryText) {
-      $conn = get_mysql_connection();
       $sql = "INSERT INTO discussion_log (contact_id, author, entry_text, linked_opportunity_id, visibility, timestamp) VALUES (?, ?, ?, ?, ?, NOW())";
-      $stmt = $conn->prepare($sql);
+      $stmt = $crmConn->prepare($sql);
       if ($stmt) {
         $linkedOppIdNull = ($linkedOppId === '') ? null : $linkedOppId;
-        $contactIdInt = intval($contactId);
-        $stmt->bind_param('issss', $contactIdInt, $author, $entryText, $linkedOppIdNull, $visibility);
-        $stmt->execute();
+        $stmt->bind_param('sssss', $contactId, $author, $entryText, $linkedOppIdNull, $visibility);
+        if ($stmt->execute()) {
+          file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " SUCCESS: Inserted discussion for contact_id=$contactId, author=$author\n", FILE_APPEND);
+          redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&log_added=1");
+        } else {
+          file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " ERROR: Insert failed - " . $stmt->error . "\n", FILE_APPEND);
+          redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&error=discussion_insert");
+        }
         $stmt->close();
-        $conn->close();
-        // Redirect to avoid resubmission
-        header('Location: contact_view.php?id=' . urlencode($contactId) . '&log_added=1');
-        exit;
       } else {
-        echo '<div class="alert alert-danger m-3">Failed to save discussion log. Please try again.</div>';
+        file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " ERROR: Prepare failed (discussion) - " . $crmConn->error . "\n", FILE_APPEND);
+        redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&error=discussion_prepare");
       }
     } else {
-      echo '<div class="alert alert-danger m-3">All required fields must be filled out.</div>';
+      redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&error=missing_discussion_fields");
     }
   }
 }
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id']) && !$isDiscussionPost) {
+  $contactId = trim((string) ($_POST['contact_id'] ?? ''));
   if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-    echo '<div class="alert alert-danger m-3">Security validation failed. Please refresh and try again.</div>';
-    exit;
-  }
-
-    $contactId = trim((string) ($_POST['contact_id'] ?? ''));
+    redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&error=csrf");
+  } else {
     $fields = [
       'first_name', 'last_name', 'company', 'email', 'phone', 'address',
       'city', 'province', 'postal_code', 'country', 'notes', 'tags', 'is_customer', 'status'
     ];
+
+    // Fetch old contact data before update for audit logging
+    $oldContact = null;
+    $stmtOld = $crmConn->prepare('SELECT * FROM contacts WHERE contact_id = ? LIMIT 1');
+    if (!$stmtOld) {
+      file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " ERROR: Prepare failed (oldContact) - " . $crmConn->error . "\n", FILE_APPEND);
+    }
+    if ($stmtOld) {
+      $stmtOld->bind_param('s', $contactId);
+      $stmtOld->execute();
+      $result = $stmtOld->get_result();
+      if ($result) {
+        $oldContact = $result->fetch_assoc();
+        $result->free();
+      }
+      $stmtOld->close();
+    }
+
     $updates = [];
     $params = [];
     $types = '';
 
     foreach ($fields as $field) {
-        if (!isset($_POST[$field])) {
-            continue;
-        }
-
-        $value = $_POST[$field];
-        if ($field === 'is_customer') {
-            $value = !empty($_POST[$field]) ? '1' : '0';
-        }
-
-        $updates[] = "`$field` = ?";
-        $params[] = $value;
-        $types .= 's';
+      if (!isset($_POST[$field])) {
+        continue;
+      }
+      $value = $_POST[$field];
+      if ($field === 'is_customer') {
+        $value = !empty($_POST[$field]) ? '1' : '0';
+      }
+      $updates[] = "`$field` = ?";
+      $params[] = $value;
+      $types .= 's';
     }
 
     if (!empty($updates) && $contactId !== '') {
-        $sql = "UPDATE contacts SET " . implode(", ", $updates) . ", last_modified = NOW() WHERE contact_id = ?";
-        $params[] = $contactId;
-        $types .= 's';
+      $sql = "UPDATE contacts SET " . implode(", ", $updates) . ", last_modified = NOW() WHERE contact_id = ?";
+      $params[] = $contactId;
+      $types .= 's';
 
-        $stmt = $conn->prepare($sql);
-        if ($stmt) {
-            $stmt->bind_param($types, ...$params);
-            $saveSuccess = $stmt->execute();
-            $stmt->close();
-        } else {
-            $saveSuccess = false;
+      $stmt = $crmConn->prepare($sql);
+      if (!$stmt) {
+        file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " ERROR: Prepare failed (update) - " . $crmConn->error . "\n", FILE_APPEND);
+        redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&error=update_prepare");
+      }
+      if ($stmt) {
+        $stmt->bind_param($types, ...$params);
+        $saveSuccess = $stmt->execute();
+        if (!$saveSuccess) {
+          file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " ERROR: Execute failed (update) - " . $stmt->error . "\n", FILE_APPEND);
+          redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&error=update_execute");
         }
-    } else {
+        $stmt->close();
+
+        // Log the audit trail after successful update
+        if ($saveSuccess && $oldContact) {
+          $newContact = null;
+          $stmtNew = $crmConn->prepare('SELECT * FROM contacts WHERE contact_id = ? LIMIT 1');
+          if (!$stmtNew) {
+            file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " ERROR: Prepare failed (newContact) - " . $crmConn->error . "\n", FILE_APPEND);
+          }
+          if ($stmtNew) {
+            $stmtNew->bind_param('s', $contactId);
+            $stmtNew->execute();
+            $resultNew = $stmtNew->get_result();
+            if ($resultNew) {
+              $newContact = $resultNew->fetch_assoc();
+              $resultNew->free();
+            }
+            $stmtNew->close();
+          }
+          if ($newContact) {
+            auditUpdateContact($contactId, $oldContact, $newContact);
+          }
+        }
+      } else {
         $saveSuccess = false;
+      }
+    } else {
+      $saveSuccess = false;
     }
 
     // Reload the page to show updated info and avoid resubmission
     if ($saveSuccess) {
       redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&updated=1");
     }
+  }
+}
+
+
+
+// Defensive: Always exit after POST to avoid using a possibly-invalid $crmConn
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $contactId = trim((string) ($_POST['contact_id'] ?? $_GET['id'] ?? ''));
+  redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&error=unknown_post");
+}
+
+// NOW that all POST handlers are done, include layout_start to output HTML
+require_once('layout_start.php');
+
+// Force reconnect if $crmConn is closed before any DB usage (GET or POST)
+if (!($crmConn instanceof mysqli) || !$crmConn->ping()) {
+  file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " ERROR: Connection closed before any DB usage. Attempting reconnect.\n", FILE_APPEND);
+  $crmConn = get_mysql_connection();
+  if (!($crmConn instanceof mysqli) || !$crmConn->ping()) {
+    echo '<div style="background:#fee;border:2px solid #c33;padding:10px;margin:10px 0;">';
+    echo '<strong>Error:</strong> Database connection is closed or invalid (reconnect failed).</strong>';
+    echo '</div>';
+    file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " ERROR: Reconnect failed.\n", FILE_APPEND);
+    exit;
+  } else {
+    file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " INFO: Reconnect succeeded.\n", FILE_APPEND);
+  }
 }
 
 // Get contactId from GET or POST
 $contactId = $_GET['id'] ?? $_POST['contact_id'] ?? null;
 $contact = null;
 if ($contactId) {
-  $stmt = $conn->prepare('SELECT * FROM contacts WHERE contact_id = ? LIMIT 1');
+  $stmt = $crmConn->prepare('SELECT * FROM contacts WHERE contact_id = ? LIMIT 1');
   if ($stmt) {
     $stmt->bind_param('s', $contactId);
     $stmt->execute();
@@ -143,7 +246,7 @@ if ($contact && isset($contact['contact_id'])) {
 // Safety: verify contact was loaded
 if (!$contact) {
   // Try to fetch the record even if fields are missing
-  $stmtRetry = $conn->prepare('SELECT * FROM contacts WHERE contact_id = ? LIMIT 1');
+  $stmtRetry = $crmConn->prepare('SELECT * FROM contacts WHERE contact_id = ? LIMIT 1');
   $result = null;
   if ($stmtRetry) {
     $stmtRetry->bind_param('s', $contactId);
@@ -166,7 +269,7 @@ if (!$contact) {
       $stmtRetry->close();
     }
     // Diagnostic: Show all available contact IDs
-    $result = mysqli_query($conn, "SELECT contact_id, first_name, last_name FROM contacts ORDER BY contact_id LIMIT 20");
+    $result = mysqli_query($crmConn, "SELECT contact_id, first_name, last_name FROM contacts ORDER BY contact_id LIMIT 20");
     ?>
     <div style="background:#fee;border:2px solid #c33;padding:10px;margin:10px 0;">
       <strong>Error: Contact not found.</strong><br>
@@ -193,7 +296,7 @@ $opportunitySchema = is_array($opportunitySchema) && !empty($opportunitySchema)
   ? $opportunitySchema
   : ['opportunity_id', 'contact_id', 'value', 'stage', 'probability', 'expected_close'];
 $fields = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $opportunitySchema));
-$stmtOpp = $conn->prepare("SELECT $fields FROM opportunities WHERE contact_id = ?");
+$stmtOpp = $crmConn->prepare("SELECT $fields FROM opportunities WHERE contact_id = ?");
 if ($stmtOpp) {
   $stmtOpp->bind_param('s', $contactId);
   $stmtOpp->execute();
@@ -210,7 +313,7 @@ if ($stmtOpp) {
 // Find orphaned opportunities (missing contact_id)
 $orphanedOpportunities = [];
 if (!empty($contact['company'])) {
-  $result = mysqli_query($conn, "SELECT * FROM opportunities WHERE contact_id IS NULL OR contact_id = ''");
+  $result = mysqli_query($crmConn, "SELECT * FROM opportunities WHERE contact_id IS NULL OR contact_id = ''");
   if ($result) {
     while ($row = mysqli_fetch_assoc($result)) {
       $orphanedOpportunities[] = $row;
@@ -223,7 +326,7 @@ if (!empty($contact['company'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['link_opportunity_id'], $_POST['contact_id'])) {
     $oppId = (int) $_POST['link_opportunity_id'];
     $contactId = trim((string) ($_POST['contact_id'] ?? ''));
-    $stmtLink = $conn->prepare('UPDATE opportunities SET contact_id = ? WHERE opportunity_id = ?');
+    $stmtLink = $crmConn->prepare('UPDATE opportunities SET contact_id = ? WHERE opportunity_id = ?');
     if ($stmtLink) {
       $stmtLink->bind_param('si', $contactId, $oppId);
       $stmtLink->execute();
@@ -244,7 +347,7 @@ $discussions = [];
 $discussionSchema = require 'discussion_schema.php';
 $desiredDiscussionFields = array_values(array_unique(array_merge(['id'], (array) $discussionSchema, ['manual_contact_id'])));
 $availableDiscussionFields = [];
-$columnsResult = mysqli_query($conn, "SHOW COLUMNS FROM discussion_log");
+$columnsResult = mysqli_query($crmConn, "SHOW COLUMNS FROM discussion_log");
 if ($columnsResult) {
   while ($column = mysqli_fetch_assoc($columnsResult)) {
     $name = $column['Field'] ?? '';
@@ -268,7 +371,7 @@ $fields = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $selec
 // Build discussion query using prepared statement; include manual_contact_id column if available
 if (in_array('manual_contact_id', $availableDiscussionFields, true)) {
   $discussionQuery = "SELECT $fields FROM discussion_log WHERE contact_id = ? OR manual_contact_id = ? ORDER BY timestamp DESC";
-  $stmtDisc = $conn->prepare($discussionQuery);
+  $stmtDisc = $crmConn->prepare($discussionQuery);
   if ($stmtDisc) {
     $stmtDisc->bind_param('ss', $contactId, $contactId);
     $stmtDisc->execute();
@@ -278,7 +381,7 @@ if (in_array('manual_contact_id', $availableDiscussionFields, true)) {
   }
 } else {
   $discussionQuery = "SELECT $fields FROM discussion_log WHERE contact_id = ? ORDER BY timestamp DESC";
-  $stmtDisc = $conn->prepare($discussionQuery);
+  $stmtDisc = $crmConn->prepare($discussionQuery);
   if ($stmtDisc) {
     $stmtDisc->bind_param('s', $contactId);
     $stmtDisc->execute();
@@ -347,7 +450,7 @@ function getContactOpportunities($contact, $opportunities) {
     });
 }
 
-// ── Computed display variables ────────────────────────────────────────────────
+// â”€â”€ Computed display variables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 $initials     = getInitials($contact['first_name'] ?? '', $contact['last_name'] ?? '');
 $status       = $contact['status'] ?? 'Unknown';
 $isCustomer   = !empty($contact['is_customer']) && $contact['is_customer'] !== '0';
@@ -503,7 +606,7 @@ else                                          { $statusColor = '#6B7280'; }
 
 <div class="contact-header">
   <div style="margin-bottom: 15px; font-size: 13px;">
-    <a href="contacts_list.php" style="color: #3B82F6; text-decoration: none; font-weight: 600;">← Back to Contacts</a>
+    <a href="contacts_list.php" style="color: #3B82F6; text-decoration: none; font-weight: 600;">&larr; Back to Contacts</a>
   </div>
 
   <!-- Optimized Contact Banner -->
@@ -515,35 +618,46 @@ else                                          { $statusColor = '#6B7280'; }
         <span style="font-size:13px;color:#fff;opacity:0.9;">
           <?= htmlspecialchars($contact['company'] ?? 'No Company') ?>
         </span>
-        <span class="contact-status" style="background-color: <?= $statusColor ?>;margin-left:0;">✓ <?= $status ?></span>
+        <span class="contact-status" style="background-color: <?= $statusColor ?>;margin-left:0;">&#10003; <?= $status ?></span>
         <?php if ($isCustomer): ?>
           <span style="background:#10B981;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;">Customer</span>
         <?php endif; ?>
       </div>
       <div style="margin:8px 0 0 0;display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
         <?php if ($contact['phone']): ?>
-          <span>☎ <a href="tel:<?= htmlspecialchars($contact['phone']) ?>" style="color:#fff;"><?= htmlspecialchars($contact['phone']) ?></a></span>
+          <span>&#9742; <a href="tel:<?= htmlspecialchars($contact['phone']) ?>" style="color:#fff;"><?= htmlspecialchars($contact['phone']) ?></a></span>
         <?php endif; ?>
         <?php if ($contact['email']): ?>
-          <span>✉ <a href="mailto:<?= htmlspecialchars($contact['email']) ?>" style="color:#fff;"><?= htmlspecialchars($contact['email']) ?></a></span>
+          <span>&#9993; <a href="mailto:<?= htmlspecialchars($contact['email']) ?>" style="color:#fff;"><?= htmlspecialchars($contact['email']) ?></a></span>
         <?php endif; ?>
         <?php if (!empty($tags)): ?>
-          <span style="color:#fff;opacity:0.8;">🔖 <?= htmlspecialchars(implode(', ', $tags)) ?></span>
+          <span style="color:#fff;opacity:0.8;">&#128278; <?= htmlspecialchars(implode(', ', $tags)) ?></span>
         <?php endif; ?>
       </div>
       <div class="quick-actions" style="margin-top:10px;">
-        <a href="mailto:<?= htmlspecialchars($contact['email'])?>"><button <?= empty($contact['email']) ? 'disabled' : '' ?>>✉ Email</button></a>
-        <a href="tel:<?= htmlspecialchars($contact['phone'])?>"><button <?= empty($contact['phone']) ? 'disabled' : '' ?>>☎ Call</button></a>
+        <a href="mailto:<?= htmlspecialchars($contact['email'])?>"><button <?= empty($contact['email']) ? 'disabled' : '' ?>>&#9993; Email</button></a>
+        <a href="tel:<?= htmlspecialchars($contact['phone'])?>"><button <?= empty($contact['phone']) ? 'disabled' : '' ?>>&#9742; Call</button></a>
         <button onclick="window.location.href='add_task.php?contact_id=<?= urlencode($contact['contact_id']) ?>'">+ Task</button>
-        <button onclick="window.location.href='add_opportunity.php?contact_id=<?= urlencode($contact['contact_id']) ?>'">💼 Opp</button>
-        <button class="ai-btn" onclick="aiAction('summarise_contact', this, 'Summary')">🤖 Summary</button>
-        <button class="ai-btn" onclick="aiAction('suggest_followup', this, 'Follow-up Draft')">✉ Follow-up</button>
+        <button onclick="window.location.href='add_opportunity.php?contact_id=<?= urlencode($contact['contact_id']) ?>'">&#128188; Opp</button>
+        <button class="ai-btn" onclick="aiAction('summarise_contact', this, 'Summary')">&#129302; Summary</button>
+        <button class="ai-btn" onclick="aiAction('suggest_followup', this, 'Follow-up Draft')">&#9993; Follow-up</button>
+        <button class="ai-btn" onclick="enrichContactInfo()" id="enrichBtn">&#128269; Fill Info</button>
       </div>
     </div>
   </div>
 
-  <?php if ($saveSuccess): ?>
-    <div class="success-alert">✓ Changes saved successfully.</div>
+  <?php if (isset($_GET['updated']) && $_GET['updated'] === '1'): ?>
+    <div class="success-alert">&#10003; Changes saved successfully.</div>
+  <?php endif; ?>
+
+  <?php if (isset($_GET['log_added']) && $_GET['log_added'] === '1'): ?>
+    <div class="success-alert">&#10003; Log entry added successfully.</div>
+  <?php endif; ?>
+
+  <?php if ($pageError !== ''): ?>
+    <div style="background:#fee;border:1px solid #f5c2c7;color:#842029;padding:12px;border-radius:6px;margin-bottom:15px;">
+      <strong>Error:</strong> <?= htmlspecialchars($pageError) ?>
+    </div>
   <?php endif; ?>
 
 
@@ -551,7 +665,7 @@ else                                          { $statusColor = '#6B7280'; }
   <div class="stats-bar">
     <div class="stat-card">
       <div class="stat-label">Status</div>
-      <div class="stat-value"><?= htmlspecialchars($contact['status'] ?? '—') ?></div>
+      <div class="stat-value"><?= !empty(trim((string)($contact['status'] ?? ''))) ? htmlspecialchars($contact['status']) : '&mdash;' ?></div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Created</div>
@@ -563,7 +677,7 @@ else                                          { $statusColor = '#6B7280'; }
     </div>
     <div class="stat-card">
       <div class="stat-label">Total Value</div>
-      <div class="stat-value"><?= $opportunityValue > 0 ? formatCurrency($opportunityValue) : '—' ?></div>
+      <div class="stat-value"><?= $opportunityValue > 0 ? formatCurrency($opportunityValue) : '&mdash;' ?></div>
     </div>
   </div>
 
@@ -572,6 +686,7 @@ else                                          { $statusColor = '#6B7280'; }
     <h3>Add Communication / Discussion Log</h3>
     <form method="post" action="">
       <?php renderCSRFInput(); ?>
+      <input type="hidden" name="form_action" value="add_discussion">
       <input type="hidden" name="contact_id" value="<?= htmlspecialchars($contact['contact_id']) ?>">
       <div class="form-group">
         <label for="entry_text">Notes / Communication</label>
@@ -604,14 +719,14 @@ else                                          { $statusColor = '#6B7280'; }
   <!-- AI Panel -->
   <div class="ai-panel" id="aiPanel">
     <div class="ai-panel-header">
-      <div class="ai-panel-title" id="aiPanelTitle">🤖 AI</div>
-      <button class="ai-panel-close" onclick="closeAiPanel()" title="Close">✕</button>
+      <div class="ai-panel-title" id="aiPanelTitle">&#129302; AI</div>
+      <button class="ai-panel-close" onclick="closeAiPanel()" title="Close">&#10005;</button>
     </div>
     <div class="ai-panel-body" id="aiPanelBody"></div>
     <div class="ai-panel-meta" id="aiPanelMeta"></div>
     <div class="ai-panel-actions">
-      <button class="ai-copy-btn" onclick="copyAiResult()">📋 Copy</button>
-      <button class="ai-use-btn" id="aiUseBtn" onclick="useAiAsDiscussion()" style="display:none;">📝 Paste into discussion</button>
+      <button class="ai-copy-btn" onclick="copyAiResult()">&#128203; Copy</button>
+      <button class="ai-use-btn" id="aiUseBtn" onclick="useAiAsDiscussion()" style="display:none;">&#128221; Paste into discussion</button>
     </div>
   </div>
 
@@ -621,49 +736,49 @@ else                                          { $statusColor = '#6B7280'; }
   <div class="accordion">
     <div class="accordion-header active" onclick="toggleAccordion(this)">
       <div class="accordion-title">
-        <span>📋</span>
+        <span>&#128203;</span>
         <span>Overview</span>
       </div>
-      <div class="accordion-icon">▶</div>
+      <div class="accordion-icon">&#9654;</div>
     </div>
     <div class="accordion-content active">
       <div class="accordion-body">
         <div class="section">
-          <div class="section-title">📍 Location & Contact</div>
+          <div class="section-title">&#128205; Location & Contact</div>
           <div class="field-grid">
             <div class="field">
               <div class="field-label">Email</div>
               <div class="field-value <?= empty($contact['email']) ? 'empty' : '' ?>">
-                <?= $contact['email'] ? '<a href="mailto:' . htmlspecialchars($contact['email']) . '" style="color:#3B82F6;">' . htmlspecialchars($contact['email']) . '</a>' : '—' ?>
+                <?= $contact['email'] ? '<a href="mailto:' . htmlspecialchars($contact['email']) . '" style="color:#3B82F6;">' . htmlspecialchars($contact['email']) . '</a>' : '&mdash;' ?>
               </div>
             </div>
             <div class="field">
               <div class="field-label">Phone</div>
               <div class="field-value <?= empty($contact['phone']) ? 'empty' : '' ?>">
-                <?= $contact['phone'] ? '<a href="tel:' . htmlspecialchars($contact['phone']) . '" style="color:#3B82F6;">' . htmlspecialchars($contact['phone']) . '</a>' : '—' ?>
+                <?= $contact['phone'] ? '<a href="tel:' . htmlspecialchars($contact['phone']) . '" style="color:#3B82F6;">' . htmlspecialchars($contact['phone']) . '</a>' : '&mdash;' ?>
               </div>
             </div>
             <div class="field">
               <div class="field-label">City</div>
-              <div class="field-value <?= empty($contact['city']) ? 'empty' : '' ?>"><?= htmlspecialchars($contact['city'] ?? '—') ?></div>
+              <div class="field-value <?= empty($contact['city']) ? 'empty' : '' ?>"><?= !empty(trim((string)($contact['city'] ?? ''))) ? htmlspecialchars($contact['city']) : '&mdash;' ?></div>
             </div>
             <div class="field">
               <div class="field-label">Province</div>
-              <div class="field-value <?= empty($contact['province']) ? 'empty' : '' ?>"><?= htmlspecialchars($contact['province'] ?? '—') ?></div>
+              <div class="field-value <?= empty($contact['province']) ? 'empty' : '' ?>"><?= !empty(trim((string)($contact['province'] ?? ''))) ? htmlspecialchars($contact['province']) : '&mdash;' ?></div>
             </div>
             <div class="field">
               <div class="field-label">Postal Code</div>
-              <div class="field-value <?= empty($contact['postal_code']) ? 'empty' : '' ?>"><?= htmlspecialchars($contact['postal_code'] ?? '—') ?></div>
+              <div class="field-value <?= empty($contact['postal_code']) ? 'empty' : '' ?>"><?= !empty(trim((string)($contact['postal_code'] ?? ''))) ? htmlspecialchars($contact['postal_code']) : '&mdash;' ?></div>
             </div>
             <div class="field">
               <div class="field-label">Country</div>
-              <div class="field-value <?= empty($contact['country']) ? 'empty' : '' ?>"><?= htmlspecialchars($contact['country'] ?? '—') ?></div>
+              <div class="field-value <?= empty($contact['country']) ? 'empty' : '' ?>"><?= !empty(trim((string)($contact['country'] ?? ''))) ? htmlspecialchars($contact['country']) : '&mdash;' ?></div>
             </div>
           </div>
         </div>
 
         <div class="section">
-          <div class="section-title">🔖 Tags</div>
+          <div class="section-title">&#128278; Tags</div>
           <div class="tags-container">
             <?php foreach ($tags as $tag): ?>
               <span class="tag"><?= htmlspecialchars($tag) ?></span>
@@ -675,7 +790,7 @@ else                                          { $statusColor = '#6B7280'; }
         </div>
 
         <div class="section">
-          <div class="section-title">📊 Quick Stats</div>
+          <div class="section-title">&#128202; Quick Stats</div>
           <div class="field-grid">
             <div class="field">
               <div class="field-label">Total Value</div>
@@ -707,7 +822,7 @@ else                                          { $statusColor = '#6B7280'; }
         </div>
 
         <div class="section">
-          <div class="section-title">📝 Notes</div>
+          <div class="section-title">&#128221; Notes</div>
           <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.5;">
             <?= $contact['notes'] ? htmlspecialchars($contact['notes']) : '<span style="color: #ccc;">No notes</span>' ?>
           </div>
@@ -720,10 +835,10 @@ else                                          { $statusColor = '#6B7280'; }
   <div class="accordion">
     <div class="accordion-header" onclick="toggleAccordion(this)">
       <div class="accordion-title">
-        <span>✏️</span>
+        <span>&#9998;</span>
         <span>Edit Contact Details</span>
       </div>
-      <div class="accordion-icon">▶</div>
+      <div class="accordion-icon">&#9654;</div>
     </div>
     <div class="accordion-content">
       <div class="accordion-body">
@@ -735,19 +850,19 @@ else                                          { $statusColor = '#6B7280'; }
           <div class="form-section" style="background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%); border: 1px solid #bfdbfe; padding: 14px; margin-bottom: 16px;">
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; font-size: 12px;">
               <div>
-                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">📅 Created</div>
+                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">&#128197; Created</div>
                 <div style="color: #666;"><?= date('M d, Y', strtotime($createdAt)) ?></div>
               </div>
               <div>
-                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">🔄 Last Modified</div>
-                <div style="color: #666;"><?= $lastModified ? date('M d, Y', strtotime($lastModified)) : '—' ?></div>
+                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">&#128260; Last Modified</div>
+                <div style="color: #666;"><?= $lastModified ? date('M d, Y', strtotime($lastModified)) : '&mdash;' ?></div>
               </div>
               <div>
-                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">💼 Opportunities</div>
+                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">&#128188; Opportunities</div>
                 <div style="color: #666;"><?= is_array($contactOpportunities) ? count($contactOpportunities) : 0 ?> active</div>
               </div>
               <div>
-                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">💬 Discussions</div>
+                <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">&#128172; Discussions</div>
                 <div style="color: #666;"><?= is_array($contactDiscussions) ? count($contactDiscussions) : 0 ?> logged</div>
               </div>
             </div>
@@ -778,7 +893,7 @@ else                                          { $statusColor = '#6B7280'; }
                 <label>Company</label>
                 <?php
                 $companyOptions = [];
-                $companyResult = mysqli_query($conn, "SELECT DISTINCT company FROM contacts WHERE company IS NOT NULL AND company != '' ORDER BY LOWER(company)");
+                $companyResult = mysqli_query($crmConn, "SELECT DISTINCT company FROM contacts WHERE company IS NOT NULL AND company != '' ORDER BY LOWER(company)");
                 if ($companyResult) {
                   while ($row = mysqli_fetch_assoc($companyResult)) {
                     $companyOptions[] = $row['company'];
@@ -809,7 +924,7 @@ else                                          { $statusColor = '#6B7280'; }
                 <label>Tags</label>
                 <div class="tags-container" style="margin-bottom: 10px;">
                   <?php foreach ($tags as $tag): ?>
-                    <span class="tag"><?= htmlspecialchars($tag) ?> <span class="tag-remove" onclick="removeTag(this)">✕</span></span>
+                    <span class="tag"><?= htmlspecialchars($tag) ?> <span class="tag-remove" onclick="removeTag(this)">&#10005;</span></span>
                   <?php endforeach; ?>
                   <span class="tag-new" onclick="addNewTag(this)">+ Add tag</span>
                 </div>
@@ -877,7 +992,7 @@ else                                          { $statusColor = '#6B7280'; }
           </div>
 
           <div class="submit-actions">
-            <button type="submit" class="btn-primary">💾 Save Changes</button>
+            <button type="submit" class="btn-primary">&#128190; Save Changes</button>
             <a href="contacts_list.php" class="btn-secondary">Cancel</a>
           </div>
         </form>
@@ -889,15 +1004,15 @@ else                                          { $statusColor = '#6B7280'; }
   <div class="accordion">
     <div class="accordion-header" onclick="toggleAccordion(this)">
       <div class="accordion-title">
-        <span>💼</span>
+        <span>&#128188;</span>
         <span>Opportunities (<?= is_array($contactOpportunities) ? count($contactOpportunities) : 0 ?>)</span>
       </div>
-      <div class="accordion-icon">▶</div>
+      <div class="accordion-icon">&#9654;</div>
     </div>
     <div class="accordion-content">
       <div class="accordion-body">
         <div class="section">
-          <div class="section-title">💼 Linked Opportunities</div>
+          <div class="section-title">&#128188; Linked Opportunities</div>
           <?php if (!empty($contactOpportunities)): ?>
             <?php foreach ($contactOpportunities as $opp): ?>
               <?php $oppId = $opp['opportunity_id'] ?? $opp['id'] ?? ''; ?>
@@ -907,11 +1022,11 @@ else                                          { $statusColor = '#6B7280'; }
                   <span style="color:#888;font-size:12px;">#<?= htmlspecialchars($oppId) ?></span>
                 </div>
                 <div class="opportunity-details">
-                  <strong>Stage:</strong> <?= htmlspecialchars($opp['stage'] ?? '—') ?> 
+                  <strong>Stage:</strong> <?= !empty(trim((string)($opp['stage'] ?? ''))) ? htmlspecialchars($opp['stage']) : '&mdash;' ?> 
                   (<?= htmlspecialchars($opp['probability'] ?? '0') ?>%)
                 </div>
                 <div class="opportunity-details" style="margin-top: 4px;">
-                  <strong>Expected Close:</strong> <?= htmlspecialchars($opp['expected_close'] ?? '—') ?>
+                  <strong>Expected Close:</strong> <?= !empty(trim((string)($opp['expected_close'] ?? ''))) ? htmlspecialchars($opp['expected_close']) : '&mdash;' ?>
                 </div>
                 <div class="opportunity-value">
                   <?= formatCurrency($opp['value'] ?? 0) ?>
@@ -955,16 +1070,16 @@ else                                          { $statusColor = '#6B7280'; }
   <div class="accordion">
     <div class="accordion-header" onclick="toggleAccordion(this)">
       <div class="accordion-title">
-        <span>💬</span>
+        <span>&#128172;</span>
         <span>Discussions (<?= is_array($contactDiscussions) ? count($contactDiscussions) : 0 ?>)</span>
       </div>
-      <div class="accordion-icon">▶</div>
+      <div class="accordion-icon">&#9654;</div>
     </div>
     <div class="accordion-content">
       <div class="accordion-body">
         <!-- Discussion History -->
         <div class="section">
-          <div class="section-title">📒 Activity & History</div>
+          <div class="section-title">&#128210; Activity & History</div>
           <div style="font-size:12px;color:#666;margin-bottom:10px;">
             Linked Tasks, Opportunities, and Discussions for this Contact
           </div>
@@ -979,9 +1094,9 @@ else                                          { $statusColor = '#6B7280'; }
                     </span>
                   </div>
                   <div style="color: #666; font-size: 11px; margin-bottom: 8px;">
-                    📅 <?= htmlspecialchars($disc['timestamp'] ?? '—') ?>
+                    &#128197; <?= !empty(trim((string)($disc['timestamp'] ?? ''))) ? htmlspecialchars($disc['timestamp']) : '&mdash;' ?>
                     <?php if (!empty($disc['manual_contact_id'])): ?>
-                      <span style="margin-left:10px; color:#8B5CF6; font-weight:600; font-size:11px;">🔗 Linked by manual_contact_id: <?= htmlspecialchars($disc['manual_contact_id']) ?></span>
+                      <span style="margin-left:10px; color:#8B5CF6; font-weight:600; font-size:11px;">&#128279; Linked by manual_contact_id: <?= htmlspecialchars($disc['manual_contact_id']) ?></span>
                     <?php endif; ?>
                   </div>
                   <div style="color: #1a1a1a; font-size: 13px; line-height: 1.5; margin-bottom: 6px;">
@@ -998,11 +1113,11 @@ else                                          { $statusColor = '#6B7280'; }
                       }
                     ?>
                     <div style="margin-top: 8px; padding: 8px; background: white; border-left: 3px solid #10B981; border-radius: 3px; font-size: 11px; color: #666;">
-                      <strong>📎 Linked to Opportunity:
+                      <strong>&#128206; Linked to Opportunity:
                         <?= htmlspecialchars($linkedOpp['name'] ?? ('#' . $disc['linked_opportunity_id'])) ?>
                         <span style="color:#888;font-size:11px;">#<?= htmlspecialchars($disc['linked_opportunity_id']) ?></span>
                         <?php if (!empty($linkedOpp['value'])): ?>
-                          — <?= formatCurrency($linkedOpp['value']) ?>
+                          &mdash; <?= formatCurrency($linkedOpp['value']) ?>
                         <?php endif; ?>
                       </strong>
                     </div>
@@ -1079,13 +1194,13 @@ else                                          { $statusColor = '#6B7280'; }
     adjustWidth(); // Initial adjustment
   });
 
-  // ── AI Integration ────────────────────────────────────────────────────────
+  // AI integration
   const AI_CONTACT_ID  = <?= json_encode($contact['contact_id'] ?? '') ?>;
   const AI_CSRF_TOKEN  = <?= json_encode(getCSRFToken()) ?>;
 
   const AI_BTN_LABELS = {
-    'summarise_contact': '🤖 Summary',
-    'suggest_followup':  '✉ Follow-up',
+    'summarise_contact': '&#129302; Summary',
+    'suggest_followup':  '&#9993; Follow-up',
   };
 
   function aiAction(action, btn, label, showUse) {
@@ -1095,15 +1210,15 @@ else                                          { $statusColor = '#6B7280'; }
     const title = document.getElementById('aiPanelTitle');
     const useBtn = document.getElementById('aiUseBtn');
 
-    title.textContent = '🤖 AI: ' + label;
-    body.textContent  = 'Thinking…';
+    title.textContent = 'AI: ' + label;
+    body.textContent  = 'Thinking...';
     meta.textContent  = '';
     if (useBtn) useBtn.style.display = 'none';
     panel.classList.add('visible');
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     const origLabel = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ai-spinner"></span> Thinking…'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ai-spinner"></span> Thinking...'; }
 
     const fd = new FormData();
     fd.append('action',     action);
@@ -1114,18 +1229,18 @@ else                                          { $statusColor = '#6B7280'; }
       .then(r => r.json())
       .then(data => {
         if (data.error) {
-          body.textContent = '⚠️ ' + data.error;
+          body.textContent = 'Warning: ' + data.error;
         } else {
           body.textContent = data.text || '(no response)';
           if (data.provider && data.model) {
-            var selectionLabel = data.selection_mode === 'cheapest' ? ' · chosen by cost' : ' · manual selection';
+            var selectionLabel = data.selection_mode === 'cheapest' ? ' - chosen by cost' : ' - manual selection';
             meta.textContent = 'via ' + data.provider + ' / ' + data.model + selectionLabel;
           }
           if (showUse && useBtn) useBtn.style.display = 'inline-block';
         }
       })
       .catch(err => {
-        body.textContent = '⚠️ Network error: ' + err.message;
+        body.textContent = 'Network error: ' + err.message;
       })
       .finally(() => {
         if (btn) { btn.disabled = false; btn.innerHTML = origLabel; }
@@ -1141,7 +1256,7 @@ else                                          { $statusColor = '#6B7280'; }
     navigator.clipboard.writeText(text).then(() => {
       const btn = document.querySelector('.ai-copy-btn');
       const orig = btn.textContent;
-      btn.textContent = '✓ Copied!';
+      btn.textContent = 'Copied!';
       setTimeout(() => { btn.textContent = orig; }, 2000);
     });
   }
@@ -1156,6 +1271,234 @@ else                                          { $statusColor = '#6B7280'; }
       closeAiPanel();
     }
   }
+
+  // Contact enrichment integration
+  const ENRICH_CSRF_TOKEN = <?= json_encode(getCSRFToken()) ?>;
+  const ENRICH_CONTACT_ID = <?= json_encode($contact['contact_id'] ?? '') ?>;
+
+  function enrichContactInfo() {
+    const btn = document.getElementById('enrichBtn');
+    const origLabel = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="ai-spinner"></span> Searching...';
+
+    const fd = new FormData();
+    fd.append('contact_id', ENRICH_CONTACT_ID);
+    fd.append('csrf_token', ENRICH_CSRF_TOKEN);
+
+    fetch('contact_enrich.php', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = origLabel;
+        
+        if (!data.success || (Object.keys(data.found_data || {}).length === 0 && data.errors.length === 0)) {
+          showEnrichmentModal(
+            data.message || 'No additional information found',
+            {},
+            data.errors || []
+          );
+          return;
+        }
+        
+        showEnrichmentModal(
+          'Found missing information - review and approve below:',
+          data.found_data || {},
+          data.errors || [],
+          data.matches || {}
+        );
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = origLabel;
+        showEnrichmentModal('Error: ' + err.message, {}, ['Network error']);
+      });
+  }
+
+  function showEnrichmentModal(message, foundData, errors, matches) {
+    const modal = document.createElement('div');
+    modal.id = 'enrichModal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    `;
+
+    const content = document.createElement('div');
+    content.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 32px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    `;
+
+    // Header
+    const header = document.createElement('div');
+    header.style.cssText = 'margin-bottom: 20px;';
+    header.innerHTML = `
+      <h2 style="margin: 0 0 8px 0; font-size: 20px; color: #1f2937;">
+        &#128269; Fill Missing Information
+      </h2>
+      <p style="margin: 0; color: #666; font-size: 14px;">
+        ${escapeHtml(message)}
+      </p>
+    `;
+    content.appendChild(header);
+
+    // Errors
+    if (errors.length > 0) {
+      const errorBox = document.createElement('div');
+      errorBox.style.cssText = `
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 20px;
+      `;
+      errorBox.innerHTML = '<strong style="color: #991b1b;">Validation Issues:</strong><ul style="margin: 8px 0 0 20px; font-size: 13px; color: #7f1d1d;">' + 
+        errors.map(e => '<li>' + escapeHtml(e) + '</li>').join('') + 
+        '</ul>';
+      content.appendChild(errorBox);
+    }
+
+    // Found Data
+    if (Object.keys(foundData).length > 0) {
+      const dataBox = document.createElement('div');
+      dataBox.style.cssText = 'margin-bottom: 20px;';
+      dataBox.innerHTML = '<strong style="font-size: 14px; color: #1f2937;">Proposed Changes:</strong>';
+      
+      const fieldsTable = document.createElement('table');
+      fieldsTable.style.cssText = `
+        width: 100%;
+        margin-top: 12px;
+        border-collapse: collapse;
+      `;
+      
+      for (const [field, value] of Object.entries(foundData)) {
+        const confidence = matches[field] || 0.7;
+        const row = document.createElement('tr');
+        row.style.cssText = 'border-bottom: 1px solid #e5e7eb;';
+        row.innerHTML = `
+          <td style="padding: 10px 0; width: 120px; font-weight: 600; color: #374151; font-size: 13px;">
+            ${escapeHtml(field)}
+          </td>
+          <td style="padding: 10px 12px; font-size: 13px; color: #1f2937;">
+            <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-family: monospace;">
+              ${escapeHtml(String(value))}
+            </code>
+          </td>
+          <td style="padding: 10px 0; text-align: right; font-size: 12px; color: #999;">
+            ${Math.round(confidence * 100)}% conf.
+          </td>
+        `;
+        fieldsTable.appendChild(row);
+      }
+      dataBox.appendChild(fieldsTable);
+      content.appendChild(dataBox);
+    }
+
+    // Actions
+    const actions = document.createElement('div');
+    actions.style.cssText = `
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    `;
+
+    if (Object.keys(foundData).length > 0) {
+      const approveBtn = document.createElement('button');
+      approveBtn.textContent = 'Approve & Fill';
+      approveBtn.style.cssText = `
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+      `;
+      approveBtn.onclick = () => applyEnrichment(foundData, modal);
+      actions.appendChild(approveBtn);
+    }
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close';
+    closeBtn.style.cssText = `
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #d1d5db;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    `;
+    closeBtn.onclick = () => modal.remove();
+    actions.appendChild(closeBtn);
+
+    content.appendChild(actions);
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+  }
+
+  function applyEnrichment(foundData, modal) {
+    // Fill form fields with found data
+    for (const [field, value] of Object.entries(foundData)) {
+      const input = document.querySelector(`input[name="${field}"], textarea[name="${field}"], select[name="${field}"]`);
+      if (input) {
+        input.value = String(value);
+        // Trigger change event for form watchers
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+
+    // Close modal
+    modal.remove();
+
+    // Scroll to form and show success
+    const editSection = document.querySelector('.accordion-header:has(+ .accordion-content:has(form))');
+    if (editSection) {
+      // Expand the edit section if collapsed
+      if (!editSection.classList.contains('active')) {
+        editSection.click();
+      }
+      editSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Show confirmation alert
+    const alert = document.createElement('div');
+    alert.style.cssText = `
+      background: #d1fae5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      font-weight: 600;
+    `;
+    alert.textContent = 'Information filled in. Review and click "Save Contact" to apply.';
+    
+    const formSection = document.querySelector('.form-section:has(input[name="first_name"])');
+    if (formSection) {
+      formSection.parentNode.insertBefore(alert, formSection);
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
 </script>
 
 </body>
@@ -1164,7 +1507,8 @@ else                                          { $statusColor = '#6B7280'; }
 
 <?php
 // Close the database connection at the very end
-if (isset($conn) && $conn instanceof mysqli) {
-  $conn->close();
+if (isset($crmConn) && $crmConn instanceof mysqli) {
+  $crmConn->close();
 }
 ?>
+

@@ -1,6 +1,7 @@
 <?php
 include_once(__DIR__ . '/layout_start.php');
 require_once 'csv_handler.php';
+require_once __DIR__ . '/request_guard.php';
 
 $schema = require __DIR__ . '/purchase_order_schema.php';
 $poFile = __DIR__ . '/purchase_orders.csv';
@@ -12,6 +13,7 @@ $orders = readCSV($poFile, $schema);
 $itemFields = ['item_id','item_name','quantity','unit','unit_price','discount','tax_rate','tax_amount','total'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_po'])) {
+  require_post_with_csrf();
   $poNumber = trim($_POST['po_number'] ?? '');
   if ($poNumber !== '') {
     $orders = array_values(array_filter($orders, function($row) use ($poNumber) {
@@ -61,6 +63,7 @@ $header = $poRows[0] ?? [];
     </div>
   <?php else: ?>
     <form method="post" style="max-width:900px; margin:auto; background:#fafbfc; border-radius:8px; padding:24px 28px 18px 28px; box-shadow:0 2px 8px #0001;">
+      <?php renderCSRFInput(); ?>
       <input type="hidden" name="update_po" value="1">
       <input type="hidden" name="created_at" value="<?= htmlspecialchars($header['created_at'] ?? '') ?>">
       <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px 24px; margin-bottom:18px; align-items:end;">

@@ -1,5 +1,6 @@
 <?php
 require_once 'db_mysql.php';
+require_once __DIR__ . '/request_guard.php';
 
 $pageTitle = 'Tank Inventory';
 $equipmentSchema = require __DIR__ . '/equipment_schema.php';
@@ -205,6 +206,7 @@ function is_resin_pool_product(array $product)
 // Handle POST actions
 $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 if ($requestMethod === 'POST') {
+    require_post_with_csrf();
     $conn = get_mysql_connection();
     ensure_equipment_components_table($conn);
 
@@ -1198,6 +1200,7 @@ require_once 'layout_start.php';
                     <tr class="edit-panel" id="edit-<?= htmlspecialchars($item['equipment_id']) ?>">
                         <td colspan="6">
                             <form method="POST" class="edit-panel-content">
+                                <?php renderCSRFInput(); ?>
                                 <input type="hidden" name="action" value="update_equipment">
                                 <input type="hidden" name="equipment_id" value="<?= htmlspecialchars($item['equipment_id']) ?>">
 

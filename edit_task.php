@@ -2,9 +2,17 @@
 <?php
 require_once 'tasks_mysql.php';
 require_once __DIR__ . '/csrf_helper.php';
+require_once __DIR__ . '/simple_auth/middleware.php';
 
-$timestamp = $_GET['timestamp'] ?? '';
-$tasks = fetch_tasks_mysql(['timestamp' => $timestamp]);
+$id = trim((string)($_GET['id'] ?? ''));
+$timestamp = trim((string)($_GET['timestamp'] ?? ''));
+
+if ($id !== '') {
+  $tasks = fetch_tasks_mysql(['id' => $id]);
+} else {
+  $tasks = fetch_tasks_mysql(['timestamp' => $timestamp]);
+}
+
 $taskToEdit = $tasks ? $tasks[0] : null;
 if (!$taskToEdit) {
     echo "Task not found.";

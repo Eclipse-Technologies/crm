@@ -2,6 +2,7 @@
 // discussion_logger.php
 require_once 'csv_handler.php';
 require_once 'csrf_helper.php';
+require_once __DIR__ . '/simple_auth/middleware.php';
 
 // Use $_POST directly
 if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {

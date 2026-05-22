@@ -104,6 +104,11 @@ function init_inventory_row($schema, $itemId, $itemName) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['receive_backorder'])) {
+  if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    header('Location: backorders_list.php?error=csrf');
+    exit;
+  }
+
   $itemId = trim($_POST['item_id'] ?? '');
   $poNumber = trim($_POST['po_number'] ?? '');
   $qtyReceive = is_numeric($_POST['receive_qty'] ?? '') ? (float)$_POST['receive_qty'] : 0.0;
@@ -172,6 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['receive_backorder']))
             <td style="padding:8px;"><?= htmlspecialchars($row['note'] ?? '') ?></td>
             <td style="padding:8px;">
               <form method="post" style="display:flex; gap:6px; align-items:center;">
+                <?php renderCSRFInput(); ?>
                 <input type="hidden" name="receive_backorder" value="1">
                 <input type="hidden" name="po_number" value="<?= htmlspecialchars($row['po_number'] ?? '') ?>">
                 <input type="hidden" name="item_id" value="<?= htmlspecialchars($row['item_id'] ?? '') ?>">

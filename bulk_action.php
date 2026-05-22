@@ -1,5 +1,8 @@
 <?php
 require_once 'db_pgsql.php';
+require_once __DIR__ . '/request_guard.php';
+
+require_post_with_csrf();
 
 $schemaFile = __DIR__ . '/contact_schema.php';
 $schema = file_exists($schemaFile) ? require $schemaFile : [];

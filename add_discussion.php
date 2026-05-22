@@ -1,8 +1,11 @@
 <?php
+require_once __DIR__ . '/request_guard.php';
 require_once 'contact_validator.php';
 require_once 'discussion_logger.php'; // contains logDiscussionEntry()
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_post_with_csrf('contacts_list.php?error=csrf');
+
     $contactId = trim($_POST['contact_id'] ?? '');
     // Validate input
     $errors = validateContact($_POST);

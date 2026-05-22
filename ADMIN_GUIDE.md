@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD005 MD007 MD012 MD022 MD024 MD026 MD032 MD060 -->
+
 # CRM Admin Tools Guide
 
 This guide explains how to use each admin tool available in the CRM system. All admin tools require authentication and provide comprehensive management, monitoring, and maintenance capabilities.
@@ -5,6 +7,54 @@ This guide explains how to use each admin tool available in the CRM system. All 
 ## Access the Admin Dashboard
 
 Click the **⚙️ Admin** link in the navigation bar to access the admin dashboard. This is your central hub for all administrative functions.
+
+---
+
+## Public Endpoint Security Operations
+
+This CRM has a small set of intentionally public endpoints. They are hardened with endpoint-specific controls and should be monitored as part of routine admin operations.
+
+### 1. API Key Management (for API endpoints)
+
+- Endpoints: `api.php` and `api/contacts.php`
+- Auth mode: header-based API keys only
+  - `X-API-Key: <key>`
+  - `Authorization: Bearer <key>`
+- Source of truth: `.env` value `API_KEYS` (comma-separated)
+
+#### How to rotate API keys safely
+
+1. Open `.env` and set `API_KEYS` to include both old and new keys temporarily.
+2. Update all API clients to use the new key.
+3. Remove old keys from `API_KEYS` after cutover.
+4. Verify API calls return `401` for removed keys.
+
+### 2. Public Contact Form Protections
+
+- Submit handler: `submit-contact.php`
+- Current protections:
+  - POST-only enforcement (`405` on non-POST)
+  - CSRF token verification
+  - Honeypot field trap (`website_url`)
+  - Per-IP cooldown throttle (20 seconds)
+
+#### Operational checks
+
+1. If legitimate submissions fail, verify form includes CSRF token and honeypot field from `contact_form.php`.
+2. If spam volume increases, raise cooldown window in `submit-contact.php`.
+3. Monitor `error_log` and mail delivery success after any SMTP or anti-abuse changes.
+
+### 3. Deprecated/Internal Path Exposure (IIS)
+
+- IIS request filtering in `web.config` hides these web segments:
+  - `DEPRICATED`
+  - `libraries`
+  - `setup`
+
+#### Validation step
+
+1. Confirm blocked routes return access denied / not found when requested directly from browser.
+2. Re-check this configuration after server migration or IIS config restore.
 
 ---
 
@@ -318,6 +368,56 @@ Generate statistical reports and analyze system usage.
 #### Users Report
 - **Statistics**:
   - Total active users
+
+---
+
+## Mass Email SMTP Configuration (`mass_email.php`)
+
+Use this section when the **Send Mass Email** or **Test SMTP** buttons fail.
+
+### Recommended SMTP2GO Configuration
+
+Set these values in `.env`:
+
+```env
+MAIL_TRANSPORT=smtp
+SMTP_HOST=mail.smtp2go.com
+SMTP_PORT=2525
+SMTP_AUTH=true
+SMTP_USERNAME=<your_smtp2go_username>
+SMTP_PASSWORD=<your_smtp2go_password>
+SMTP_FROM_EMAIL=<your_sender_email>
+SMTP_ENCRYPTION=tls
+```
+
+### GoDaddy Relay vs Authenticated SMTP
+
+- **Relay mode (no auth):** `SMTP_HOST=localhost` or `relay-hosting.secureserver.net`, `SMTP_PORT=25`, `SMTP_AUTH=false`, `SMTP_ENCRYPTION=none`.
+- **Important:** Relay mode usually works only from GoDaddy-hosted server networks. On local/dev machines, port 25 is often blocked and appears unreachable.
+- If relay is unreachable, use **authenticated SMTP** (SMTP2GO or GoDaddy mailbox SMTP endpoint).
+
+### GoDaddy Mailbox SMTP (Authenticated) Fallback
+
+```env
+MAIL_TRANSPORT=smtp
+SMTP_HOST=smtpout.secureserver.net
+SMTP_PORT=465
+SMTP_AUTH=true
+SMTP_USERNAME=<full_mailbox_email>
+SMTP_PASSWORD=<mailbox_password>
+SMTP_FROM_EMAIL=<full_mailbox_email>
+SMTP_ENCRYPTION=ssl
+```
+
+If needed, fallback to port `587` with `SMTP_ENCRYPTION=tls`.
+
+### Troubleshooting Checklist
+
+1. Click **Test SMTP** before sending a mass campaign.
+2. Confirm `SMTP_USERNAME` and `SMTP_PASSWORD` are both non-empty when `SMTP_AUTH=true`.
+3. Verify SMTP host/port reachability from the running environment.
+4. Use a valid `SMTP_FROM_EMAIL` allowed by your SMTP provider.
+5. If credentials are exposed in chat, logs, or commits, rotate them immediately.
   - Total actions across all users
 - **Activity Chart**:
   - Action count per user

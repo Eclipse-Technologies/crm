@@ -1,6 +1,7 @@
 <?php
 include_once(__DIR__ . '/layout_start.php');
 require_once 'db_mysql.php';
+require_once __DIR__ . '/request_guard.php';
 $schema = require __DIR__ . '/purchase_order_schema.php';
 // Fetch purchase orders and items from MySQL (LEFT JOIN to show all POs)
 function fetch_purchase_orders_with_items($schema) {
@@ -33,6 +34,7 @@ function fetch_purchase_orders_with_items($schema) {
 }
 $orders = fetch_purchase_orders_with_items($schema);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_po'])) {
+  require_post_with_csrf();
   $poToDelete = trim($_POST['po_number'] ?? '');
   if ($poToDelete !== '') {
     $conn = get_mysql_connection();
@@ -206,6 +208,7 @@ $poGroups = array_values($poGroups);
               <a href="purchase_order_receive.php?po=<?= $poLink ?>" class="btn-outline">Receive</a>
               <a href="purchase_order_edit.php?po=<?= $poLink ?>" class="btn-outline">Edit</a>
               <form method="post" onsubmit="return confirm('Delete purchase order <?= htmlspecialchars($poNumber) ?>?');">
+                <?php renderCSRFInput(); ?>
                 <input type="hidden" name="delete_po" value="1">
                 <input type="hidden" name="po_number" value="<?= htmlspecialchars($poNumber) ?>">
                 <button type="submit" class="btn-outline">Delete</button>

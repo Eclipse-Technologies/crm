@@ -14,6 +14,10 @@ $is_discussion = false;
 
 // Detect import type and schema
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
+  if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    http_response_code(403);
+    exit('CSRF validation failed');
+  }
   $file = $_FILES['csv_file']['tmp_name'];
   if (($handle = fopen($file, 'r')) !== false) {
     $header = fgetcsv($handle);
@@ -32,16 +36,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
         }
       }
       $header = $new_header;
-      // Debug: Show processed header and first data row
-      echo '<div style="background:#ffe;border:1px solid #cc0;padding:8px;margin-bottom:8px;">';
-      echo '<strong>DEBUG:</strong> Processed header: ' . htmlspecialchars(implode(', ', $header));
       if (($peek = fgetcsv($handle)) !== false) {
-        echo '<br>First data row: ' . htmlspecialchars(implode(', ', $peek));
         // Rewind file pointer to just after header
         fseek($handle, 0);
         fgetcsv($handle); // skip header again
       }
-      echo '</div>';
 
       // Alias entry_text to discussion_text BEFORE type detection
       if (!in_array('discussion_text', $header) && in_array('entry_text', $header)) {
@@ -123,14 +122,6 @@ if ($is_contacts) {
     $duplicate_emails[$idx+2] = $email;
   }
 
-
-// Output preview and summary
-echo "<div style='background:#cfc;border:1px solid #090;padding:8px;margin-bottom:8px;'>";
-echo "<strong>DEBUG:</strong> After initializeCSRFToken. Session CSRF token: " . htmlspecialchars($_SESSION['csrf_token'] ?? '(none)') . "<br>";
-echo "Session ID: " . session_id() . "<br>";
-echo "</div>";
-
-
 // Always show the upload form if no file has been uploaded
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_FILES['csv_file'])) {
 }
@@ -142,6 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_FILES['csv_file'])) {
 <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; max-width: 500px;">
   <h2>Import Contacts or Discussion Log</h2>
   <form method="POST" enctype="multipart/form-data">
+    <?php renderCSRFInput(); ?>
     <div class="mb-3">
       <label for="csv_file" class="form-label">Select CSV file to import:</label>
       <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv" required>
@@ -181,38 +173,10 @@ if ($is_contacts || $is_discussion) {
     <p style="color: green; font-weight: bold;">✓ Ready to import</p>
   </div>
   <?php if (!empty($rows)):
-    // Debug: Show schema and first row of $rows
-    echo '<div style="background:#eef;border:1px solid #00c;padding:8px;margin-bottom:8px;">';
-    if (is_array($schema)) {
-      echo '<strong>DEBUG:</strong> Schema: ' . htmlspecialchars(implode(', ', $schema));
-    } else {
-      echo '<strong>DEBUG:</strong> Schema is not an array.';
-    }
-    if (!empty($rows) && is_array($rows[0])) {
-      $first = $rows[0];
-      echo '<br>First row: ' . htmlspecialchars(json_encode($first));
-    }
-    echo '</div>';
-    // Output table headers and first row as plain HTML for troubleshooting
-    echo '<div style="background:#fcc;border:1px solid #c00;padding:8px;margin-bottom:8px;">';
-    echo '<strong>DEBUG TABLE HEADERS:</strong> ';
-    if (is_array($schema)) {
-      foreach ($schema as $col) {
-        echo htmlspecialchars($col) . ' | ';
-      }
-    }
-    if (!empty($rows) && is_array($rows[0])) {
-      echo '<br><strong>DEBUG FIRST ROW:</strong> ';
-      foreach ($schema as $col) {
-        $v = $rows[0][$col] ?? '';
-        echo htmlspecialchars($v) . ' | ';
-      }
-    }
-    echo '</div>';
   ?>
     <h3 style="margin-top: 20px;">Preview - <?= $is_contacts ? 'Valid Contacts' : 'Discussion Log Entries' ?> (<?= count($rows) ?>)</h3>
     <form method="POST" action="commit_import.php" id="commitForm">
-      <?= renderCSRFInput() ?>
+      <?php renderCSRFInput(); ?>
       <table class="spec-table" style="font-size: 12px;"><thead><tr>
         <?php foreach ($schema as $col): ?>
           <th><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $col))) ?></th>

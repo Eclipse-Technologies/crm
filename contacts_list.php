@@ -116,11 +116,72 @@ require_once __DIR__ . '/simple_auth/middleware.php';
 // Session initialization is now handled by Auth via middleware.php
 require_once __DIR__ . '/sanitize_helper.php';
 require_once __DIR__ . '/csrf_helper.php';
+require_once __DIR__ . '/env_loader.php';
 define('DEFAULT_CONTACTS_PER_PAGE', 25); // Default number of contacts per page
 define('ALLOWED_PER_PAGE_OPTIONS', [10, 25, 50, 100]);
 $currentPage = basename(__FILE__);
 require_once 'db_mysql.php';
+require_once __DIR__ . '/daily_call_list_helper.php';
 $schema = require __DIR__ . '/contact_schema.php';
+
+load_env();
+$dailyCallDefaultEmail = trim((string) (getenv('DAILY_CALL_EMAIL_TO') ?: ($_SESSION['email'] ?? 'rlee@eclipsewatertechnologies.com')));
+
+if (isset($_POST['send_daily_call_list'])) {
+  if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    http_response_code(403);
+    exit('CSRF validation failed');
+  }
+
+  $sendTo = trim((string) ($_POST['daily_call_email'] ?? $dailyCallDefaultEmail));
+  if ($sendTo === '' || !filter_var($sendTo, FILTER_VALIDATE_EMAIL)) {
+    header('Location: contacts_list.php?daily_call_status=error&daily_call_error=' . urlencode('Recipient email is invalid.'));
+    exit;
+  }
+
+  $dailyConn = get_mysql_connection();
+  ensure_daily_call_tracking_table($dailyConn);
+  $dailyCandidates = fetch_daily_ontario_call_candidates($dailyConn, 10);
+
+  if (empty($dailyCandidates)) {
+    $dailyConn->close();
+    header('Location: contacts_list.php?daily_call_status=empty');
+    exit;
+  }
+
+  $sendResult = send_daily_call_email($sendTo, $dailyCandidates);
+  if (!empty($sendResult['ok'])) {
+    $candidateIds = array_map(static function ($row) {
+      return (string) ($row['contact_id'] ?? '');
+    }, $dailyCandidates);
+    mark_daily_call_contacts_sent($dailyConn, $candidateIds);
+    $dailyConn->close();
+    header('Location: contacts_list.php?daily_call_status=sent&daily_call_count=' . count($dailyCandidates));
+    exit;
+  }
+
+  $dailyConn->close();
+  header('Location: contacts_list.php?daily_call_status=error&daily_call_error=' . urlencode((string) ($sendResult['error'] ?? 'Email send failed.')));
+  exit;
+}
+
+if (isset($_POST['mark_called_contact'])) {
+  if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    http_response_code(403);
+    exit('CSRF validation failed');
+  }
+
+  $contactIdToMark = trim((string) ($_POST['contact_id'] ?? ''));
+  if ($contactIdToMark !== '') {
+    $dailyConn = get_mysql_connection();
+    ensure_daily_call_tracking_table($dailyConn);
+    mark_daily_call_contact_called($dailyConn, $contactIdToMark, (string) ($_SESSION['username'] ?? 'system'));
+    $dailyConn->close();
+  }
+
+  header('Location: contacts_list.php?daily_call_status=marked');
+  exit;
+}
 
 // Always initialize these variables before any use
 $total_contacts = 0;
@@ -144,6 +205,10 @@ function flattenDisplayFields($arr) {
 
 $displayFieldsFromGet = isset($_GET['display']) && is_array($_GET['display']) ? $_GET['display'] : (isset($_GET['display']) ? [$_GET['display']] : null);
 if (isset($_POST['apply'])) {
+  if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    http_response_code(403);
+    exit('CSRF validation failed');
+  }
   // Validate against schema before saving
   $postedRaw = (isset($_POST['display']) && is_array($_POST['display'])) ? $_POST['display'] : [];
   $posted = array_values(array_intersect(flattenDisplayFields($postedRaw), $schema));
@@ -194,6 +259,7 @@ $query = strtolower(trim($_GET['query'] ?? ''));
 $field = $_GET['field'] ?? '';
 $sortFields = explode(',', $_GET['sort'] ?? '');
 $sortDirection = $_GET['direction'] ?? 'asc';
+$callReadyOnly = isset($_GET['call_ready']) && $_GET['call_ready'] === '1';
 $activeSort = array_flip($sortFields);
 
 
@@ -201,9 +267,19 @@ $activeSort = array_flip($sortFields);
 
 // Build WHERE clause for both count and data queries using prepared statements
 $conn = get_mysql_connection();
+if ($callReadyOnly) {
+  ensure_daily_call_tracking_table($conn);
+}
 $whereConditions = [];
 $bindTypes = '';
 $bindValues = [];
+
+if ($callReadyOnly) {
+  $whereConditions[] = "TRIM(COALESCE(`phone`, '')) <> ''";
+  $whereConditions[] = "LOWER(TRIM(COALESCE(`province`, ''))) IN ('on', 'ontario')";
+  $whereConditions[] = "NOT EXISTS (SELECT 1 FROM daily_call_tracking dct WHERE dct.contact_id = contacts.contact_id AND dct.called_at IS NOT NULL)";
+}
+
 if ($query !== '') {
   $words = preg_split('/\s+/', $query);
   if ($field && in_array($field, $schema)) {
@@ -295,6 +371,20 @@ foreach ($contacts as $c) {
 }
 $page_contacts = $contacts;
 
+$calledContactMap = [];
+$visibleContactIds = array_values(array_filter(array_map(static function ($row) {
+  return (string) ($row['contact_id'] ?? '');
+}, $page_contacts), static function ($id) {
+  return trim($id) !== '';
+}));
+
+if (!empty($visibleContactIds)) {
+  $dailyConn = get_mysql_connection();
+  ensure_daily_call_tracking_table($dailyConn);
+  $calledContactMap = fetch_called_contact_id_map($dailyConn, $visibleContactIds);
+  $dailyConn->close();
+}
+
 
 ?>
 
@@ -313,6 +403,14 @@ $page_contacts = $contacts;
       <a href="contact_form.php" class="btn btn-primary">
         <i class="bi bi-plus-lg"></i> <span style="font-weight:500;">Add Contact</span>
       </a>
+      <form method="POST" class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+        <?php renderCSRFInput(); ?>
+        <input type="hidden" name="send_daily_call_list" value="1">
+        <input type="email" name="daily_call_email" class="form-control form-control-sm" value="<?= htmlspecialchars($dailyCallDefaultEmail) ?>" placeholder="your@email.com" style="min-width:220px;">
+        <button type="submit" class="btn btn-warning btn-sm">
+          <i class="bi bi-telephone"></i> Email 10 Ontario Call Contacts
+        </button>
+      </form>
     </div>
   </div>
 
@@ -325,6 +423,9 @@ $page_contacts = $contacts;
       <input type="hidden" name="sort" value="<?= e($_GET['sort'] ?? '') ?>">
       <input type="hidden" name="direction" value="<?= e($sortDirection) ?>">
       <input type="hidden" name="per_page" value="<?= (int) $per_page ?>">
+      <?php if ($callReadyOnly): ?>
+        <input type="hidden" name="call_ready" value="1">
+      <?php endif; ?>
       <?php foreach ($displayFields as $df): ?>
         <input type="hidden" name="display[]" value="<?= e($df) ?>">
       <?php endforeach; ?>
@@ -333,9 +434,10 @@ $page_contacts = $contacts;
         <label class="form-check-label" for="exportAllFields" style="font-weight:400;font-size:15px;">Export all fields</label>
       </div>
       <button type="submit" class="btn btn-primary">Search</button>
+      <a href="contacts_list.php?call_ready=1" class="btn <?= $callReadyOnly ? 'btn-success' : 'btn-outline-success' ?>">Call List Ready</a>
       <button type="button" class="btn btn-success" onclick="exportContacts()">Export</button>
       <?php if ($query !== ''): ?>
-        <a href="contacts_list.php" class="btn btn-outline-secondary">Clear</a>
+        <a href="contacts_list.php<?= $callReadyOnly ? '?call_ready=1' : '' ?>" class="btn btn-outline-secondary">Clear</a>
       <?php endif; ?>
     </form>
     <script>
@@ -380,6 +482,7 @@ $page_contacts = $contacts;
             }
             echo '<li class="page-item' . ($p == $current_page ? ' active' : '') . '">';
             echo '<a class="page-link" href="?page=' . $p . '&query=' . urlencode($_GET['query'] ?? '') . '&field=' . urlencode($field) . '&sort=' . urlencode($_GET['sort'] ?? '') . '&direction=' . $sortDirection . '&per_page=' . $per_page;
+            if ($callReadyOnly) { echo '&call_ready=1'; }
             foreach ($displayFields as $df) { echo '&display[]=' . urlencode($df); }
             echo '">' . $p . '</a>';
             echo '</li>';
@@ -396,6 +499,14 @@ $page_contacts = $contacts;
   <div class="alert alert-error" style="margin-top:70px;z-index:1050;position:relative;"> <?= e($fieldSaveError) ?> </div>
 <?php elseif (isset($_GET['applied']) && $_GET['applied'] === '1'): ?>
   <div class="alert alert-success" style="margin-top:70px;z-index:1050;position:relative;">Column visibility updated.</div>
+<?php elseif (isset($_GET['daily_call_status']) && $_GET['daily_call_status'] === 'sent'): ?>
+  <div class="alert alert-success" style="margin-top:70px;z-index:1050;position:relative;">Daily call list emailed successfully (<?= (int) ($_GET['daily_call_count'] ?? 0) ?> contacts).</div>
+<?php elseif (isset($_GET['daily_call_status']) && $_GET['daily_call_status'] === 'empty'): ?>
+  <div class="alert alert-warning" style="margin-top:70px;z-index:1050;position:relative;">No eligible Ontario contacts with phone numbers were found for today's list.</div>
+<?php elseif (isset($_GET['daily_call_status']) && $_GET['daily_call_status'] === 'marked'): ?>
+  <div class="alert alert-success" style="margin-top:70px;z-index:1050;position:relative;">Contact marked as called.</div>
+<?php elseif (isset($_GET['daily_call_status']) && $_GET['daily_call_status'] === 'error'): ?>
+  <div class="alert alert-error" style="margin-top:70px;z-index:1050;position:relative;">Failed to send daily call list: <?= e($_GET['daily_call_error'] ?? 'Unknown error') ?></div>
 <?php endif; ?>
 
 <!-- Field Visibility Panel -->
@@ -442,6 +553,7 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
                 <?php
                   // Build the sort link with all displayFields as display[] params
                   $sortUrl = '?query=' . urlencode($_GET['query'] ?? '') . '&field=' . urlencode($field) . '&sort=' . e($f) . '&direction=' . ((in_array($f, $sortFields) && $sortDirection === 'asc') ? 'desc' : 'asc') . '&per_page=' . $per_page;
+                  if ($callReadyOnly) { $sortUrl .= '&call_ready=1'; }
                   foreach ($displayFields as $df) { $sortUrl .= '&display[]=' . urlencode($df); }
                 ?>
                 <a href="<?= $sortUrl ?>" class="text-decoration-none text-dark">
@@ -479,6 +591,7 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
                 $id = isset($contact['contact_id']) ? $contact['contact_id'] : '';
                 $email = $contact['email'] ?? '';
                 $isDuplicate = !empty($email) && $emailCount[strtolower(trim($email))] > 1;
+                $isCalled = !empty($calledContactMap[(string) $id]);
               ?>
                 <tr class="contact-row" data-contact-id="<?= escapeAttr($id) ?>">
                 <td>
@@ -490,7 +603,7 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
                         'id' => $id,
                         'edit' => 1
                       ];
-                      $paramsToPropagate = ['page','query','sort','direction','per_page','field'];
+                      $paramsToPropagate = ['page','query','sort','direction','per_page','field','call_ready'];
                       foreach ($paramsToPropagate as $p) {
                         if (isset($_GET[$p])) {
                           $editParams[$p] = $_GET[$p];
@@ -506,12 +619,20 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
                       $editUrl = 'contact_view.php?' . http_build_query($editParams) . '#edit';
                     ?>
                     <a href="<?= htmlspecialchars($editUrl) ?>" class="btn btn-sm btn-outline-secondary" title="Edit contact"><i class="bi bi-pencil"></i></a>
+                    <form method="POST" class="d-inline">
+                      <?php renderCSRFInput(); ?>
+                      <input type="hidden" name="mark_called_contact" value="1">
+                      <input type="hidden" name="contact_id" value="<?= escapeAttr($id) ?>">
+                      <button type="submit" class="btn btn-sm <?= $isCalled ? 'btn-success' : 'btn-outline-success' ?>" title="<?= $isCalled ? 'Already marked called' : 'Mark as called' ?>" <?= $isCalled ? 'disabled' : '' ?>>
+                        <i class="bi bi-telephone-check"></i>
+                      </button>
+                    </form>
                     <form method="POST" action="delete_contact.php" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this contact?');">
                       <?php renderCSRFInput(); ?>
                       <input type="hidden" name="contact_id" value="<?= escapeAttr($id) ?>">
                       <?php
                         // Propagate all relevant GET params as hidden fields for redirect after delete
-                        $paramsToPropagate = ['page','query','sort','direction','per_page','field'];
+                        $paramsToPropagate = ['page','query','sort','direction','per_page','field','call_ready'];
                         // Helper to recursively flatten arrays (declare only if not already defined)
                         if (!function_exists('flattenArray')) {
                           function flattenArray($arr) {

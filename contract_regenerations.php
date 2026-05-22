@@ -2,6 +2,8 @@
 // contract_regenerations.php
 // View and log regeneration events for a contract
 require_once 'db_mysql.php';
+require_once __DIR__ . '/csrf_helper.php';
+require_once __DIR__ . '/simple_auth/middleware.php';
 
 $contractId = trim((string)($_GET['contract_id'] ?? ''));
 if ($contractId === '') {
@@ -13,6 +15,13 @@ $conn = get_mysql_connection();
 
 // Handle new event submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['regen_date'], $_POST['amount'])) {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        http_response_code(403);
+        echo '<div class="container"><p style="color:#b91c1c;">CSRF validation failed.</p></div>';
+        $conn->close();
+        exit;
+    }
+
     $regenDate = $_POST['regen_date'];
     $amount = (float)$_POST['amount'];
     $stmt = $conn->prepare('INSERT INTO contract_regenerations (contract_id, regen_date, amount) VALUES (?, ?, ?)');
@@ -36,6 +45,7 @@ $conn->close();
 <div class="contract-card">
     <h3>Regeneration Events</h3>
     <form method="post" style="margin-bottom:16px;display:flex;gap:10px;align-items:end;">
+        <?php renderCSRFInput(); ?>
         <div>
             <label for="regen_date">Date</label><br>
             <input type="date" name="regen_date" id="regen_date" required>

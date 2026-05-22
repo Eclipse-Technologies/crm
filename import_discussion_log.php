@@ -3,6 +3,7 @@
 // Import discussion_log.csv into MySQL and update customer records
 
 require_once 'db_mysql.php';
+require_once __DIR__ . '/request_guard.php';
 $discussionSchema = require __DIR__ . '/discussion_schema.php';
 $customerSchema = require __DIR__ . '/customer_schema.php';
 
@@ -41,9 +42,13 @@ if (!isset($_POST['confirm_import'])) {
     }
     fclose($handle);
     echo "</table>";
-    echo '<form method="POST"><input type="hidden" name="confirm_import" value="1"><button type="submit">Confirm Import</button></form>';
+    echo '<form method="POST">';
+    renderCSRFInput();
+    echo '<input type="hidden" name="confirm_import" value="1"><button type="submit">Confirm Import</button></form>';
     exit;
 }
+
+require_post_with_csrf();
 
 $conn = get_mysql_connection();
 $handle = fopen($csvFile, 'r');
