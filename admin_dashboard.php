@@ -179,9 +179,47 @@ $daily_call_status = getDailyCallStatus();
   <div class="section">
     <h3>Active Users</h3>
     <?php if (!empty($active_users)): ?>
+      <?php
+        $activeUserCount = count($active_users);
+        $totalActiveActions = array_sum(array_map(static function ($r) {
+          return (int) ($r['action_count'] ?? 0);
+        }, $active_users));
+        $topUserName = (string) ($active_users[0]['username'] ?? $active_users[0]['user_id'] ?? 'n/a');
+        $latestActivity = '';
+        foreach ($active_users as $r) {
+          $ts = (string) ($r['last_action_at'] ?? '');
+          if ($ts !== '' && ($latestActivity === '' || strtotime($ts) > strtotime($latestActivity))) {
+            $latestActivity = $ts;
+          }
+        }
+      ?>
+      <div class="admin-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 14px;">
+        <div class="stat-card">
+          <h4>Tracked Users</h4>
+          <div class="value"><?= number_format($activeUserCount) ?></div>
+          <div class="subtext">users with logged actions</div>
+        </div>
+        <div class="stat-card">
+          <h4>Total Actions</h4>
+          <div class="value"><?= number_format($totalActiveActions) ?></div>
+          <div class="subtext">across the active list</div>
+        </div>
+        <div class="stat-card">
+          <h4>Top Actor</h4>
+          <div class="value" style="font-size: 1.25rem;"><?= htmlspecialchars($topUserName) ?></div>
+          <div class="subtext">most actions in this snapshot</div>
+        </div>
+        <div class="stat-card">
+          <h4>Latest Activity</h4>
+          <div class="value" style="font-size: 1.05rem;"><?= htmlspecialchars($latestActivity !== '' ? substr($latestActivity, 0, 16) : 'n/a') ?></div>
+          <div class="subtext">most recent user action</div>
+        </div>
+      </div>
+
       <table class="admin-table">
         <thead>
           <tr>
+            <th>#</th>
             <th>User</th>
             <th>Email</th>
             <th>Role</th>
@@ -190,13 +228,20 @@ $daily_call_status = getDailyCallStatus();
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($active_users as $row): ?>
+          <?php foreach ($active_users as $idx => $row): ?>
             <tr>
-              <td><?= htmlspecialchars((string) ($row['username'] ?? $row['user_id'] ?? 'unknown')) ?></td>
-              <td><?= htmlspecialchars((string) ($row['email'] ?? '')) ?></td>
-              <td><?= htmlspecialchars((string) ($row['role'] ?? '')) ?></td>
-              <td><?= (int) ($row['action_count'] ?? 0) ?></td>
-              <td><?= htmlspecialchars((string) ($row['last_action_at'] ?? '')) ?></td>
+              <td><?= (int) $idx + 1 ?></td>
+              <td>
+                <strong><?= htmlspecialchars((string) ($row['username'] ?? $row['user_id'] ?? 'unknown')) ?></strong>
+              </td>
+              <td>
+                <?= htmlspecialchars((string) (($row['email'] ?? '') !== '' ? $row['email'] : '-')) ?>
+              </td>
+              <td>
+                <?= htmlspecialchars((string) (($row['role'] ?? '') !== '' ? ucfirst((string) $row['role']) : '-')) ?>
+              </td>
+              <td><strong><?= (int) ($row['action_count'] ?? 0) ?></strong></td>
+              <td><?= htmlspecialchars((string) (($row['last_action_at'] ?? '') !== '' ? substr((string) $row['last_action_at'], 0, 16) : '-')) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
