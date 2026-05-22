@@ -318,6 +318,7 @@ if ($customerId !== '') {
                 <legend><strong>📋 Customer Information</strong></legend>
                 <div class="cv-grid">
                     <?php foreach ($customerSchema as $field): ?>
+                        <?php if (in_array($field, ['last_delivery', 'last_modified'], true)) continue; ?>
                         <div>
                             <label><strong><?= ucfirst(str_replace('_', ' ', $field)) ?></strong></label><br>
                             <?php if ($field === 'customer_id'): ?>
