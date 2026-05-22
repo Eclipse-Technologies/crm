@@ -27,13 +27,15 @@ function crm_infer_cpanel_account(): string {
 }
 
 function crm_build_connection_candidates(string $host, string $dbname, string $user, string $password, bool $isLocal): array {
-    $candidates = [[
+    $primary = [
         'host' => $host,
         'dbname' => $dbname,
         'user' => $user,
         'password' => $password,
         'label' => 'primary',
-    ]];
+    ];
+
+    $candidates = [$primary];
 
     if ($isLocal) {
         return $candidates;
@@ -53,13 +55,15 @@ function crm_build_connection_candidates(string $host, string $dbname, string $u
     $prefixedDb = (strpos($dbname, $accountPrefix) === 0) ? $dbname : ($accountPrefix . $dbname);
 
     if ($prefixedUser !== $user || $prefixedDb !== $dbname) {
-        $candidates[] = [
+        // Try cPanel-prefixed identities first on hosted production.
+        $prefixed = [
             'host' => $host,
             'dbname' => $prefixedDb,
             'user' => $prefixedUser,
             'password' => $password,
             'label' => 'cpanel-prefixed',
         ];
+        $candidates = [$prefixed, $primary];
     }
 
     return $candidates;
@@ -104,7 +108,13 @@ function get_mysql_connection() {
     $errors = [];
 
     foreach ($attempts as $attempt) {
-        $conn = @new mysqli($attempt['host'], $attempt['user'], $attempt['password']);
+        try {
+            $conn = @new mysqli($attempt['host'], $attempt['user'], $attempt['password']);
+        } catch (Throwable $e) {
+            $errors[] = $attempt['label'] . ': connect exception for user=' . $attempt['user'] . ' db=' . $attempt['dbname'] . ' error=' . $e->getMessage();
+            continue;
+        }
+
         if ($conn->connect_error) {
             $errors[] = $attempt['label'] . ': connect failed for user=' . $attempt['user'] . ' db=' . $attempt['dbname'] . ' error=' . $conn->connect_error;
             continue;
