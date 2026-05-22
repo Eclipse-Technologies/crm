@@ -33,8 +33,6 @@ if ($errorCode !== '' && isset($errorMap[$errorCode])) {
   $pageError = $errorMap[$errorCode];
 }
 
-$openEditByQuery = (($_GET['updated'] ?? '') === '1') || (($_GET['edit'] ?? '') === '1');
-
 function redirect_safely(string $url): void {
   if (!headers_sent()) {
     header('Location: ' . $url);
@@ -765,14 +763,14 @@ else                                          { $statusColor = '#6B7280'; }
   
   <!-- Overview Section -->
   <div class="accordion" id="overview">
-    <div class="accordion-header active" onclick="toggleAccordion(this)">
+    <div class="accordion-header" onclick="toggleAccordion(this)">
       <div class="accordion-title">
         <span>&#128203;</span>
         <span>Overview</span>
       </div>
       <div class="accordion-icon">&#9654;</div>
     </div>
-    <div class="accordion-content active">
+    <div class="accordion-content">
       <div class="accordion-body">
         <div class="section">
           <div class="section-title">&#128205; Location & Contact</div>
@@ -864,14 +862,14 @@ else                                          { $statusColor = '#6B7280'; }
 
   <!-- Edit Details Section -->
   <div class="accordion" id="edit">
-    <div class="accordion-header <?= $openEditByQuery ? 'active' : '' ?>" onclick="toggleAccordion(this)">
+    <div class="accordion-header" onclick="toggleAccordion(this)">
       <div class="accordion-title">
         <span>&#9998;</span>
         <span>Edit Contact Details</span>
       </div>
       <div class="accordion-icon">&#9654;</div>
     </div>
-    <div class="accordion-content <?= $openEditByQuery ? 'active' : '' ?>">
+    <div class="accordion-content">
       <div class="accordion-body">
         <form method="post">
           <?php renderCSRFInput(); ?>
@@ -1167,8 +1165,6 @@ else                                          { $statusColor = '#6B7280'; }
 </div>
 
 <script>
-  const OPEN_EDIT_ON_LOAD = <?= $openEditByQuery ? 'true' : 'false' ?>;
-
   // Accordion toggle function
   function toggleAccordion(header) {
     const content = header.nextElementSibling;
@@ -1177,48 +1173,6 @@ else                                          { $statusColor = '#6B7280'; }
     header.classList.toggle('active');
     content.classList.toggle('active');
   }
-
-  function openAccordionByContainerId(containerId, shouldScroll) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const header = container.querySelector('.accordion-header');
-    const content = container.querySelector('.accordion-content');
-    if (!header || !content) return;
-
-    if (!header.classList.contains('active')) {
-      header.classList.add('active');
-      content.classList.add('active');
-    }
-
-    if (shouldScroll) {
-      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    const hash = (window.location.hash || '').toLowerCase();
-
-    if (hash === '#edit') {
-      openAccordionByContainerId('edit', true);
-      return;
-    }
-    if (hash === '#opportunities') {
-      openAccordionByContainerId('opportunities', true);
-      return;
-    }
-    if (hash === '#discussions') {
-      openAccordionByContainerId('discussions', true);
-      return;
-    }
-    if (hash === '#overview') {
-      openAccordionByContainerId('overview', true);
-      return;
-    }
-
-    if (OPEN_EDIT_ON_LOAD) {
-      openAccordionByContainerId('edit', false);
-    }
-  });
 
   // Tag management
   function addNewTag(element) {
@@ -1541,7 +1495,10 @@ else                                          { $statusColor = '#6B7280'; }
     modal.remove();
 
     // Scroll to form and show success
-    openAccordionByContainerId('edit', true);
+    const editContainer = document.getElementById('edit');
+    if (editContainer) {
+      editContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
     // Show confirmation alert
     const alert = document.createElement('div');
