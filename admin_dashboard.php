@@ -11,6 +11,7 @@ $stats = getSystemStats();
 $recent_activity = getRecentActivity(10);
 $active_users = getActiveUsers();
 $integrity = checkDataIntegrity();
+$daily_call_status = getDailyCallStatus();
 ?>
 
 
@@ -88,6 +89,39 @@ $integrity = checkDataIntegrity();
       <div class="value"><?= formatBytes($stats['error_log_size']) ?></div>
       <div class="subtext">logs/errors.log</div>
     </div>
+
+    <div class="stat-card">
+      <h4>Daily Call Email</h4>
+      <div class="value"><?= (int) ($daily_call_status['sent_today'] ?? 0) ?></div>
+      <div class="subtext">sent today</div>
+    </div>
+
+    <div class="stat-card">
+      <h4>Call List Ready</h4>
+      <div class="value"><?= (int) ($daily_call_status['call_ready_now'] ?? 0) ?></div>
+      <div class="subtext">eligible right now</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Daily Call Automation</h3>
+    <table class="admin-table">
+      <tbody>
+        <tr>
+          <th style="width: 220px;">Configured Recipient</th>
+          <td><?= htmlspecialchars($daily_call_status['recipient'] !== '' ? $daily_call_status['recipient'] : 'Not set') ?></td>
+        </tr>
+        <tr>
+          <th>Last Send</th>
+          <td><?= htmlspecialchars($daily_call_status['last_sent_at'] ? substr((string) $daily_call_status['last_sent_at'], 0, 16) : 'No send recorded yet') ?></td>
+        </tr>
+        <tr>
+          <th>Tracked Contacts</th>
+          <td><?= (int) ($daily_call_status['tracking_rows'] ?? 0) ?></td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top: 10px; color: #666;">Scheduler script: <code>daily_call_list_send.php</code> (send target from DAILY_CALL_EMAIL_TO).</p>
   </div>
 
   <!-- Admin Tools -->

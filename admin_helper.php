@@ -276,6 +276,62 @@ function getContactStatsByCategory(string $category): array {
 }
 
 // ---------------------------------------------------------------------------
+// Daily call workflow stats (dashboard)
+// ---------------------------------------------------------------------------
+
+function getDailyCallStatus(): array {
+    $conn = get_mysql_connection();
+
+    $status = [
+        'recipient' => trim((string) getenv('DAILY_CALL_EMAIL_TO')),
+        'last_sent_at' => null,
+        'sent_today' => 0,
+        'call_ready_now' => 0,
+        'tracking_rows' => 0,
+    ];
+
+    $tableExists = false;
+    $r = $conn->query("SHOW TABLES LIKE 'daily_call_tracking'");
+    if ($r) {
+        $tableExists = $r->num_rows > 0;
+        $r->free();
+    }
+
+    if ($tableExists) {
+        $r = $conn->query("SELECT MAX(last_sent_at) AS last_sent_at, SUM(CASE WHEN DATE(last_sent_at) = CURDATE() THEN 1 ELSE 0 END) AS sent_today, COUNT(*) AS tracking_rows FROM daily_call_tracking");
+        if ($r) {
+            $row = $r->fetch_assoc();
+            $status['last_sent_at'] = $row['last_sent_at'] ?? null;
+            $status['sent_today'] = (int) ($row['sent_today'] ?? 0);
+            $status['tracking_rows'] = (int) ($row['tracking_rows'] ?? 0);
+            $r->free();
+        }
+    }
+
+        if ($tableExists) {
+                $r = $conn->query("SELECT COUNT(*) AS n
+                        FROM contacts c
+                        LEFT JOIN daily_call_tracking t ON t.contact_id = c.contact_id
+                        WHERE TRIM(COALESCE(c.phone, '')) <> ''
+                            AND LOWER(TRIM(COALESCE(c.province, ''))) IN ('on', 'ontario')
+                            AND t.called_at IS NULL
+                            AND (t.last_sent_at IS NULL OR DATE(t.last_sent_at) < CURDATE())");
+        } else {
+                $r = $conn->query("SELECT COUNT(*) AS n
+                        FROM contacts c
+                        WHERE TRIM(COALESCE(c.phone, '')) <> ''
+                            AND LOWER(TRIM(COALESCE(c.province, ''))) IN ('on', 'ontario')");
+        }
+    if ($r) {
+        $status['call_ready_now'] = (int) ($r->fetch_assoc()['n'] ?? 0);
+        $r->free();
+    }
+
+    $conn->close();
+    return $status;
+}
+
+// ---------------------------------------------------------------------------
 // formatBytes helper (also defined in backup_handler.php — guard added)
 // ---------------------------------------------------------------------------
 

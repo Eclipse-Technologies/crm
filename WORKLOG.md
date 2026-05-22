@@ -3,6 +3,27 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-05-21 - Daily Call Status Widget (Admin Dashboard)
+
+### Scope (Operations Visibility)
+
+- Add dashboard visibility for daily 10-contact email automation status.
+
+### Key Changes (Operations Visibility)
+
+- Added `getDailyCallStatus()` in `admin_helper.php` to summarize configured recipient, last send time, sent-today count, call-ready-now count, and tracked row count.
+- Added Admin Dashboard widgets/cards and a detail section showing daily call automation state and scheduler reference.
+
+### Important Files (Operations Visibility)
+
+- admin_helper.php
+- admin_dashboard.php
+- WORKLOG.md
+
+### Validation (Operations Visibility)
+
+- PHP syntax checks passed for `admin_helper.php` and `admin_dashboard.php`.
+
 ## 2026-05-21 - Runtime Env Secret Scrub
 
 ### Scope (Security Hygiene)
