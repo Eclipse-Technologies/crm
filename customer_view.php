@@ -172,13 +172,65 @@ if ($customerId !== '') {
 }
 ?>
 <style>
+.cv-page {
+    max-width: 1380px;
+    margin: 0 auto;
+    padding-bottom: 24px;
+}
+.cv-hero {
+    background: linear-gradient(135deg, #0f766e 0%, #155e75 55%, #1d4ed8 100%);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+    color: #f8fafc;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+}
+.cv-hero h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.45rem;
+    color: #ffffff;
+}
 .cv-header-meta { margin-bottom: 14px; color: #4b5563; }
+.cv-hero .cv-header-meta { margin: 0; color: #e2e8f0; }
 .cv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .cv-grid-tight { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .cv-fieldset { margin-bottom: 20px; }
 .cv-table-wrap { overflow-x: auto; }
 .cv-muted { color: #6b7280; font-size: 13px; }
 .cv-readonly { background: #eee; }
+.cv-page fieldset {
+    border: 1px solid #dbe3f0;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 16px;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+}
+.cv-page legend {
+    float: none;
+    width: auto;
+    margin: 0;
+    padding: 0 8px;
+    font-size: 14px;
+    color: #1f2937;
+}
+.cv-page input[type="text"],
+.cv-page input[type="number"],
+.cv-page input[type="email"],
+.cv-page select,
+.cv-page textarea {
+    width: 100%;
+    border: 1px solid #cfd8e3;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #ffffff;
+}
+.cv-page input:focus,
+.cv-page select:focus,
+.cv-page textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+}
 .cv-kpi-wrap { max-width: 340px; margin-bottom: 16px; }
 .cv-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px; }
 .cv-kpi-card { background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center; }
@@ -196,6 +248,45 @@ if ($customerId !== '') {
 .cv-timeline-body { color: #1a1a1a; font-size: 13px; line-height: 1.5; margin-bottom: 6px; }
 .cv-linked { margin-top: 8px; padding: 8px; background: white; border-left: 3px solid #10B981; border-radius: 3px; font-size: 11px; color: #666; }
 .cv-discussions { margin-bottom: 32px; }
+.cv-page .form-section {
+    background: #ffffff;
+    border: 1px solid #dbe3f0;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+}
+.cv-page .form-section h3 {
+    margin: 0 0 14px 0;
+    font-size: 16px;
+    color: #0f172a;
+}
+.cv-page .accordion-header {
+    background: #ffffff;
+    border: 1px solid #dbe3f0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.cv-page .accordion-header.active {
+    border-color: #93c5fd;
+    background: #eff6ff;
+}
+.cv-page .accordion-content {
+    display: none;
+    margin-top: 8px;
+}
+.cv-page .accordion-content.active {
+    display: block;
+}
+.cv-page .accordion-body {
+    background: #ffffff;
+    border: 1px solid #dbe3f0;
+    border-radius: 12px;
+    padding: 14px;
+}
 .cv-visibility-badge { padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
 .cv-visibility-public { background: #e3f2fd; color: #1976d2; }
 .cv-visibility-internal { background: #fff3cd; color: #856404; }
@@ -204,16 +295,18 @@ if ($customerId !== '') {
 </style>
 <div class="main-content">
     <div class="content-container">
-        <div class="container">
+        <div class="container cv-page">
 
 
         <!-- Header -->
-        <h2>🏢 <?= htmlspecialchars($customer['address'] ?? 'Customer ' . $customerId) ?></h2>
-        <div class="cv-header-meta">
-            <strong>Customer ID:</strong> <?= htmlspecialchars($customerId) ?><br>
-            <?php if ($contact): ?>
-                <strong>Contact:</strong> <?= htmlspecialchars($contact['company'] ?? 'N/A') ?><br>
-            <?php endif; ?>
+        <div class="cv-hero">
+            <h2>🏢 <?= htmlspecialchars($customer['address'] ?? 'Customer ' . $customerId) ?></h2>
+            <div class="cv-header-meta">
+                <strong>Customer ID:</strong> <?= htmlspecialchars($customerId) ?><br>
+                <?php if ($contact): ?>
+                    <strong>Contact:</strong> <?= htmlspecialchars($contact['company'] ?? 'N/A') ?><br>
+                <?php endif; ?>
+            </div>
         </div>
 
     <!-- ── CUSTOMER INFO FORM (Editable inline) ────────────────────────────────── -->
