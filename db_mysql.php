@@ -48,8 +48,9 @@ function crm_build_connection_candidates(string $host, string $dbname, string $u
         return $candidates;
     }
 
-    $prefixedUser = (strpos($user, '_') === false) ? ($account . '_' . $user) : $user;
-    $prefixedDb = (strpos($dbname, '_') === false) ? ($account . '_' . $dbname) : $dbname;
+    $accountPrefix = $account . '_';
+    $prefixedUser = (strpos($user, $accountPrefix) === 0) ? $user : ($accountPrefix . $user);
+    $prefixedDb = (strpos($dbname, $accountPrefix) === 0) ? $dbname : ($accountPrefix . $dbname);
 
     if ($prefixedUser !== $user || $prefixedDb !== $dbname) {
         $candidates[] = [
