@@ -653,65 +653,11 @@ if ($customerId !== '') {
     </fieldset>
 
 
-    <!-- ── ADD COMMUNICATION / DISCUSSION LOG FORM ─────────────────────── -->
     <?php
-    // The customer has one linked contact (customers.contact_id → contacts.contact_id).
-    // There is no customer_id column in contacts, so build the list from $contact.
+    // The customer has one linked contact (customers.contact_id -> contacts.contact_id).
+    // We use this to load discussion history shown below.
     $customerContacts = $contact ? [$contact] : [];
     ?>
-    <div class="form-section" style="margin-bottom:32px;">
-        <h3>Add Communication / Discussion Log</h3>
-        <form method="post" action="">
-            <?php renderCSRFInput(); ?>
-            <div class="form-group">
-                <label for="contact_id">Contact</label>
-                <select id="contact_id" name="contact_id" class="form-control" required>
-                    <option value="">-- Select Contact --</option>
-                    <?php foreach ($customerContacts as $c): ?>
-                        <option value="<?= intval($c['contact_id']) ?>" selected>ID: <?= intval($c['contact_id']) ?> - <?= htmlspecialchars($c['company'] ?: ($c['first_name'] . ' ' . $c['last_name'])) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="entry_text">Notes / Communication</label>
-                <textarea id="entry_text" name="entry_text" class="form-control" rows="4" required placeholder="Enter details of your call, meeting, email, or note..."></textarea>
-            </div>
-            <div class="form-group">
-                <label for="linked_opportunity_id">Linked Opportunity (Optional)</label>
-                <select id="linked_opportunity_id" name="linked_opportunity_id" class="form-control">
-                    <option value="">-- None --</option>
-                    <?php
-                    // Fetch opportunities for this contact
-                    $opps = [];
-                    $conn = get_mysql_connection();
-                    $stmt = $conn->prepare("SELECT opportunity_id, name, stage FROM opportunities WHERE contact_id = ?");
-                    $stmt->bind_param('s', $contact['contact_id']);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-                    while ($row = $result ? $result->fetch_assoc() : null) {
-                        $opps[] = $row;
-                    }
-                    $stmt->close();
-                    $conn->close();
-                    foreach ($opps as $opp): ?>
-                        <option value="<?= htmlspecialchars($opp['opportunity_id']) ?>">
-                            <?= htmlspecialchars($opp['name'] ?? $opp['opportunity_id']) ?> (<?= htmlspecialchars($opp['stage'] ?? '') ?>)
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="author">Your Name</label>
-                <input type="text" id="author" name="author" class="form-control" value="<?= htmlspecialchars($_SESSION['username'] ?? '') ?>" required>
-            </div>
-            <div class="submit-actions">
-                <button type="submit" name="add_discussion" class="btn-primary">Add Log Entry</button>
-            </div>
-        </form>
-        <div class="cv-tip">
-            <strong>Tip:</strong> You can log communications before, during, or after an opportunity. Link to an opportunity if relevant, or leave blank for general notes.
-        </div>
-    </div>
 
     <?php
     // Fetch all discussions for all contacts under this customer
