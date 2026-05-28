@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
       $seen = [];
       $new_header = [];
       foreach ($header as $h) {
-        $h = trim($h);
+        $h = strtolower(trim($h));
         if ($h === 'compan') $h = 'company';
         // Prefer 'discussion_text' over 'entry_text'
         if ($h === 'entry_text' && in_array('discussion_text', $new_header)) continue;
@@ -49,7 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
         }, $header);
       }
       // Detect type by header
-      if (in_array('email', $header) && in_array('first_name', $header)) {
+      $contact_header_candidates = ['email', 'first_name', 'last_name', 'company', 'phone', 'address', 'city', 'province', 'postal_code', 'country'];
+      $contact_header_matches = count(array_intersect($contact_header_candidates, $header));
+      if (in_array('email', $header) && $contact_header_matches >= 2) {
         $import_type = 'contacts';
         $is_contacts = true;
         $schema = require 'contact_schema.php';
@@ -134,9 +136,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_FILES['csv_file'])) {
   <h2>Import Contacts or Discussion Log</h2>
   <div style="margin: 14px 0 18px; padding: 12px; border: 1px solid #d9dee3; background: #fff; border-radius: 6px; font-size: 13px;">
     <h4 style="margin-top: 0; margin-bottom: 8px;">Header Labels and CSV Format</h4>
-    <p style="margin-bottom: 8px;"><strong>Contacts file headers (required):</strong><br>first_name,last_name,email,phone,company,address,city,province,postal_code,country</p>
+    <p style="margin-bottom: 8px;"><strong>Contacts headers (email required, others optional):</strong><br>first_name,last_name,email,phone,company,address,city,province,postal_code,country</p>
     <p style="margin-bottom: 8px;"><strong>Discussion log headers (required):</strong><br>contact_id,author,timestamp,discussion_text,linked_opportunity_id,visibility,company</p>
-    <p style="margin-bottom: 0;"><strong>Format rules:</strong> include a header row on line 1, keep headers lowercase and spelled exactly as shown, use comma-separated values (.csv), and keep each data row aligned to the same number of columns.</p>
+    <p style="margin-bottom: 0;"><strong>Format rules:</strong> include a header row on line 1, use comma-separated values (.csv), and keep each data row aligned to the same number of columns. Header matching is case-insensitive.</p>
   </div>
   <form method="POST" enctype="multipart/form-data">
     <?php renderCSRFInput(); ?>
