@@ -185,6 +185,7 @@ if ($is_contacts || $is_discussion) {
     <h3 style="margin-top: 20px;">Preview - <?= $is_contacts ? 'Valid Contacts' : 'Discussion Log Entries' ?> (<?= count($rows) ?>)</h3>
     <form method="POST" action="commit_import.php" id="commitForm">
       <?php renderCSRFInput(); ?>
+      <input type="hidden" name="import_type" value="<?= $is_contacts ? 'contacts' : 'discussion_log' ?>">
       <table class="spec-table" style="font-size: 12px;"><thead><tr>
         <?php foreach ($schema as $col): ?>
           <th><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $col))) ?></th>
@@ -208,10 +209,11 @@ if ($is_contacts || $is_discussion) {
         <?php endforeach; ?>
       </tbody></table>
       <div style="margin-top:20px; text-align:right;">
-        <button type="submit" class="btn btn-success">Commit Import to Discussion Log</button>
+        <button type="submit" class="btn btn-success"><?= $is_contacts ? 'Commit Import to Contacts' : 'Commit Import to Discussion Log' ?></button>
       </div>
     </form>
-    <?php $_SESSION['import_preview'] = $rows; ?>
+	<?php $_SESSION['import_preview'] = $rows; ?>
+	<?php $_SESSION['import_type'] = $is_contacts ? 'contacts' : 'discussion_log'; ?>
 	<?php endif; ?>
 <?php }
 ?>
