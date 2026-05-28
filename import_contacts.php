@@ -132,6 +132,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_FILES['csv_file'])) {
 ?>
 <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; max-width: 500px;">
   <h2>Import Contacts or Discussion Log</h2>
+  <div style="margin: 14px 0 18px; padding: 12px; border: 1px solid #d9dee3; background: #fff; border-radius: 6px; font-size: 13px;">
+    <h4 style="margin-top: 0; margin-bottom: 8px;">Header Labels and CSV Format</h4>
+    <p style="margin-bottom: 8px;"><strong>Contacts file headers (required):</strong><br>first_name,last_name,email,phone,company,address,city,province,postal_code,country</p>
+    <p style="margin-bottom: 8px;"><strong>Discussion log headers (required):</strong><br>contact_id,author,timestamp,discussion_text,linked_opportunity_id,visibility,company</p>
+    <p style="margin-bottom: 0;"><strong>Format rules:</strong> include a header row on line 1, keep headers lowercase and spelled exactly as shown, use comma-separated values (.csv), and keep each data row aligned to the same number of columns.</p>
+  </div>
   <form method="POST" enctype="multipart/form-data">
     <?php renderCSRFInput(); ?>
     <div class="mb-3">
