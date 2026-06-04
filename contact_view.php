@@ -13,6 +13,11 @@ require_once 'audit_handler.php';
 require_once __DIR__ . '/csrf_helper.php';
 initializeCSRFToken();
 require_once 'simple_auth/middleware.php';
+require_once __DIR__ . '/customer_type_helper.php';
+if (!function_exists('get_customer_type_options')) {
+  function get_customer_type_options(): array { return []; }
+}
+$customerTypeOptions = get_customer_type_options();
 
 $crmConn = get_mysql_connection();
 $saveSuccess = false;
@@ -94,12 +99,15 @@ if ($isDiscussionPost) {
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_id']) && !$isDiscussionPost) {
   $contactId = trim((string) ($_POST['contact_id'] ?? ''));
+  if (isset($_POST['tags']) && (string) $_POST['tags'] === '__custom__') {
+    $_POST['tags'] = trim((string) ($_POST['tags_custom'] ?? ''));
+  }
   if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
     redirect_safely("contact_view.php?id=" . urlencode($contactId) . "&error=csrf");
   } else {
     $fields = [
       'first_name', 'last_name', 'company', 'email', 'phone', 'address',
-      'city', 'province', 'postal_code', 'country', 'notes', 'status'
+      'city', 'province', 'postal_code', 'country', 'notes', 'status', 'tags'
     ];
 
     // Fetch old contact data before update for audit logging
@@ -832,6 +840,19 @@ else                                          { $statusColor = '#6B7280'; }
                   <option value="Prospect" <?= ($contact['status'] ?? '') === 'Prospect' ? 'selected' : '' ?>>Prospect</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Customer Type</label>
+                <?php $currentType = trim((string) ($contact['tags'] ?? '')); ?>
+                <?php $isPresetType = in_array($currentType, $customerTypeOptions, true); ?>
+                <select name="tags" id="tags" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;" onchange="toggleEditCustomCustomerType(this.value)">
+                  <option value="">-- Select Customer Type --</option>
+                  <?php foreach ($customerTypeOptions as $type): ?>
+                    <option value="<?= htmlspecialchars($type) ?>" <?= $currentType === $type ? 'selected' : '' ?>><?= htmlspecialchars($type) ?></option>
+                  <?php endforeach; ?>
+                  <option value="__custom__" <?= (!$isPresetType && $currentType !== '') ? 'selected' : '' ?>>+ Add New Type</option>
+                </select>
+                <input type="text" name="tags_custom" id="tags_custom" value="<?= (!$isPresetType ? htmlspecialchars($currentType) : '') ?>" placeholder="Enter custom customer type" style="width: 100%; margin-top: 8px; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; <?= (!$isPresetType && $currentType !== '') ? '' : 'display:none;' ?>">
+              </div>
             </div>
           </div>
 
@@ -1376,6 +1397,15 @@ else                                          { $statusColor = '#6B7280'; }
     return div.innerHTML;
   }
 </script>
+function toggleEditCustomCustomerType(value) {
+  var customInput = document.getElementById('tags_custom');
+  if (!customInput) return;
+  customInput.style.display = value === '__custom__' ? 'block' : 'none';
+  if (value !== '__custom__') {
+    customInput.value = '';
+  }
+}
+
 
 </body>
 </html>

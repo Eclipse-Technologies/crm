@@ -15,3 +15,6 @@ node_modules/
 *.csv
 combined_php.txt
 test_write.txt
+deploy_artifacts/
+cmrdb_godaddy.sql
+PHP Server (localhost

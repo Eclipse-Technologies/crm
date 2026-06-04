@@ -28,6 +28,10 @@ $logFile = 'error_log.txt';
 $schema = require __DIR__ . '/contact_schema.php';
 
 $timestamp = date('Y-m-d H:i:s');
+$postedType = trim((string) ($_POST['tags'] ?? ''));
+if ($postedType === '__custom__') {
+    $postedType = trim((string) ($_POST['tags_custom'] ?? ''));
+}
 $newContact = [
     'first_name' => $_POST['first_name'] ?? '',
     'last_name' => $_POST['last_name'] ?? '',
@@ -40,6 +44,7 @@ $newContact = [
     'country' => $_POST['country'] ?? '',
     'phone' => $_POST['phone'] ?? '',
     'email' => $_POST['email'] ?? '',
+    'tags' => $postedType,
     'created_at' => $timestamp,
     'last_modified' => $timestamp,
     'is_customer' => isset($_POST['is_customer']) ? (($_POST['is_customer'] == '1' || $_POST['is_customer'] === 1) ? 1 : 0) : 0,

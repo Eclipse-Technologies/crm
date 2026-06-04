@@ -25,6 +25,13 @@ if (isset($_GET['export']) && $_GET['export'] === '1') {
   }
   $query = strtolower(trim($_GET['query'] ?? ''));
   $field = $_GET['field'] ?? '';
+  $customerTypeFilter = trim((string) ($_GET['customer_type'] ?? ''));
+  $cityFilter = trim((string) ($_GET['city_filter'] ?? ''));
+  $filterMode = strtolower(trim((string) ($_GET['filter_mode'] ?? 'all')));
+  if (!in_array($filterMode, ['all', 'any'], true)) {
+    $filterMode = 'all';
+  }
+  $hasStagedFilters = ($customerTypeFilter !== '' || $cityFilter !== '');
   $exportAllFields = isset($_GET['export_all_fields']) && $_GET['export_all_fields'] == '1';
   $fieldsToExport = $exportAllFields ? $schema : $displayFields;
   $fieldsToExport = flattenArray($fieldsToExport); // Always flatten before use
@@ -50,6 +57,38 @@ if (isset($_GET['export']) && $_GET['export'] === '1') {
           $bindValues[] = '%' . $word . '%';
         }
         $whereConditions[] = '(' . implode(' OR ', $fieldConds) . ')';
+      }
+    }
+  }
+
+  if ($hasStagedFilters) {
+    $stagedConditions = [];
+    $stagedTypes = '';
+    $stagedValues = [];
+
+    if ($customerTypeFilter !== '') {
+      $stagedConditions[] = "LOWER(COALESCE(`tags`, '')) = ?";
+      $stagedTypes .= 's';
+      $stagedValues[] = strtolower($customerTypeFilter);
+    }
+
+    if ($cityFilter !== '') {
+      $stagedConditions[] = "LOWER(COALESCE(`city`, '')) LIKE ?";
+      $stagedTypes .= 's';
+      $stagedValues[] = '%' . strtolower($cityFilter) . '%';
+    }
+
+    if (!empty($stagedConditions)) {
+      if ($filterMode === 'any') {
+        $whereConditions[] = '(' . implode(' OR ', $stagedConditions) . ')';
+        $bindTypes .= $stagedTypes;
+        $bindValues = array_merge($bindValues, $stagedValues);
+      } else {
+        foreach ($stagedConditions as $idx => $condition) {
+          $whereConditions[] = $condition;
+          $bindTypes .= $stagedTypes[$idx];
+          $bindValues[] = $stagedValues[$idx];
+        }
       }
     }
   }
@@ -122,7 +161,13 @@ define('ALLOWED_PER_PAGE_OPTIONS', [10, 25, 50, 100]);
 $currentPage = basename(__FILE__);
 require_once 'db_mysql.php';
 require_once __DIR__ . '/daily_call_list_helper.php';
+require_once __DIR__ . '/customer_type_helper.php';
+if (!function_exists('get_customer_type_options')) {
+  function get_customer_type_options(): array { return []; }
+}
 $schema = require __DIR__ . '/contact_schema.php';
+$customerTypeOptions = get_customer_type_options();
+$inlineEditableFields = array_values(array_diff($schema, ['contact_id', 'created_at', 'last_modified']));
 
 load_env();
 $dailyCallDefaultEmail = trim((string) (getenv('DAILY_CALL_EMAIL_TO') ?: ($_SESSION['email'] ?? 'rlee@eclipsewatertechnologies.com')));
@@ -181,7 +226,7 @@ if (isset($_POST['mark_called_contact'])) {
 
   // Preserve current table state and return near the contact that was just updated.
   $redirectParams = [];
-  $paramsToPropagate = ['page', 'query', 'sort', 'direction', 'per_page', 'field', 'call_ready'];
+  $paramsToPropagate = ['page', 'query', 'sort', 'direction', 'per_page', 'field', 'call_ready', 'customer_type', 'city_filter', 'filter_mode'];
   foreach ($paramsToPropagate as $p) {
     if (isset($_GET[$p])) {
       $redirectParams[$p] = $_GET[$p];
@@ -271,10 +316,17 @@ $current_page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 // Handle query and sort
 $query = strtolower(trim($_GET['query'] ?? ''));
 $field = $_GET['field'] ?? '';
+$customerTypeFilter = trim((string) ($_GET['customer_type'] ?? ''));
+$cityFilter = trim((string) ($_GET['city_filter'] ?? ''));
+$filterMode = strtolower(trim((string) ($_GET['filter_mode'] ?? 'all')));
+if (!in_array($filterMode, ['all', 'any'], true)) {
+  $filterMode = 'all';
+}
 $sortFields = explode(',', $_GET['sort'] ?? '');
 $sortDirection = $_GET['direction'] ?? 'asc';
 $callReadyOnly = isset($_GET['call_ready']) && $_GET['call_ready'] === '1';
 $activeSort = array_flip($sortFields);
+$hasStagedFilters = ($customerTypeFilter !== '' || $cityFilter !== '');
 
 
 
@@ -311,6 +363,38 @@ if ($query !== '') {
         $bindValues[] = '%' . $word . '%';
       }
       $whereConditions[] = '(' . implode(' OR ', $fieldConds) . ')';
+    }
+  }
+}
+
+if ($hasStagedFilters) {
+  $stagedConditions = [];
+  $stagedTypes = '';
+  $stagedValues = [];
+
+  if ($customerTypeFilter !== '') {
+    $stagedConditions[] = "LOWER(COALESCE(`tags`, '')) = ?";
+    $stagedTypes .= 's';
+    $stagedValues[] = strtolower($customerTypeFilter);
+  }
+
+  if ($cityFilter !== '') {
+    $stagedConditions[] = "LOWER(COALESCE(`city`, '')) LIKE ?";
+    $stagedTypes .= 's';
+    $stagedValues[] = '%' . strtolower($cityFilter) . '%';
+  }
+
+  if (!empty($stagedConditions)) {
+    if ($filterMode === 'any') {
+      $whereConditions[] = '(' . implode(' OR ', $stagedConditions) . ')';
+      $bindTypes .= $stagedTypes;
+      $bindValues = array_merge($bindValues, $stagedValues);
+    } else {
+      foreach ($stagedConditions as $idx => $condition) {
+        $whereConditions[] = $condition;
+        $bindTypes .= $stagedTypes[$idx];
+        $bindValues[] = $stagedValues[$idx];
+      }
     }
   }
 }
@@ -431,9 +515,24 @@ if (!empty($visibleContactIds)) {
   <div class="d-flex flex-wrap align-items-center mb-3 gap-2 bg-light rounded p-3 border">
     <form method="GET" action="contacts_list.php" class="d-flex flex-wrap gap-2 align-items-center mb-0" id="contacts-search-form">
       <input type="text" name="query" class="form-control" placeholder="Search" value="<?= htmlspecialchars($_GET['query'] ?? '') ?>" style="min-width:220px;">
-      <?php if ($field !== ''): ?>
-        <input type="hidden" name="field" value="<?= e($field) ?>">
-      <?php endif; ?>
+      <select name="field" class="form-select" style="min-width:220px;">
+        <option value="" <?= $field === '' ? 'selected' : '' ?>>All Fields</option>
+        <?php foreach ($schema as $schemaField): ?>
+          <?php $fieldLabel = $schemaField === 'tags' ? 'Customer Type' : ucwords(str_replace('_', ' ', $schemaField)); ?>
+          <option value="<?= e($schemaField) ?>" <?= $field === $schemaField ? 'selected' : '' ?>><?= e($fieldLabel) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <select name="customer_type" class="form-select" style="min-width:220px;">
+        <option value="">All Customer Types</option>
+        <?php foreach ($customerTypeOptions as $type): ?>
+          <option value="<?= e($type) ?>" <?= $customerTypeFilter === $type ? 'selected' : '' ?>><?= e($type) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <input type="text" name="city_filter" class="form-control" placeholder="City filter (e.g. Mississauga)" value="<?= e($cityFilter) ?>" style="min-width:220px;">
+      <select name="filter_mode" class="form-select" style="min-width:160px;">
+        <option value="all" <?= $filterMode === 'all' ? 'selected' : '' ?>>Match All</option>
+        <option value="any" <?= $filterMode === 'any' ? 'selected' : '' ?>>Match Any</option>
+      </select>
       <input type="hidden" name="sort" value="<?= e($_GET['sort'] ?? '') ?>">
       <input type="hidden" name="direction" value="<?= e($sortDirection) ?>">
       <input type="hidden" name="per_page" value="<?= (int) $per_page ?>">
@@ -450,7 +549,7 @@ if (!empty($visibleContactIds)) {
       <button type="submit" class="btn btn-primary">Search</button>
       <a href="contacts_list.php?call_ready=1" class="btn <?= $callReadyOnly ? 'btn-success' : 'btn-outline-success' ?>">Call List Ready</a>
       <button type="button" class="btn btn-success" onclick="exportContacts()">Export</button>
-      <?php if ($query !== ''): ?>
+      <?php if ($query !== '' || $hasStagedFilters): ?>
         <a href="contacts_list.php<?= $callReadyOnly ? '?call_ready=1' : '' ?>" class="btn btn-outline-secondary">Clear</a>
       <?php endif; ?>
     </form>
@@ -496,6 +595,7 @@ if (!empty($visibleContactIds)) {
             }
             echo '<li class="page-item' . ($p == $current_page ? ' active' : '') . '">';
             echo '<a class="page-link" href="?page=' . $p . '&query=' . urlencode($_GET['query'] ?? '') . '&field=' . urlencode($field) . '&sort=' . urlencode($_GET['sort'] ?? '') . '&direction=' . $sortDirection . '&per_page=' . $per_page;
+            echo '&customer_type=' . urlencode($customerTypeFilter) . '&city_filter=' . urlencode($cityFilter) . '&filter_mode=' . urlencode($filterMode);
             if ($callReadyOnly) { echo '&call_ready=1'; }
             foreach ($displayFields as $df) { echo '&display[]=' . urlencode($df); }
             echo '">' . $p . '</a>';
@@ -541,7 +641,7 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
           <div class="form-check">
             <input class="form-check-input" type="checkbox" name="display[]" value="<?= $f ?>" id="field-<?= $f ?>" <?= in_array($f, $displayFields) ? 'checked' : '' ?><?= $f === 'contact_id' ? ' style="display:none;"' : '' ?>>
             <label class="form-check-label" for="field-<?= $f ?>"<?= $f === 'contact_id' ? ' style="display:none;"' : '' ?>>
-              <?= ucfirst(str_replace('_', ' ', $f)) ?>
+              <?= $f === 'tags' ? 'Customer Type' : ucfirst(str_replace('_', ' ', $f)) ?>
             </label>
           </div>
         </div>
@@ -567,11 +667,12 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
                 <?php
                   // Build the sort link with all displayFields as display[] params
                   $sortUrl = '?query=' . urlencode($_GET['query'] ?? '') . '&field=' . urlencode($field) . '&sort=' . e($f) . '&direction=' . ((in_array($f, $sortFields) && $sortDirection === 'asc') ? 'desc' : 'asc') . '&per_page=' . $per_page;
+                  $sortUrl .= '&customer_type=' . urlencode($customerTypeFilter) . '&city_filter=' . urlencode($cityFilter) . '&filter_mode=' . urlencode($filterMode);
                   if ($callReadyOnly) { $sortUrl .= '&call_ready=1'; }
                   foreach ($displayFields as $df) { $sortUrl .= '&display[]=' . urlencode($df); }
                 ?>
                 <a href="<?= $sortUrl ?>" class="text-decoration-none text-dark">
-                  <?= ucfirst(str_replace('_', ' ', $f)) ?>
+                  <?= $f === 'tags' ? 'Customer Type' : ucfirst(str_replace('_', ' ', $f)) ?>
                   <?php if (isset($activeSort[$f])): ?>
                     <i class="bi bi-caret-<?= $sortDirection === 'desc' ? 'down' : 'up' ?>-fill ms-1"></i>
                   <?php else: ?>
@@ -617,7 +718,7 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
                         'id' => $id,
                         'edit' => 1
                       ];
-                      $paramsToPropagate = ['page','query','sort','direction','per_page','field','call_ready'];
+                      $paramsToPropagate = ['page','query','sort','direction','per_page','field','call_ready','customer_type','city_filter','filter_mode'];
                       foreach ($paramsToPropagate as $p) {
                         if (isset($_GET[$p])) {
                           $editParams[$p] = $_GET[$p];
@@ -646,7 +747,7 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
                       <input type="hidden" name="contact_id" value="<?= escapeAttr($id) ?>">
                       <?php
                         // Propagate all relevant GET params as hidden fields for redirect after delete
-                        $paramsToPropagate = ['page','query','sort','direction','per_page','field','call_ready'];
+                        $paramsToPropagate = ['page','query','sort','direction','per_page','field','call_ready','customer_type','city_filter','filter_mode'];
                         // Helper to recursively flatten arrays (declare only if not already defined)
                         if (!function_exists('flattenArray')) {
                           function flattenArray($arr) {
@@ -704,17 +805,34 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
                 </td>
                 <?php foreach ($displayFields as $f): ?>
                   <td>
+                    <?php $isInlineEditable = in_array($f, $inlineEditableFields, true); ?>
+                    <?php $rawCellValue = (string) ($contact[$f] ?? ''); ?>
                     <?php if ($f === 'email'): ?>
                       <span class="d-flex align-items-center gap-2">
-                        <?= e($contact[$f] ?? '') ?>
+                        <span
+                          class="<?= $isInlineEditable ? 'inline-editable' : '' ?>"
+                          data-contact-id="<?= escapeAttr($id) ?>"
+                          data-field="<?= escapeAttr($f) ?>"
+                          data-value="<?= escapeAttr($rawCellValue) ?>"
+                        ><?= $rawCellValue !== '' ? e($rawCellValue) : '&nbsp;' ?></span>
                         <?php if ($isDuplicate): ?>
                           <span class="badge bg-danger" title="Duplicate email detected">Duplicate</span>
                         <?php endif; ?>
                       </span>
                     <?php elseif ($f === 'company'): ?>
-                      <strong><?= e($contact[$f] ?? '') ?></strong>
+                      <strong
+                        class="<?= $isInlineEditable ? 'inline-editable' : '' ?>"
+                        data-contact-id="<?= escapeAttr($id) ?>"
+                        data-field="<?= escapeAttr($f) ?>"
+                        data-value="<?= escapeAttr($rawCellValue) ?>"
+                      ><?= $rawCellValue !== '' ? e($rawCellValue) : '&nbsp;' ?></strong>
                     <?php else: ?>
-                      <?= e($contact[$f] ?? '') ?>
+                      <span
+                        class="<?= $isInlineEditable ? 'inline-editable' : '' ?>"
+                        data-contact-id="<?= escapeAttr($id) ?>"
+                        data-field="<?= escapeAttr($f) ?>"
+                        data-value="<?= escapeAttr($rawCellValue) ?>"
+                      ><?= $rawCellValue !== '' ? e($rawCellValue) : '&nbsp;' ?></span>
                     <?php endif; ?>
                   </td>
                 <?php endforeach; ?>
@@ -1268,6 +1386,32 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
   word-wrap: break-word;
 }
 
+.inline-editable {
+  display: inline-block;
+  width: 100%;
+  min-height: 1.2em;
+  cursor: text;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.15s ease;
+}
+
+.inline-editable:hover {
+  border-bottom-color: #0ea5a8;
+}
+
+.inline-edit-input {
+  width: 100%;
+  min-width: 140px;
+  padding: 4px 6px;
+  border: 1px solid #0ea5a8;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.inline-edit-saving {
+  opacity: 0.65;
+}
+
 /* ========== EMPTY STATE ========== */
 .empty-state {
   padding: 60px 20px;
@@ -1370,4 +1514,151 @@ $openFieldPanel = false; // Hide the Customize Visible Columns panel by default
   });
 </script>
 <?php endif; ?>
+<script>
+  (function() {
+    const csrfToken = '<?= getCSRFTokenAttribute() ?>';
+    const endpoint = 'update_contact_inline.php';
+    const customerTypeOptions = <?= json_encode(array_values($customerTypeOptions), JSON_UNESCAPED_UNICODE) ?>;
+
+    function renderInlineValue(el, value) {
+      el.textContent = value !== '' ? value : '\u00A0';
+    }
+
+    function createEditor(el) {
+      if (!el || el.classList.contains('is-editing')) return;
+
+      el.classList.add('is-editing');
+      const originalValue = el.getAttribute('data-value') || '';
+      const field = el.getAttribute('data-field') || '';
+
+      let input;
+      if (field === 'tags') {
+        input = document.createElement('select');
+        input.className = 'inline-edit-input';
+
+        const makeOption = (value, label) => {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          return opt;
+        };
+
+        input.appendChild(makeOption('', '-- Select Customer Type --'));
+        customerTypeOptions.forEach((type) => {
+          input.appendChild(makeOption(type, type));
+        });
+        input.appendChild(makeOption('__custom__', '+ Add New Type'));
+
+        if (originalValue && !customerTypeOptions.includes(originalValue)) {
+          const customExisting = makeOption(originalValue, originalValue + ' (current)');
+          customExisting.dataset.customCurrent = '1';
+          input.insertBefore(customExisting, input.lastElementChild);
+          input.value = originalValue;
+        } else {
+          input.value = originalValue;
+        }
+      } else {
+        input = document.createElement('input');
+        input.className = 'inline-edit-input';
+        input.type = field === 'email' ? 'email' : 'text';
+        input.value = originalValue;
+      }
+
+      el.textContent = '';
+      el.appendChild(input);
+      input.focus();
+      if (typeof input.select === 'function') {
+        input.select();
+      }
+
+      let finished = false;
+
+      const finish = (save) => {
+        if (finished) return;
+        finished = true;
+        let newValue = (input.value || '').trim();
+
+        if (field === 'tags' && newValue === '__custom__') {
+          const customValue = window.prompt('Enter new customer type:', '');
+          if (customValue === null) {
+            el.classList.remove('is-editing');
+            renderInlineValue(el, originalValue);
+            return;
+          }
+          newValue = customValue.trim();
+        }
+
+        if (!save || newValue === originalValue) {
+          el.classList.remove('is-editing');
+          renderInlineValue(el, originalValue);
+          return;
+        }
+
+        el.classList.add('inline-edit-saving');
+        const body = new URLSearchParams({
+          csrf_token: csrfToken,
+          contact_id: el.getAttribute('data-contact-id') || '',
+          field: field,
+          value: newValue
+        });
+
+        fetch(endpoint, {
+          method: 'POST',
+          keepalive: true,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString()
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (!data || !data.success) {
+              throw new Error((data && data.error) ? data.error : 'Save failed');
+            }
+            if (field === 'tags' && data.value && !customerTypeOptions.includes(data.value)) {
+              customerTypeOptions.push(data.value);
+              customerTypeOptions.sort((a, b) => a.localeCompare(b));
+            }
+            el.setAttribute('data-value', data.value ?? newValue);
+            renderInlineValue(el, data.value ?? newValue);
+          })
+          .catch((err) => {
+            renderInlineValue(el, originalValue);
+            alert('Inline save failed: ' + err.message);
+          })
+          .finally(() => {
+            el.classList.remove('inline-edit-saving');
+            el.classList.remove('is-editing');
+          });
+      };
+
+      input.addEventListener('keydown', (event) => {
+        if (field === 'tags') {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            finish(false);
+          }
+          return;
+        }
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          finish(true);
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(false);
+        }
+      });
+
+      if (field === 'tags') {
+        input.addEventListener('change', () => finish(true));
+      }
+
+      input.addEventListener('blur', () => finish(true));
+    }
+
+    document.addEventListener('click', (event) => {
+      const target = event.target.closest('.inline-editable');
+      if (!target) return;
+      createEditor(target);
+    });
+  })();
+</script>
 </html>

@@ -30,7 +30,12 @@
 require_once __DIR__ . '/layout_start.php';
 require_once __DIR__ . '/sanitize_helper.php';
 require_once __DIR__ . '/csrf_helper.php';
+require_once __DIR__ . '/customer_type_helper.php';
+if (!function_exists('get_customer_type_options')) {
+  function get_customer_type_options(): array { return []; }
+}
 $schema = require __DIR__ . '/contact_schema.php';
+$customerTypeOptions = get_customer_type_options();
 // Pre-fill company if provided in URL
 $prefill_company = isset($_GET['company']) ? trim($_GET['company']) : '';
 ?>
@@ -56,11 +61,20 @@ $prefill_company = isset($_GET['company']) ? trim($_GET['company']) : '';
         <?php foreach ($schema as $field): ?>
           <?php if ($field === 'contact_id') continue; ?>
           <div class="form-group">
-            <label for="<?= e($field) ?>"><?= e(ucwords(str_replace('_', ' ', $field))) ?>:</label>
+            <label for="<?= e($field) ?>"><?= e($field === 'tags' ? 'Customer Type' : ucwords(str_replace('_', ' ', $field))) ?>:</label>
             <?php if ($field === 'notes'): ?>
               <textarea name="notes" id="notes" class="form-control" placeholder="Notes"></textarea>
             <?php elseif ($field === 'company'): ?>
               <input type="text" name="company" id="company" class="form-control" required aria-required="true" value="<?= htmlspecialchars($prefill_company) ?>">
+            <?php elseif ($field === 'tags'): ?>
+              <select name="tags" id="tags" class="form-control" onchange="toggleCustomCustomerType(this.value)">
+                <option value="">-- Select Customer Type --</option>
+                <?php foreach ($customerTypeOptions as $type): ?>
+                  <option value="<?= e($type) ?>"><?= e($type) ?></option>
+                <?php endforeach; ?>
+                <option value="__custom__">+ Add New Type</option>
+              </select>
+              <input type="text" name="tags_custom" id="tags_custom" class="form-control mt-2" placeholder="Enter custom customer type" style="display:none;">
             <?php else: ?>
               <input type="<?= $field === 'email' ? 'email' : ($field === 'phone' ? 'tel' : 'text') ?>"
                      name="<?= e($field) ?>" id="<?= e($field) ?>" class="form-control"
@@ -78,5 +92,15 @@ $prefill_company = isset($_GET['company']) ? trim($_GET['company']) : '';
 </section>
 <!-- Footer can be included here if layout_end.php provides it -->
 </main>
+<script>
+function toggleCustomCustomerType(value) {
+  const customInput = document.getElementById('tags_custom');
+  if (!customInput) return;
+  customInput.style.display = value === '__custom__' ? 'block' : 'none';
+  if (value !== '__custom__') {
+    customInput.value = '';
+  }
+}
+</script>
 </body>
 </html>
