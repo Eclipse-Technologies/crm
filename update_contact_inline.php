@@ -16,6 +16,12 @@ if ($contactId === '' || $field === '') {
     exit;
 }
 
+if (!ctype_digit($contactId)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid contact_id']);
+    exit;
+}
+
 $schema = require __DIR__ . '/contact_schema.php';
 $allowedFields = array_values(array_diff($schema, ['contact_id', 'created_at', 'last_modified']));
 
@@ -42,7 +48,8 @@ if (!$stmt) {
     exit;
 }
 
-$stmt->bind_param('ss', $value, $contactId);
+$contactIdInt = (int) $contactId;
+$stmt->bind_param('si', $value, $contactIdInt);
 $ok = $stmt->execute();
 
 if (!$ok) {

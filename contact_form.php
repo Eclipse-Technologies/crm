@@ -1,32 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Add a new contact to the CRM.">
-  <title>Add New Contact</title>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      margin-bottom: 24px;
-    }
-    .form-actions {
-      display: flex;
-      gap: 12px;
-      justify-content: flex-start;
-      padding-top: 16px;
-      border-top: 1px solid #e5e7eb;
-    }
-  </style>
-</head>
-<body>
-<header>
-  <!-- Navigation can be included here if layout_start.php provides it -->
-</header>
 <?php
+$pageTitle = 'Add New Contact';
 require_once __DIR__ . '/layout_start.php';
 require_once __DIR__ . '/sanitize_helper.php';
 require_once __DIR__ . '/csrf_helper.php';
@@ -39,6 +12,21 @@ $customerTypeOptions = get_customer_type_options();
 // Pre-fill company if provided in URL
 $prefill_company = isset($_GET['company']) ? trim($_GET['company']) : '';
 ?>
+<style>
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-start;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+  }
+</style>
 <main>
 <section class="page-header">
   <h1>Add New Contact</h1>
@@ -102,5 +90,4 @@ function toggleCustomCustomerType(value) {
   }
 }
 </script>
-</body>
-</html>
+<?php include_once __DIR__ . '/layout_end.php'; ?>

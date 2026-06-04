@@ -533,7 +533,6 @@ else                                          { $statusColor = '#6B7280'; }
   .timeline-body { color: #1a1a1a; font-size: 13px; line-height: 1.5; margin-bottom: 6px; }
   .linked-note { margin-top: 8px; padding: 8px; background: white; border-left: 3px solid #10B981; border-radius: 3px; font-size: 11px; color: #666; }
   .field-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .field { }
   .field-label { font-size: 11px; color: #999; text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
   .field-value { font-size: 13px; color: #1a1a1a; word-break: break-word; line-height: 1.4; }
   .field-value.empty { color: #ccc; font-style: italic; }
@@ -1396,7 +1395,6 @@ else                                          { $statusColor = '#6B7280'; }
     div.textContent = text;
     return div.innerHTML;
   }
-</script>
 function toggleEditCustomCustomerType(value) {
   var customInput = document.getElementById('tags_custom');
   if (!customInput) return;
@@ -1405,10 +1403,9 @@ function toggleEditCustomCustomerType(value) {
     customInput.value = '';
   }
 }
+</script>
 
 
-</body>
-</html>
 <?php include_once('layout_end.php'); ?>
 
 <?php
