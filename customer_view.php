@@ -3,8 +3,283 @@
 require_once __DIR__ . '/csrf_helper.php';
 ensureCSRFSessionStarted();
 require_once __DIR__ . '/db_mysql.php';
+require_once __DIR__ . '/simple_auth/middleware.php';
+
+function customer_view_has_column(mysqli $conn, string $table, string $column): bool {
+    static $cache = [];
+    $key = $table . '.' . $column;
+    if (isset($cache[$key])) {
+        return $cache[$key];
+    }
+
+    $stmt = $conn->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
+    if (!$stmt) {
+        $cache[$key] = false;
+        return false;
+    }
+    $stmt->bind_param('s', $column);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $has = $result && $result->num_rows > 0;
+    if ($result) {
+        $result->free();
+    }
+    $stmt->close();
+    $cache[$key] = $has;
+    return $has;
+}
+
+function customer_view_insert_followup_task(mysqli $conn, int $contactId, string $customerId, string $nextTouchAt, string $summary, string $nextAction): void {
+    if (!customer_view_has_column($conn, 'tasks', 'id') || !customer_view_has_column($conn, 'tasks', 'title')) {
+        return;
+    }
+
+    $row = [
+        'id' => uniqid('task_', true),
+        'title' => 'Touchpoint follow-up: Customer ' . $customerId,
+        'status' => 'not_started',
+        'priority' => 'high',
+        'assigned_to' => '',
+        'due_date' => substr($nextTouchAt, 0, 10),
+        'timestamp' => date('Y-m-d H:i:s'),
+        'contact_id' => $contactId,
+        'opportunity_id' => null,
+        'project_id' => null,
+        'description' => "Touchpoint summary: " . $summary . ($nextAction !== '' ? "\nNext action: " . $nextAction : ''),
+        'comments' => 'Auto-created from customer touchpoint log.',
+        'recurrence' => '',
+        'attachment' => '',
+    ];
+
+    $columns = [];
+    $placeholders = [];
+    $types = '';
+    $values = [];
+
+    foreach ($row as $col => $value) {
+        if (!customer_view_has_column($conn, 'tasks', $col)) {
+            continue;
+        }
+        $columns[] = "`$col`";
+        $placeholders[] = '?';
+        if (is_int($value)) {
+            $types .= 'i';
+            $values[] = $value;
+        } else {
+            $types .= 's';
+            $values[] = $value;
+        }
+    }
+
+    if (empty($columns)) {
+        return;
+    }
+
+    $sql = 'INSERT INTO tasks (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')';
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return;
+    }
+    $stmt->bind_param($types, ...$values);
+    $stmt->execute();
+    $stmt->close();
+}
 
 $customerId = $_GET['id'] ?? '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_customer') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo "<div class='alert alert-danger'>CSRF token validation failed.</div>";
+    } else {
+        $conn = get_mysql_connection();
+        $set = [];
+        $types = '';
+        $values = [];
+
+        $updatableTextFields = [
+            'address',
+            'relationship_tier',
+            'preferred_channel',
+            'relationship_health',
+            'last_touch_summary',
+            'next_touch_goal',
+        ];
+        foreach ($updatableTextFields as $field) {
+            if (!customer_view_has_column($conn, 'customers', $field) || !array_key_exists($field, $_POST)) {
+                continue;
+            }
+            $set[] = "`$field` = ?";
+            $types .= 's';
+            $values[] = trim((string) $_POST[$field]);
+        }
+
+        if (customer_view_has_column($conn, 'customers', 'contact_id') && array_key_exists('contact_id', $_POST)) {
+            $set[] = '`contact_id` = ?';
+            $types .= 's';
+            $values[] = ($_POST['contact_id'] === '' ? null : (string) ((int) $_POST['contact_id']));
+        }
+
+        if (customer_view_has_column($conn, 'customers', 'touch_cadence_days') && array_key_exists('touch_cadence_days', $_POST)) {
+            $set[] = '`touch_cadence_days` = ?';
+            $types .= 'i';
+            $values[] = ($_POST['touch_cadence_days'] === '' ? 0 : max(0, (int) $_POST['touch_cadence_days']));
+        }
+
+        foreach (['last_touch_at', 'next_touch_at'] as $dtField) {
+            if (!customer_view_has_column($conn, 'customers', $dtField) || !array_key_exists($dtField, $_POST)) {
+                continue;
+            }
+            $set[] = "`$dtField` = ?";
+            $types .= 's';
+            $raw = trim((string) $_POST[$dtField]);
+            $values[] = $raw === '' ? null : str_replace('T', ' ', $raw);
+        }
+
+        if (customer_view_has_column($conn, 'customers', 'last_modified')) {
+            $set[] = '`last_modified` = NOW()';
+        }
+
+        if (!empty($set) && $customerId !== '') {
+            $sql = 'UPDATE customers SET ' . implode(', ', $set) . ' WHERE customer_id = ?';
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $types .= 's';
+                $values[] = $customerId;
+                $stmt->bind_param($types, ...$values);
+                $stmt->execute();
+                $stmt->close();
+            }
+            echo "<div class='alert alert-success'>Customer information saved.</div>";
+        }
+
+        $conn->close();
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'log_touchpoint') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo "<div class='alert alert-danger'>CSRF token validation failed.</div>";
+    } else {
+        $contactIdRaw = trim((string) ($_POST['contact_id'] ?? ''));
+        $contactId = $contactIdRaw !== '' ? (int) $contactIdRaw : 0;
+        $summary = trim((string) ($_POST['summary'] ?? ''));
+        $valueDelivered = trim((string) ($_POST['value_delivered'] ?? ''));
+        $nextAction = trim((string) ($_POST['next_action'] ?? ''));
+        $nextTouchAtRaw = trim((string) ($_POST['next_touch_at'] ?? ''));
+        $nextTouchAt = $nextTouchAtRaw !== '' ? str_replace('T', ' ', $nextTouchAtRaw) : null;
+        $touchType = trim((string) ($_POST['touch_type'] ?? 'check-in'));
+        $channel = trim((string) ($_POST['channel'] ?? 'phone'));
+        $visibility = trim((string) ($_POST['visibility'] ?? 'private'));
+        $health = trim((string) ($_POST['relationship_health'] ?? ''));
+        $createTask = isset($_POST['create_followup_task']) && $_POST['create_followup_task'] === '1';
+
+        $currentUser = function_exists('auth_current_user') ? auth_current_user() : [];
+        $author = trim((string) ($currentUser['username'] ?? 'Advisor'));
+
+        if ($summary === '' || $contactId <= 0) {
+            echo "<div class='alert alert-danger'>Summary and linked contact are required.</div>";
+        } else {
+            $entryLines = [
+                '[Touchpoint] ' . ucfirst($touchType) . ' via ' . $channel,
+                'Summary: ' . $summary,
+            ];
+            if ($valueDelivered !== '') {
+                $entryLines[] = 'Value delivered: ' . $valueDelivered;
+            }
+            if ($nextAction !== '') {
+                $entryLines[] = 'Next action: ' . $nextAction;
+            }
+            if ($nextTouchAt !== null) {
+                $entryLines[] = 'Next touch: ' . $nextTouchAt;
+            }
+            $entryText = implode("\n", $entryLines);
+
+            $conn = get_mysql_connection();
+
+            $stmt = $conn->prepare('INSERT INTO discussion_log (contact_id, author, entry_text, linked_opportunity_id, visibility, timestamp) VALUES (?, ?, ?, ?, ?, NOW())');
+            if ($stmt) {
+                $blankOpp = '';
+                $stmt->bind_param('sssss', $contactIdRaw, $author, $entryText, $blankOpp, $visibility);
+                $stmt->execute();
+                $stmt->close();
+            }
+
+            if (customer_view_has_column($conn, 'customer_touchpoints', 'id')) {
+                $stmt = $conn->prepare('INSERT INTO customer_touchpoints (customer_id, contact_id, touch_type, channel, summary, value_delivered, next_action, next_touch_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                if ($stmt) {
+                    $stmt->bind_param('sssssssss', $customerId, $contactIdRaw, $touchType, $channel, $summary, $valueDelivered, $nextAction, $nextTouchAt, $author);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+
+            $set = ['last_touch_at = NOW()'];
+            $types = '';
+            $values = [];
+            if (customer_view_has_column($conn, 'customers', 'last_touch_summary')) {
+                $set[] = 'last_touch_summary = ?';
+                $types .= 's';
+                $values[] = $summary;
+            }
+            if (customer_view_has_column($conn, 'customers', 'next_touch_goal')) {
+                $set[] = 'next_touch_goal = ?';
+                $types .= 's';
+                $values[] = $nextAction;
+            }
+            if ($nextTouchAt !== null && customer_view_has_column($conn, 'customers', 'next_touch_at')) {
+                $set[] = 'next_touch_at = ?';
+                $types .= 's';
+                $values[] = $nextTouchAt;
+            }
+            if ($channel !== '' && customer_view_has_column($conn, 'customers', 'preferred_channel')) {
+                $set[] = 'preferred_channel = ?';
+                $types .= 's';
+                $values[] = $channel;
+            }
+            if ($health !== '' && customer_view_has_column($conn, 'customers', 'relationship_health')) {
+                $set[] = 'relationship_health = ?';
+                $types .= 's';
+                $values[] = $health;
+            }
+            if (customer_view_has_column($conn, 'customers', 'last_modified')) {
+                $set[] = 'last_modified = NOW()';
+            }
+            $sql = 'UPDATE customers SET ' . implode(', ', $set) . ' WHERE customer_id = ?';
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $types .= 's';
+                $values[] = $customerId;
+                $stmt->bind_param($types, ...$values);
+                $stmt->execute();
+                $stmt->close();
+            }
+
+            if (customer_view_has_column($conn, 'contacts', 'last_touch_at')) {
+                $contactSet = ['last_touch_at = NOW()'];
+                $ctypes = 'i';
+                $cvalues = [$contactId];
+                if ($nextTouchAt !== null && customer_view_has_column($conn, 'contacts', 'next_touch_at')) {
+                    $contactSet[] = 'next_touch_at = ?';
+                    $ctypes = 'si';
+                    $cvalues = [$nextTouchAt, $contactId];
+                }
+                $stmt = $conn->prepare('UPDATE contacts SET ' . implode(', ', $contactSet) . ' WHERE contact_id = ?');
+                if ($stmt) {
+                    $stmt->bind_param($ctypes, ...$cvalues);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+
+            if ($createTask && $nextTouchAt !== null) {
+                customer_view_insert_followup_task($conn, $contactId, $customerId, $nextTouchAt, $summary, $nextAction);
+            }
+
+            $conn->close();
+            echo "<div class='alert alert-success'>Touchpoint logged and relationship fields updated.</div>";
+        }
+    }
+}
 
 // Handle discussion log form submission for linked contact
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_discussion'])) {
@@ -309,6 +584,92 @@ if ($customerId !== '') {
             </div>
         </div>
 
+        <fieldset class="cv-fieldset">
+            <legend><strong>🤝 Relationship Control Panel</strong></legend>
+            <div class="cv-grid-tight" style="margin-bottom: 12px;">
+                <div><strong>Health:</strong> <?= htmlspecialchars($customer['relationship_health'] ?? 'Not set') ?></div>
+                <div><strong>Tier:</strong> <?= htmlspecialchars($customer['relationship_tier'] ?? 'Not set') ?></div>
+                <div><strong>Cadence (days):</strong> <?= htmlspecialchars((string) ($customer['touch_cadence_days'] ?? '30')) ?></div>
+                <div><strong>Preferred Channel:</strong> <?= htmlspecialchars($customer['preferred_channel'] ?? 'Not set') ?></div>
+                <div><strong>Last Touch:</strong> <?= htmlspecialchars($customer['last_touch_at'] ?? 'Not recorded') ?></div>
+                <div><strong>Next Touch:</strong> <?= htmlspecialchars($customer['next_touch_at'] ?? 'Not scheduled') ?></div>
+            </div>
+
+            <?php if ($contact): ?>
+            <form method="post" style="margin-top: 8px;">
+                <?php renderCSRFInput(); ?>
+                <input type="hidden" name="action" value="log_touchpoint">
+                <input type="hidden" name="contact_id" value="<?= htmlspecialchars((string) $contact['contact_id']) ?>">
+
+                <div class="cv-grid-tight">
+                    <div>
+                        <label><strong>Touch Type</strong></label>
+                        <select name="touch_type">
+                            <option value="check-in">Check-in</option>
+                            <option value="advisory">Advisory</option>
+                            <option value="follow-up">Follow-up</option>
+                            <option value="renewal">Renewal</option>
+                            <option value="issue-resolution">Issue Resolution</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label><strong>Channel</strong></label>
+                        <select name="channel">
+                            <option value="phone">Phone</option>
+                            <option value="email">Email</option>
+                            <option value="text">Text</option>
+                            <option value="meeting">Meeting</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label><strong>Health</strong></label>
+                        <select name="relationship_health">
+                            <option value="">Keep current</option>
+                            <option value="green">Green</option>
+                            <option value="yellow">Yellow</option>
+                            <option value="red">Red</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label><strong>Visibility</strong></label>
+                        <select name="visibility">
+                            <option value="private">Private</option>
+                            <option value="internal">Internal</option>
+                            <option value="public">Public</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label><strong>Next Touch</strong></label>
+                        <input type="datetime-local" name="next_touch_at" value="">
+                    </div>
+                    <div style="display:flex;align-items:flex-end;">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" name="create_followup_task" value="1">
+                            Create follow-up task
+                        </label>
+                    </div>
+                    <div style="grid-column:1/-1;">
+                        <label><strong>Summary</strong></label>
+                        <textarea name="summary" rows="2" required></textarea>
+                    </div>
+                    <div>
+                        <label><strong>Value Delivered</strong></label>
+                        <textarea name="value_delivered" rows="2"></textarea>
+                    </div>
+                    <div>
+                        <label><strong>Next Action</strong></label>
+                        <textarea name="next_action" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="cv-action-row">
+                    <button type="submit" class="btn-outline">📝 Log Touchpoint</button>
+                </div>
+            </form>
+            <?php else: ?>
+              <div class="cv-muted">Link a contact to this customer to enable touchpoint logging.</div>
+            <?php endif; ?>
+        </fieldset>
+
     <!-- ── CUSTOMER INFO FORM (Editable inline) ────────────────────────────────── -->
 
         <form method="post" style="margin-bottom:24px;">
@@ -342,6 +703,62 @@ if ($customerId !== '') {
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
+
+                    <div>
+                        <label><strong>Relationship Tier</strong></label><br>
+                        <select name="relationship_tier">
+                            <option value="" <?= empty($customer['relationship_tier']) ? 'selected' : '' ?>>Not set</option>
+                            <option value="A" <?= ($customer['relationship_tier'] ?? '') === 'A' ? 'selected' : '' ?>>A</option>
+                            <option value="B" <?= ($customer['relationship_tier'] ?? '') === 'B' ? 'selected' : '' ?>>B</option>
+                            <option value="C" <?= ($customer['relationship_tier'] ?? '') === 'C' ? 'selected' : '' ?>>C</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label><strong>Touch Cadence (days)</strong></label><br>
+                        <input type="number" name="touch_cadence_days" min="0" value="<?= htmlspecialchars((string) ($customer['touch_cadence_days'] ?? '30')) ?>">
+                    </div>
+
+                    <div>
+                        <label><strong>Preferred Channel</strong></label><br>
+                        <select name="preferred_channel">
+                            <option value="" <?= empty($customer['preferred_channel']) ? 'selected' : '' ?>>Not set</option>
+                            <option value="phone" <?= ($customer['preferred_channel'] ?? '') === 'phone' ? 'selected' : '' ?>>Phone</option>
+                            <option value="email" <?= ($customer['preferred_channel'] ?? '') === 'email' ? 'selected' : '' ?>>Email</option>
+                            <option value="text" <?= ($customer['preferred_channel'] ?? '') === 'text' ? 'selected' : '' ?>>Text</option>
+                            <option value="meeting" <?= ($customer['preferred_channel'] ?? '') === 'meeting' ? 'selected' : '' ?>>Meeting</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label><strong>Relationship Health</strong></label><br>
+                        <select name="relationship_health">
+                            <option value="" <?= empty($customer['relationship_health']) ? 'selected' : '' ?>>Not set</option>
+                            <option value="green" <?= ($customer['relationship_health'] ?? '') === 'green' ? 'selected' : '' ?>>Green</option>
+                            <option value="yellow" <?= ($customer['relationship_health'] ?? '') === 'yellow' ? 'selected' : '' ?>>Yellow</option>
+                            <option value="red" <?= ($customer['relationship_health'] ?? '') === 'red' ? 'selected' : '' ?>>Red</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label><strong>Last Touch</strong></label><br>
+                        <input type="datetime-local" name="last_touch_at" value="<?= !empty($customer['last_touch_at']) ? htmlspecialchars(str_replace(' ', 'T', substr((string) $customer['last_touch_at'], 0, 16))) : '' ?>">
+                    </div>
+
+                    <div>
+                        <label><strong>Next Touch</strong></label><br>
+                        <input type="datetime-local" name="next_touch_at" value="<?= !empty($customer['next_touch_at']) ? htmlspecialchars(str_replace(' ', 'T', substr((string) $customer['next_touch_at'], 0, 16))) : '' ?>">
+                    </div>
+
+                    <div style="grid-column:1/-1;">
+                        <label><strong>Last Touch Summary</strong></label><br>
+                        <textarea name="last_touch_summary" rows="2"><?= htmlspecialchars((string) ($customer['last_touch_summary'] ?? '')) ?></textarea>
+                    </div>
+
+                    <div style="grid-column:1/-1;">
+                        <label><strong>Next Touch Goal</strong></label><br>
+                        <textarea name="next_touch_goal" rows="2"><?= htmlspecialchars((string) ($customer['next_touch_goal'] ?? '')) ?></textarea>
+                    </div>
                 </div>
             </fieldset>
             <button type="submit" class="btn-outline">💾 Save Customer Info</button>

@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Relationship Touchpoint Workflow (Phase 1)
+
+### Scope (Bespoke High-Touch CRM)
+
+- Implement a low-user, relationship-first workflow focused on reminders, touchpoints, and customer follow-up consistency.
+
+### Key Changes (Bespoke High-Touch CRM)
+
+- Added migration script `sql/migrations/2026-06-04_relationship_touchpoints_phase1.sql` to introduce relationship fields on `customers` and `contacts`, plus new `customer_touchpoints` history table.
+- Extended `customer_view.php` with:
+  - schema-safe update handler for relationship fields,
+  - touchpoint log form in the customer context,
+  - discussion log write-through for each touchpoint,
+  - automatic synchronization of customer/contact last-touch and next-touch fields,
+  - optional auto-created follow-up task for scheduled next touch dates.
+- Extended `discussion.php` with a quick "Log Touchpoint" form and the same relationship-field synchronization logic for contact-centric logging.
+- Extended `dashboard.php` with relationship-focused reminder metrics: touches due today, overdue touches, stale relationships, and at-risk customers.
+- Added migration-readiness guard on dashboard so relationship widgets show a clear message when schema updates are missing.
+
+### Important Files (Bespoke High-Touch CRM)
+
+- sql/migrations/2026-06-04_relationship_touchpoints_phase1.sql
+- customer_view.php
+- discussion.php
+- dashboard.php
+- WORKLOG.md
+
+### Validation (Bespoke High-Touch CRM)
+
+- Pending: run PHP syntax checks and in-app smoke test after migration execution in target environment.
+
 ## 2026-05-21 - Env Precedence Correction (Deep Dive)
 
 ### Scope (Production Credential Resolution)

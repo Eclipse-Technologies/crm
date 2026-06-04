@@ -11,6 +11,8 @@ $validation_errors = [];
 $duplicate_emails = [];
 $is_contacts = false;
 $is_discussion = false;
+$skipped_rows = 0;
+$header = [];
 
 // Detect import type and schema
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
@@ -54,17 +56,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
       if (in_array('email', $header) && $contact_header_matches >= 2) {
         $import_type = 'contacts';
         $is_contacts = true;
-        $schema = require 'contact_schema.php';
+        // Keep preview and validation aligned with practical contact CSV columns.
+        $schema = ['first_name', 'last_name', 'email', 'phone', 'company', 'address', 'city', 'province', 'postal_code', 'country'];
       } elseif ((in_array('discussion_text', $header) || in_array('entry_text', $header)) && in_array('contact_id', $header)) {
         $import_type = 'discussion_log';
         $is_discussion = true;
-        $schema = require 'discussion_schema.php';
-        // If the CSV header has 'entry_text' but not 'discussion_text', map schema for preview
-        if (!in_array('discussion_text', $header) && in_array('entry_text', $header)) {
-          $schema = array_map(function($col) {
-            return $col === 'discussion_text' ? 'entry_text' : $col;
-          }, $schema);
-        }
+        $schema = ['contact_id', 'author', 'timestamp', 'discussion_text', 'linked_opportunity_id', 'visibility', 'company'];
         // If 'entry_text' is present but 'discussion_text' is not, alias it
         if (!in_array('discussion_text', $header) && in_array('entry_text', $header)) {
           $header = array_map(function($h) {
@@ -81,16 +78,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
         }
       }
       // Read all rows, skip rows with column mismatch, and warn if any are skipped
-      $skipped_rows = 0;
-      $row_num = 2; // 1-based, header is row 1
       while (($row = fgetcsv($handle)) !== false) {
         if (count($row) !== count($header)) {
           $skipped_rows++;
-          // Optionally, collect info about which row was skipped
         } else {
           $rows[] = array_combine($header, $row);
         }
-        $row_num++;
       }
     }
     fclose($handle);
@@ -99,37 +92,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
 
 // Validation and preview logic for contacts
 if ($is_contacts) {
+  $seenEmailKeys = [];
   foreach ($rows as $i => $row) {
     $row_errors = [];
-    foreach ($schema as $col) {
-      if (!isset($row[$col]) || $row[$col] === '') {
-        $row_errors[] = "$col is required";
+    $email = trim((string)($row['email'] ?? ''));
+
+    if ($email === '') {
+      $row_errors[] = "email is required";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+      $row_errors[] = "Invalid email";
+    } else {
+      $emailKey = strtolower($email);
+      if (isset($seenEmailKeys[$emailKey])) {
+        $row_errors[] = "Duplicate email in file";
+        $duplicate_emails[$i + 2] = $email;
+      } else {
+        $seenEmailKeys[$emailKey] = true;
       }
     }
-    if (!empty($row['email'])) {
-      if (!filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
-        $row_errors[] = "Invalid email";
-      }
+
+    if (!empty($row['delivery_date']) && !preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string)$row['delivery_date']))) {
+      $row_errors[] = "Invalid delivery_date format (expected YYYY-MM-DD)";
     }
+
     if (empty($row_errors)) {
-      $preview[] = $row;
+      $clean = [];
+      foreach ($schema as $col) {
+        $clean[$col] = trim((string)($row[$col] ?? ''));
+      }
+      $preview[] = $clean;
     } else {
       $validation_errors[$i+2] = $row_errors; // +2 for header and 0-index
     }
   }
-  // Check for duplicate emails
-  $emails = array_column($preview, 'email');
-  $dupes = array_diff_assoc($emails, array_unique($emails));
-  foreach ($dupes as $idx => $email) {
-    $duplicate_emails[$idx+2] = $email;
-  }
 
-// Always show the upload form if no file has been uploaded
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_FILES['csv_file'])) {
+} elseif ($is_discussion) {
+  foreach ($rows as $i => $row) {
+    $row_errors = [];
+    $contactId = trim((string)($row['contact_id'] ?? ''));
+    $author = trim((string)($row['author'] ?? ''));
+    $discussionText = trim((string)($row['discussion_text'] ?? $row['entry_text'] ?? ''));
+
+    if ($contactId === '' || !ctype_digit($contactId)) {
+      $row_errors[] = "contact_id is required and must be numeric";
+    }
+    if ($author === '') {
+      $row_errors[] = "author is required";
+    }
+    if ($discussionText === '') {
+      $row_errors[] = "discussion_text is required";
+    }
+
+    if (empty($row_errors)) {
+      $clean = [];
+      foreach ($schema as $col) {
+        $clean[$col] = trim((string)($row[$col] ?? ''));
+      }
+      if ($clean['discussion_text'] === '' && isset($row['entry_text'])) {
+        $clean['discussion_text'] = trim((string)$row['entry_text']);
+      }
+      $preview[] = $clean;
+    } else {
+      $validation_errors[$i + 2] = $row_errors;
+    }
+  }
 }
-// Close the main POST/file upload if block
 }
-// Close the previous if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) block
+
+if (!empty($preview)) {
+  $_SESSION['import_preview'] = $preview;
+  $_SESSION['import_type'] = $is_contacts ? 'contacts' : 'discussion_log';
+} else {
+  unset($_SESSION['import_preview'], $_SESSION['import_type']);
 }
 ?>
 <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; max-width: 500px;">
@@ -171,18 +205,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_contacts && !$is_discussion) {
 
 if ($is_contacts || $is_discussion) {
   $total_rows = count($rows);
-  $valid_rows = count($rows); // For now, all rows are considered valid for discussion log
+  $valid_rows = count($preview);
+  $issues_found = count($validation_errors) + $skipped_rows;
   ?>
   <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 4px;">
     <h3>Import Summary</h3>
     <p><strong>Total rows:</strong> <?= $total_rows ?></p>
-    <p><strong>Valid rows:</strong> <span style="color: green;"><?= $valid_rows ?></span></p>
-    <p><strong>Issues found:</strong> <span style="color: green;">0</span></p>
-    <p style="color: green; font-weight: bold;">✓ Ready to import</p>
+    <p><strong>Valid rows:</strong> <span style="color: <?= $valid_rows > 0 ? 'green' : '#b45309' ?>;"><?= $valid_rows ?></span></p>
+    <p><strong>Issues found:</strong> <span style="color: <?= $issues_found > 0 ? '#b91c1c' : 'green' ?>;"><?= $issues_found ?></span></p>
+    <p style="color: <?= $valid_rows > 0 ? 'green' : '#b45309' ?>; font-weight: bold;"><?= $valid_rows > 0 ? '✓ Ready to import valid rows only' : 'No valid rows to import' ?></p>
   </div>
-  <?php if (!empty($rows)):
+
+  <?php if ($skipped_rows > 0): ?>
+    <div class="alert alert-warning" style="margin-top: 12px;">
+      <strong>Warning:</strong> <?= (int)$skipped_rows ?> row(s) were skipped due to column mismatch.
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($validation_errors)): ?>
+    <div class="alert alert-danger" style="margin-top: 12px;">
+      <strong>Validation issues were found.</strong>
+      <ul style="margin:8px 0 0 18px;">
+        <?php foreach (array_slice($validation_errors, 0, 10, true) as $line => $errs): ?>
+          <li>Row <?= (int)$line ?>: <?= htmlspecialchars(implode('; ', $errs)) ?></li>
+        <?php endforeach; ?>
+      </ul>
+      <?php if (count($validation_errors) > 10): ?>
+        <div style="margin-top: 6px;">Showing first 10 rows with issues.</div>
+      <?php endif; ?>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($preview)):
   ?>
-    <h3 style="margin-top: 20px;">Preview - <?= $is_contacts ? 'Valid Contacts' : 'Discussion Log Entries' ?> (<?= count($rows) ?>)</h3>
+    <h3 style="margin-top: 20px;">Preview - <?= $is_contacts ? 'Valid Contacts' : 'Discussion Log Entries' ?> (<?= count($preview) ?>)</h3>
     <form method="POST" action="commit_import.php" id="commitForm">
       <?php renderCSRFInput(); ?>
       <input type="hidden" name="import_type" value="<?= $is_contacts ? 'contacts' : 'discussion_log' ?>">
@@ -191,17 +247,11 @@ if ($is_contacts || $is_discussion) {
           <th><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $col))) ?></th>
         <?php endforeach; ?>
       </tr></thead><tbody>
-        <?php foreach ($rows as $entry): ?>
+        <?php foreach ($preview as $entry): ?>
           <tr>
             <?php foreach ($schema as $col): ?>
               <?php
-                // For preview: if schema col is 'entry_text' but row has 'discussion_text', use that value
-                // For this import instance, use company as the main reference and leave contact_id blank
-                if ($is_discussion && $col === 'contact_id') {
-                  $value = '';
-                } else {
-                  $value = $entry[$col] ?? ($col === 'entry_text' && isset($entry['discussion_text']) ? $entry['discussion_text'] : '');
-                }
+                $value = $entry[$col] ?? '';
               ?>
               <td><?= htmlspecialchars(substr($value, 0, 50)) ?><?= (strlen($value) > 50 ? '...' : '') ?></td>
             <?php endforeach; ?>
@@ -209,12 +259,10 @@ if ($is_contacts || $is_discussion) {
         <?php endforeach; ?>
       </tbody></table>
       <div style="margin-top:20px; text-align:right;">
-        <button type="submit" class="btn btn-success"><?= $is_contacts ? 'Commit Import to Contacts' : 'Commit Import to Discussion Log' ?></button>
+        <button type="submit" class="btn btn-success"><?= $is_contacts ? 'Commit Valid Contacts' : 'Commit Valid Discussion Entries' ?></button>
       </div>
     </form>
-	<?php $_SESSION['import_preview'] = $rows; ?>
-	<?php $_SESSION['import_type'] = $is_contacts ? 'contacts' : 'discussion_log'; ?>
-	<?php endif; ?>
+  <?php endif; ?>
 <?php }
 ?>
 

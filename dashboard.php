@@ -2,6 +2,22 @@
 require_once __DIR__ . '/db_mysql.php';
 require_once __DIR__ . '/forecast_calc.php';
 
+function dashboard_has_column(mysqli $conn, string $table, string $column): bool {
+  $stmt = $conn->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
+  if (!$stmt) {
+    return false;
+  }
+  $stmt->bind_param('s', $column);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $has = $result && $result->num_rows > 0;
+  if ($result) {
+    $result->free();
+  }
+  $stmt->close();
+  return $has;
+}
+
 // Dashboard variable defaults
 $totalContacts = 0;
 $totalValue = 0;
@@ -10,6 +26,11 @@ $accuracy = 0;
 $stages = [];
 $topStage = '';
 $forecastByStage = [];
+$touchDueToday = 0;
+$touchOverdue = 0;
+$touchStale = 0;
+$atRiskCustomers = 0;
+$relationshipMetricsReady = false;
 
 // Load real data
 $conn = get_mysql_connection();
@@ -25,6 +46,42 @@ if ($r) {
     }
     $r->free();
 }
+
+  $hasNextTouchAt = dashboard_has_column($conn, 'customers', 'next_touch_at');
+  $hasLastTouchAt = dashboard_has_column($conn, 'customers', 'last_touch_at');
+  $hasCadence = dashboard_has_column($conn, 'customers', 'touch_cadence_days');
+  $hasHealth = dashboard_has_column($conn, 'customers', 'relationship_health');
+
+  if ($hasNextTouchAt && $hasLastTouchAt && $hasCadence && $hasHealth) {
+    $relationshipMetricsReady = true;
+
+    $r = $conn->query("SELECT COUNT(*) AS cnt FROM customers WHERE next_touch_at IS NOT NULL AND DATE(next_touch_at) = CURDATE()");
+    if ($r) {
+      $touchDueToday = (int) ($r->fetch_assoc()['cnt'] ?? 0);
+      $r->free();
+    }
+
+    $r = $conn->query("SELECT COUNT(*) AS cnt FROM customers WHERE next_touch_at IS NOT NULL AND next_touch_at < NOW()");
+    if ($r) {
+      $touchOverdue = (int) ($r->fetch_assoc()['cnt'] ?? 0);
+      $r->free();
+    }
+
+    $r = $conn->query("SELECT COUNT(*) AS cnt
+              FROM customers
+              WHERE (last_touch_at IS NULL OR last_touch_at < DATE_SUB(NOW(), INTERVAL COALESCE(NULLIF(touch_cadence_days, 0), 30) DAY))");
+    if ($r) {
+      $touchStale = (int) ($r->fetch_assoc()['cnt'] ?? 0);
+      $r->free();
+    }
+
+    $r = $conn->query("SELECT COUNT(*) AS cnt FROM customers WHERE LOWER(COALESCE(relationship_health, '')) IN ('yellow', 'red')");
+    if ($r) {
+      $atRiskCustomers = (int) ($r->fetch_assoc()['cnt'] ?? 0);
+      $r->free();
+    }
+  }
+
 $conn->close();
 
 $forecasts = calculateForecasts();
@@ -80,6 +137,50 @@ include_once(__DIR__ . '/layout_start.php');
     </div>
   </div>
 </div>
+
+<?php if ($relationshipMetricsReady): ?>
+<h2 style="margin: 4px 0 16px 0; font-size: 20px;">Relationship Focus</h2>
+<div class="stats-grid">
+  <div class="stat-card stat-card-info">
+    <div class="stat-icon">📞</div>
+    <div class="stat-content">
+      <div class="stat-label">Touches Due Today</div>
+      <div class="stat-value"><?= number_format($touchDueToday) ?></div>
+    </div>
+  </div>
+
+  <div class="stat-card stat-card-warning">
+    <div class="stat-icon">⏰</div>
+    <div class="stat-content">
+      <div class="stat-label">Overdue Touches</div>
+      <div class="stat-value"><?= number_format($touchOverdue) ?></div>
+    </div>
+  </div>
+
+  <div class="stat-card stat-card-primary">
+    <div class="stat-icon">🧭</div>
+    <div class="stat-content">
+      <div class="stat-label">Stale Relationships</div>
+      <div class="stat-value"><?= number_format($touchStale) ?></div>
+    </div>
+  </div>
+
+  <div class="stat-card stat-card-success">
+    <div class="stat-icon">⚠️</div>
+    <div class="stat-content">
+      <div class="stat-label">At-Risk Customers</div>
+      <div class="stat-value"><?= number_format($atRiskCustomers) ?></div>
+    </div>
+  </div>
+</div>
+<?php else: ?>
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-body" style="padding: 16px;">
+    <strong>Relationship metrics unavailable:</strong>
+    run migration <code>sql/migrations/2026-06-04_relationship_touchpoints_phase1.sql</code> to enable touchpoint reminders.
+  </div>
+</div>
+<?php endif; ?>
 
 <!-- Pipeline and Forecast Tables -->
 <div class="dashboard-grid">

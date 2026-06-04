@@ -23,6 +23,7 @@ This document captures key lessons, recurring errors, and communication improvem
 - Environment precedence rule: server `.env` must be authoritative in production; git-tracked runtime env files should only be fallback when server `.env` is absent.
 - Git deployment with `rsync --delete` can remove server-only secrets; always exclude `.env` from deployment sync and verify this rule after pipeline edits.
 - Temporary diagnostics endpoints are useful for live auth triage but must be removed immediately after resolution.
+- For phased feature rollouts that add DB columns/tables, guard UI queries and update handlers with runtime column checks (`SHOW COLUMNS ...`) so pages stay usable before and after migration runs.
 - Use proper link/button types for UI actions (e.g., mailto: for email, window.location for redirects).
 - Validate that all quick-action buttons perform their intended function, not just alerts.
 - When updating documentation, fix markdownlint errors and check for duplicate headings and broken links.
