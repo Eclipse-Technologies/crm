@@ -2124,27 +2124,45 @@ function status_badge($status) {
         });
       }
 
+      function activateManualHintRestore(triggerLabel, statusPrefix) {
+        const statusBase = String(statusPrefix || 'Restore button');
+        const announceLabel = String(triggerLabel || 'restore button');
+        const isEscalated = lastPolicyCopyFailed && policyCopyFailureStreak >= 2;
+        if (!isEscalated) {
+          setKeyStatus(statusBase + ' -> Manual hint unavailable');
+          showToast('Manual hint restore is only available in escalated policy-copy mode.', false);
+          announcePolicyManualRestoreAction(announceLabel, 'unavailable');
+          return;
+        }
+        if (!policyManualHintDismissed) {
+          setKeyStatus(statusBase + ' -> Manual hint already shown');
+          showToast('Manual policy-copy hint is already shown.', false);
+          announcePolicyManualRestoreAction(announceLabel, 'already_shown');
+          return;
+        }
+        policyManualHintDismissed = false;
+        refreshPolicyReadoutTone();
+        setKeyStatus(statusBase + ' -> Manual hint shown');
+        showToast('Manual policy-copy hint shown.', false);
+        announcePolicyManualHintVisible(announceLabel);
+      }
+
       if (shortcutPolicyManualRestore) {
         shortcutPolicyManualRestore.addEventListener('click', function (event) {
           event.preventDefault();
-          const isEscalated = lastPolicyCopyFailed && policyCopyFailureStreak >= 2;
-          if (!isEscalated) {
-            setKeyStatus('Restore button -> Manual hint unavailable');
-            showToast('Manual hint restore is only available in escalated policy-copy mode.', false);
-            announcePolicyManualRestoreAction('restore button', 'unavailable');
-            return;
+          activateManualHintRestore('restore button', 'Restore button');
+        });
+
+        shortcutPolicyManualRestore.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            event.stopPropagation();
+            activateManualHintRestore('keyboard Enter', 'Restore key Enter');
+          } else if (event.key === ' ' || event.key === 'Spacebar') {
+            event.preventDefault();
+            event.stopPropagation();
+            activateManualHintRestore('keyboard Space', 'Restore key Space');
           }
-          if (!policyManualHintDismissed) {
-            setKeyStatus('Restore button -> Manual hint already shown');
-            showToast('Manual policy-copy hint is already shown.', false);
-            announcePolicyManualRestoreAction('restore button', 'already_shown');
-            return;
-          }
-          policyManualHintDismissed = false;
-          refreshPolicyReadoutTone();
-          setKeyStatus('Restore button -> Manual hint shown');
-          showToast('Manual policy-copy hint shown.', false);
-          announcePolicyManualHintVisible('restore button');
         });
       }
 

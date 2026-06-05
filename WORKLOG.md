@@ -3,6 +3,34 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 110)
+
+### Scope (Restore Control Keyboard Activation)
+
+- Add explicit Enter/Space keyboard activation support for the inline restore control with deterministic status and aria-live feedback.
+
+### Key Changes (Restore Control Keyboard Activation)
+
+- Refactored restore logic into `activateManualHintRestore(triggerLabel, statusPrefix)` in tasks.php.
+- Added restore-control keydown handler for:
+  - `Enter` -> restore action with `Restore key Enter` status prefix,
+  - `Space` -> restore action with `Restore key Space` status prefix.
+- Added `stopPropagation()` for Enter/Space to prevent shell-level shortcut interference.
+- Kept existing click behavior by routing it through the same helper.
+
+### Important Files (Restore Control Keyboard Activation)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Restore Control Keyboard Activation)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - Enter path sets `Restore key Enter -> Manual hint shown` and live trigger `keyboard Enter`,
+  - Space path sets `Restore key Space -> Manual hint shown` and live trigger `keyboard Space`.
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 109)
 
 ### Scope (Restore Action Live Parity)
