@@ -2065,7 +2065,7 @@ function status_badge($status) {
           policyManualHintDismissed = true;
           refreshPolicyReadoutTone();
           setKeyStatus('Manual hint dismissed');
-          showToast('Manual policy-copy hint dismissed for this panel session.', false);
+          showToast('Manual policy-copy hint dismissed for this panel session. Press Shift+J to show again.', false);
           announcePolicyManualHintDismissed('manual hint dismissed');
         });
       }
@@ -2081,7 +2081,7 @@ function status_badge($status) {
         refreshPolicyReadoutTone();
         if (policyManualHintDismissed) {
           setKeyStatus(statusPrefix + ' hidden');
-          showToast('Manual policy-copy hint hidden for this panel session.', false);
+          showToast('Manual policy-copy hint hidden for this panel session. Press Shift+J to show again.', false);
           announcePolicyManualHintDismissed(triggerLabel || 'keyboard Shift+J');
         } else {
           setKeyStatus(statusPrefix + ' shown');

@@ -3,6 +3,31 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 102)
+
+### Scope (Restore Cue on Manual-Hint Hide/Dismiss)
+
+- Improve discoverability by adding an explicit keyboard restore cue when users hide or dismiss the escalated manual-copy hint.
+
+### Key Changes (Restore Cue on Manual-Hint Hide/Dismiss)
+
+- Updated manual hint dismiss toast text to include restore guidance: `Press Shift+J to show again.`
+- Updated Shift+J hide-state toast text to include the same restore guidance for consistency.
+- Kept current toggle behavior, escalation gating, and aria-live announcements unchanged.
+
+### Important Files (Restore Cue on Manual-Hint Hide/Dismiss)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Restore Cue on Manual-Hint Hide/Dismiss)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - dismiss action toast includes `Press Shift+J to show again`,
+  - Shift+J hide action toast includes `Press Shift+J to show again`.
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 101)
 
 ### Scope (Shift+J Manual Hint Toggle)
