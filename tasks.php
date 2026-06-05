@@ -1090,6 +1090,8 @@ function status_badge($status) {
       let lastOriginFailureLiveText = '';
       let lastOriginFailureLiveAt = 0;
       const originFailureLiveCooldownMs = 700;
+      let lastOriginCopyFailureAt = 0;
+      const originRecoveryWindowMs = 2400;
 
       function sourcePulseAccent(sourceLabel) {
         if (sourceLabel === 'Keyboard') {
@@ -1332,14 +1334,17 @@ function status_badge($status) {
         const originLabel = currentOriginLabel();
         copyTextToClipboard(originLabel).then(function (copied) {
           if (copied) {
+            const recovered = lastOriginCopyFailureAt > 0 && (Date.now() - lastOriginCopyFailureAt) <= originRecoveryWindowMs;
             setKeyStatus(prefix + ' -> ' + originLabel);
             showOriginCopyToast('Origin copied: ' + originLabel + '.');
             flashShortcutCopyBadge('origin');
             pulseOriginChip('Copied');
-            announceOriginCopy(originLabel, prefix);
+            announceOriginCopy(originLabel, prefix, recovered);
+            lastOriginCopyFailureAt = 0;
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy origin label.', true);
+            lastOriginCopyFailureAt = Date.now();
             announceOriginCopyFailure(prefix);
           }
         });
@@ -1407,14 +1412,17 @@ function status_badge($status) {
         const originLabel = currentOriginLabel();
         copyTextToClipboard(originContext).then(function (copied) {
           if (copied) {
+            const recovered = lastOriginCopyFailureAt > 0 && (Date.now() - lastOriginCopyFailureAt) <= originRecoveryWindowMs;
             setKeyStatus(prefix + ' -> ' + originLabel);
             showOriginCopyToast(originContextPreviewToastText(originContext));
             flashShortcutCopyBadge('origin-context');
             pulseOriginChip('Context Copied');
-            announceOriginCopy(originLabel + ' context', prefix);
+            announceOriginCopy(originLabel + ' context', prefix, recovered);
+            lastOriginCopyFailureAt = 0;
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy origin context.', true);
+            lastOriginCopyFailureAt = Date.now();
             announceOriginCopyFailure(prefix);
           }
         });
@@ -1507,11 +1515,12 @@ function status_badge($status) {
         }, hintLiveDebounceMs);
       }
 
-      function announceOriginCopy(copyLabel, triggerLabel) {
+      function announceOriginCopy(copyLabel, triggerLabel, recovered) {
         if (!hintLiveRegion) {
           return;
         }
-        const message = 'Origin copy: ' + String(copyLabel || '').trim() + '. Trigger: ' + String(triggerLabel || 'copy action') + '.';
+        const copyText = String(copyLabel || '').trim();
+        const message = (recovered ? 'Origin copy recovered: ' : 'Origin copy: ') + copyText + '. Trigger: ' + String(triggerLabel || 'copy action') + '.';
         const nowMs = Date.now();
         if (message === lastOriginSuccessLiveText && (nowMs - lastOriginSuccessLiveAt) < originSuccessLiveCooldownMs) {
           return;

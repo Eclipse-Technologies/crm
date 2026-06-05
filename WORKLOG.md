@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 85)
+
+### Scope (Recovered Success Announcement)
+
+- Add an explicit accessibility recovery signal when an origin-copy success follows a recent failure.
+
+### Key Changes (Recovered Success Announcement)
+
+- Added failure-recovery tracking in tasks.php panel logic:
+  - lastOriginCopyFailureAt
+  - originRecoveryWindowMs
+- Updated success flows to detect recent failure and emit recovered live message:
+  - copyCurrentOriginLabel(...)
+  - copyOriginContextSnapshot(...)
+- Updated announceOriginCopy(...) to support recovered-mode messaging:
+  - Origin copy recovered: ...
+- Reset recovery marker after successful copy to avoid repeated false recovery announcements.
+
+### Important Files (Recovered Success Announcement)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Recovered Success Announcement)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php (forced failure then success) confirmed:
+  - failure live message appears,
+  - next success within recovery window announces Origin copy recovered: ...,
+  - key status remains correct.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 84)
 
 ### Scope (Success Aria-Live Cooldown)
