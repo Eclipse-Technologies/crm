@@ -1081,6 +1081,9 @@ function status_badge($status) {
       let shortcutCopyBadgeTimer = null;
       let originChipPulseResetTimer = null;
       let originChipTextResetTimer = null;
+      let lastOriginToastText = '';
+      let lastOriginToastAt = 0;
+      const originToastCooldownMs = 550;
 
       function sourcePulseAccent(sourceLabel) {
         if (sourceLabel === 'Keyboard') {
@@ -1324,7 +1327,7 @@ function status_badge($status) {
         copyTextToClipboard(originLabel).then(function (copied) {
           if (copied) {
             setKeyStatus(prefix + ' -> ' + originLabel);
-            showToast('Origin copied: ' + originLabel + '.', false);
+            showOriginCopyToast('Origin copied: ' + originLabel + '.');
             flashShortcutCopyBadge('origin');
             pulseOriginChip('Copied');
             announceOriginCopy(originLabel, prefix);
@@ -1398,7 +1401,7 @@ function status_badge($status) {
         copyTextToClipboard(originContext).then(function (copied) {
           if (copied) {
             setKeyStatus(prefix + ' -> ' + originLabel);
-            showToast(originContextPreviewToastText(originContext), false);
+            showOriginCopyToast(originContextPreviewToastText(originContext));
             flashShortcutCopyBadge('origin-context');
             pulseOriginChip('Context Copied');
             announceOriginCopy(originLabel + ' context', prefix);
@@ -1452,6 +1455,20 @@ function status_badge($status) {
           return;
         }
         shortcutHelp.style.display = visible ? '' : 'none';
+      }
+
+      function showOriginCopyToast(messageText) {
+        const text = String(messageText || '').trim();
+        if (!text) {
+          return;
+        }
+        const nowMs = Date.now();
+        if (text === lastOriginToastText && (nowMs - lastOriginToastAt) < originToastCooldownMs) {
+          return;
+        }
+        lastOriginToastText = text;
+        lastOriginToastAt = nowMs;
+        showToast(text, false);
       }
 
       function announceHintMode(modeLabel, triggerLabel) {

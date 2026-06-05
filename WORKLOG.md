@@ -3,6 +3,40 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 80)
+
+### Scope (Origin Toast Cooldown)
+
+- Reduce toast noise during rapid repeated origin-copy actions by coalescing duplicate success toasts within a short cooldown window.
+
+### Key Changes (Origin Toast Cooldown)
+
+- Added origin-toast dedup state in `tasks.php` panel logic:
+  - `lastOriginToastText`
+  - `lastOriginToastAt`
+  - `originToastCooldownMs`
+- Added `showOriginCopyToast(messageText)` helper:
+  - suppresses duplicate origin-copy success toasts if repeated too quickly,
+  - leaves normal toasts unchanged outside cooldown.
+- Routed origin-copy success paths through the helper:
+  - `copyCurrentOriginLabel(...)`
+  - `copyOriginContextSnapshot(...)`
+- Kept key-status, badge, pulse, and aria-live announcements unchanged.
+
+### Important Files (Origin Toast Cooldown)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Origin Toast Cooldown)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - rapid repeated `O` does not keep extending duplicate toast visibility,
+  - origin copy key status remains correct,
+  - toast lifecycle still fades/clears as expected.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 79)
 
 ### Scope (Origin Copy Aria-Live Announcements)
