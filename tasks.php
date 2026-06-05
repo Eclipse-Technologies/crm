@@ -281,6 +281,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>'
     . '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>'
     . '<span class="js-audit-history-source" style="display:inline-flex;align-items:center;margin-left:2px;font-size:10px;color:#64748b;white-space:nowrap;">Source: Default</span>'
+    . '<span class="js-audit-origin-chip" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:999px;padding:1px 6px;white-space:nowrap;">Origin: Default</span>'
     . '<span class="js-audit-history-summary" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#64748b;white-space:nowrap;">Rows overridden: 0</span>'
     . '<span class="js-audit-global-badge" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#1f2937;background:#e5e7eb;border-radius:999px;padding:1px 6px;white-space:nowrap;">Global mode: Off</span>'
     . '<span class="js-audit-precedence-hint" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#6b7280;white-space:nowrap;" title="Filter priority order">Priority: Row > Global > Default</span>'
@@ -950,6 +951,7 @@ function status_badge($status) {
         '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>' +
         '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>' +
         '<span class="js-audit-history-source" style="display:inline-flex;align-items:center;margin-left:2px;font-size:10px;color:#64748b;white-space:nowrap;">Source: Default</span>' +
+        '<span class="js-audit-origin-chip" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:999px;padding:1px 6px;white-space:nowrap;">Origin: Default</span>' +
         '<span class="js-audit-history-summary" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#64748b;white-space:nowrap;">Rows overridden: 0</span>' +
         '<span class="js-audit-global-badge" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#1f2937;background:#e5e7eb;border-radius:999px;padding:1px 6px;white-space:nowrap;">Global mode: Off</span>' +
         '<span class="js-audit-precedence-hint" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#6b7280;white-space:nowrap;" title="Filter priority order">Priority: Row > Global > Default</span>' +
@@ -1045,6 +1047,7 @@ function status_badge($status) {
       const resetButton = shell.querySelector('.js-audit-history-reset');
       const rememberGlobalCheckbox = shell.querySelector('.js-audit-history-remember-global');
       const sourceIndicator = shell.querySelector('.js-audit-history-source');
+      const originChip = shell.querySelector('.js-audit-origin-chip');
       const cheatLine = shell.querySelector('.js-audit-cheatline');
       const shortcutHint = shell.querySelector('.js-audit-shortcut-hint');
       const shortcutHintModeBadge = shell.querySelector('.js-audit-hint-mode-badge');
@@ -1628,13 +1631,32 @@ function status_badge($status) {
       }
 
       function applySourceIndicator(source, filter) {
-        if (!sourceIndicator) {
-          return;
-        }
         const safeSource = (source === 'row' || source === 'global') ? source : 'default';
         const sourceLabel = safeSource === 'row' ? 'Row' : (safeSource === 'global' ? 'Global' : 'Default');
         const modeLabel = filter === 'status_changes' ? 'Status Changes' : 'All Events';
-        sourceIndicator.textContent = 'Source: ' + sourceLabel + ' (' + modeLabel + ')';
+
+        if (sourceIndicator) {
+          sourceIndicator.textContent = 'Source: ' + sourceLabel + ' (' + modeLabel + ')';
+        }
+
+        if (!originChip) {
+          return;
+        }
+
+        originChip.textContent = 'Origin: ' + sourceLabel;
+        if (safeSource === 'row') {
+          originChip.style.background = '#ecfeff';
+          originChip.style.borderColor = '#99f6e4';
+          originChip.style.color = '#0f766e';
+        } else if (safeSource === 'global') {
+          originChip.style.background = '#eff6ff';
+          originChip.style.borderColor = '#bfdbfe';
+          originChip.style.color = '#1d4ed8';
+        } else {
+          originChip.style.background = '#f8fafc';
+          originChip.style.borderColor = '#cbd5e1';
+          originChip.style.color = '#475569';
+        }
       }
 
       function setChipStyles(activeChip) {
@@ -1774,6 +1796,7 @@ function status_badge($status) {
         const targetRows = targetShell.querySelectorAll('.task-audit-history-list li');
         const targetEmpty = targetShell.querySelector('.task-audit-history-empty');
         const targetSource = targetShell.querySelector('.js-audit-history-source');
+        const targetOriginChip = targetShell.querySelector('.js-audit-origin-chip');
 
         targetChips.forEach(function (chip) {
           const chipFilter = String(chip.getAttribute('data-filter') || 'all');
@@ -1802,6 +1825,24 @@ function status_badge($status) {
           const sourceLabel = source === 'global' ? 'Global' : (source === 'row' ? 'Row' : 'Default');
           const modeLabel = selectedFilter === 'status_changes' ? 'Status Changes' : 'All Events';
           targetSource.textContent = 'Source: ' + sourceLabel + ' (' + modeLabel + ')';
+        }
+
+        if (targetOriginChip) {
+          const sourceLabel = source === 'global' ? 'Global' : (source === 'row' ? 'Row' : 'Default');
+          targetOriginChip.textContent = 'Origin: ' + sourceLabel;
+          if (source === 'row') {
+            targetOriginChip.style.background = '#ecfeff';
+            targetOriginChip.style.borderColor = '#99f6e4';
+            targetOriginChip.style.color = '#0f766e';
+          } else if (source === 'global') {
+            targetOriginChip.style.background = '#eff6ff';
+            targetOriginChip.style.borderColor = '#bfdbfe';
+            targetOriginChip.style.color = '#1d4ed8';
+          } else {
+            targetOriginChip.style.background = '#f8fafc';
+            targetOriginChip.style.borderColor = '#cbd5e1';
+            targetOriginChip.style.color = '#475569';
+          }
         }
 
         refreshOverrideSummary(targetShell);

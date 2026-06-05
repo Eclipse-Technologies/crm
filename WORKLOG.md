@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 69)
+
+### Scope (Origin Chip Visibility)
+
+- Add a dedicated, always-visible Origin chip beside the source indicator so users can quickly confirm whether filter state comes from Row, Global, or Default.
+
+### Key Changes (Origin Chip Visibility)
+
+- Added a new `js-audit-origin-chip` element in both render paths in `tasks.php`:
+  - PHP `renderTaskAuditHistoryHtml(...)`
+  - JS `renderAuditHistory(...)`
+- Updated source-state refresh logic to keep the new chip synchronized with source updates:
+  - `applySourceIndicator(source, filter)` now updates source text and Origin chip text/style.
+  - `refreshShellVisualState(targetShell, selectedFilter, source)` now mirrors Origin chip state during bulk/restore flows.
+- Added source-specific chip styling accents:
+  - Row: teal tint
+  - Global: blue tint
+  - Default: neutral slate tint
+
+### Important Files (Origin Chip Visibility)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Origin Chip Visibility)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - Origin chip renders and reflects current source,
+  - keyboard state transitions update both source text and Origin chip (e.g., `A` keeps `Row`, `R` returns to `Default` when global is off),
+  - Origin chip color accents change with source state.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 68)
 
 ### Scope (Ctrl+Y Toast Length Suffix)
