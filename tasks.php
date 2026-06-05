@@ -1184,6 +1184,20 @@ function status_badge($status) {
         refreshShortcutStateSummary();
       }
 
+      function sourceLabelFromTrigger(triggerLabel) {
+        const label = String(triggerLabel || '').toLowerCase();
+        if (!label) {
+          return 'Session';
+        }
+        if (label.indexOf('keyboard') !== -1) {
+          return 'Keyboard';
+        }
+        if (label.indexOf('button') !== -1) {
+          return 'Button';
+        }
+        return 'Session';
+      }
+
       function refreshHintToastToggle() {
         if (!shortcutHintToastToggle) {
           return;
@@ -1212,9 +1226,7 @@ function status_badge($status) {
 
         setShortcutHintDetailed(targetDetailed);
         setStoredAuditHintMode(taskId, targetDetailed ? 'detailed' : 'compact');
-        if (opts.sourceLabel) {
-          setLastSettingSource(opts.sourceLabel);
-        }
+        setLastSettingSource(sourceLabelFromTrigger(messages.liveTriggerLabel));
         announceHintMode(messages.liveModeLabel, messages.liveTriggerLabel);
 
         if (messages.statusText) {
@@ -1229,8 +1241,7 @@ function status_badge($status) {
 
       function resetHintToCompact(triggerKey) {
         return applyHintModeTransition(false, {
-          triggerKey: triggerKey || 'keyboard Shift+H',
-          sourceLabel: triggerKey === 'reset button' ? 'Button' : 'Keyboard'
+          triggerKey: triggerKey || 'keyboard Shift+H'
         });
       }
 
@@ -1261,12 +1272,12 @@ function status_badge($status) {
       }
 
       function applyHintToastMuteToggle(statusPrefix) {
+        const triggerLabel = statusPrefix === 'M -> Hint toasts' ? 'keyboard M' : 'toggle button';
         const muted = !isHintToastMuted(taskId);
         setHintToastMuted(taskId, muted);
         refreshHintToastToggle();
-        const isKeyboard = statusPrefix === 'M -> Hint toasts';
-        setLastSettingSource(isKeyboard ? 'Keyboard' : 'Button');
-        announceHintToastMute(muted, isKeyboard ? 'keyboard M' : 'toggle button');
+        setLastSettingSource(sourceLabelFromTrigger(triggerLabel));
+        announceHintToastMute(muted, triggerLabel);
         setKeyStatus(statusPrefix + ' ' + (muted ? 'muted' : 'unmuted'));
         showToast('Hint toasts ' + (muted ? 'muted.' : 'unmuted.'), false);
       }
@@ -1278,7 +1289,7 @@ function status_badge($status) {
         }
         setHintToastMuted(taskId, false);
         refreshHintToastToggle();
-        setLastSettingSource(triggerLabel === 'keyboard Shift+M' ? 'Keyboard' : 'Button');
+        setLastSettingSource(sourceLabelFromTrigger(triggerLabel));
         announceHintToastMute(false, triggerLabel || 'keyboard Shift+M');
         setKeyStatus(statusText);
         showToast('Hint toasts unmuted.', false);
@@ -1529,8 +1540,7 @@ function status_badge($status) {
           event.preventDefault();
           const nextDetailed = !isShortcutHintDetailed;
           applyHintModeTransition(nextDetailed, {
-            triggerKey: 'keyboard H',
-            sourceLabel: 'Keyboard'
+            triggerKey: 'keyboard H'
           });
         } else if (key === 'm' && event.shiftKey) {
           event.preventDefault();

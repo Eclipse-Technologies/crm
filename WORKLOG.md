@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 48)
+
+### Scope (Normalized Source Label Formatting)
+
+- Normalize trigger-to-source mapping so shortcut-state `Source` labels are derived consistently from one formatter.
+
+### Key Changes (Normalized Source Label Formatting)
+
+- Added source formatter helper in `tasks.php`:
+  - `sourceLabelFromTrigger(triggerLabel)`
+  - maps trigger text to `Keyboard`, `Button`, or `Session`.
+- Refactored hint/mute transition flows in `tasks.php` to use formatter-driven source updates:
+  - hint mode transitions,
+  - mute toggle transitions,
+  - explicit unmute transitions.
+- Removed ad-hoc source-label branching so future triggers inherit consistent source behavior.
+
+### Important Files (Normalized Source Label Formatting)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Normalized Source Label Formatting)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms source consistency:
+  - keyboard actions -> `Source Keyboard`,
+  - button actions -> `Source Button`,
+  - initial state -> `Source Session`.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 47)
 
 ### Scope (Last Setting Source Indicator)
