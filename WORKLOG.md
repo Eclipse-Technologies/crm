@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 30)
+
+### Scope (Persist Hint Mode Per Row)
+
+- Persist each audit-history panel's compact/detailed shortcut hint preference for the current browser session.
+
+### Key Changes (Persist Hint Mode Per Row)
+
+- Added per-row hint mode session storage in `tasks.php`:
+  - key prefix: `taskAuditHintMode:`
+  - values: `compact` or `detailed`
+- Added storage helpers in `tasks.php`:
+  - `getStoredAuditHintMode(taskId)`
+  - `setStoredAuditHintMode(taskId, mode)`
+- Wired hint mode initialization so each panel restores its own prior mode when opened.
+- Extended `H` shortcut handling to save mode immediately after toggle.
+
+### Important Files (Persist Hint Mode Per Row)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Persist Hint Mode Per Row)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - panel starts compact by default,
+  - pressing `H` switches to detailed mode,
+  - closing and reopening the same row restores detailed mode,
+  - a different row remains compact (per-row isolation).
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 29)
 
 ### Scope (Hint Detail Toggle)

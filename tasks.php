@@ -616,6 +616,7 @@ function status_badge($status) {
   const activeStatusFilter = <?= json_encode((string) $statusFilter) ?>;
   const activeViewFilter = <?= json_encode((string) $viewFilter) ?>;
   const auditFilterStoragePrefix = 'taskAuditFilter:';
+  const auditHintModeStoragePrefix = 'taskAuditHintMode:';
   const auditGlobalEnabledKey = 'taskAuditGlobalEnabled';
   const auditGlobalFilterKey = 'taskAuditGlobalFilter';
   const toast = document.getElementById('task-toast');
@@ -673,6 +674,38 @@ function status_badge($status) {
 
     try {
       window.sessionStorage.removeItem(auditFilterStoragePrefix + safeTaskId);
+    } catch (error) {
+      // Ignore storage failures (private mode/quota) and continue gracefully.
+    }
+  }
+
+  function getStoredAuditHintMode(taskId) {
+    const safeTaskId = String(taskId || '').trim();
+    if (!safeTaskId || typeof window.sessionStorage === 'undefined') {
+      return '';
+    }
+
+    try {
+      const stored = window.sessionStorage.getItem(auditHintModeStoragePrefix + safeTaskId);
+      if (stored === 'compact' || stored === 'detailed') {
+        return stored;
+      }
+    } catch (error) {
+      return '';
+    }
+
+    return '';
+  }
+
+  function setStoredAuditHintMode(taskId, mode) {
+    const safeTaskId = String(taskId || '').trim();
+    const safeMode = mode === 'detailed' ? 'detailed' : 'compact';
+    if (!safeTaskId || typeof window.sessionStorage === 'undefined') {
+      return;
+    }
+
+    try {
+      window.sessionStorage.setItem(auditHintModeStoragePrefix + safeTaskId, safeMode);
     } catch (error) {
       // Ignore storage failures (private mode/quota) and continue gracefully.
     }
@@ -1009,7 +1042,8 @@ function status_badge($status) {
         keyStatus.style.display = '';
       }
 
-      setShortcutHintDetailed(false);
+      const storedHintMode = getStoredAuditHintMode(taskId);
+      setShortcutHintDetailed(storedHintMode === 'detailed');
 
       function applySourceIndicator(source, filter) {
         if (!sourceIndicator) {
@@ -1248,6 +1282,7 @@ function status_badge($status) {
         } else if (key === 'h') {
           event.preventDefault();
           setShortcutHintDetailed(!isShortcutHintDetailed);
+          setStoredAuditHintMode(taskId, isShortcutHintDetailed ? 'detailed' : 'compact');
           setKeyStatus('H -> Hint ' + (isShortcutHintDetailed ? 'detailed' : 'compact'));
           showToast('Shortcut hint: ' + (isShortcutHintDetailed ? 'detailed' : 'compact') + '.', false);
         } else if (key === 'escape') {
