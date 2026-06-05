@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 94)
+
+### Scope (Policy Copy Retry Hint Tone)
+
+- Add a compact visual retry cue on policy readout when policy copy fails, improving feedback clarity for `Shift+K` copy failures.
+
+### Key Changes (Policy Copy Retry Hint Tone)
+
+- Added policy-copy failure state tracking in `tasks.php` (`lastPolicyCopyFailed`).
+- Added `refreshPolicyReadoutTone()` and wired it into readout refresh.
+- On policy-copy failure/unavailable payload, readout now switches to warning tone and retry title hint:
+  - warm warning color/background,
+  - hint title: retry with Shift+K.
+- On policy-copy success path, warning tone resets to normal readout styling.
+
+### Important Files (Policy Copy Retry Hint Tone)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Policy Copy Retry Hint Tone)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - forced policy-copy failure applies warning tone and retry title hint.
+- Environment note:
+  - clipboard writes were denied in this browser context during this slice, so success-path visual reset was verified via code path review (explicit reset on successful copy branch).
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 93)
 
 ### Scope (Policy Copy Aria-Live Parity)

@@ -1118,6 +1118,7 @@ function status_badge($status) {
         originRecoveryWindowMs: copyAnnouncementPolicyDefaults.originRecoveryWindowMs
       };
       let lastPolicyFallbackFields = [];
+      let lastPolicyCopyFailed = false;
       function policyReadoutText(policy, fallbackFields) {
         let text = 'Policy: Toast ' + policy.originToastCooldownMs + 'ms | Success ' + policy.originSuccessLiveCooldownMs + 'ms | Failure ' + policy.originFailureLiveCooldownMs + 'ms | Recovery ' + policy.originRecoveryWindowMs + 'ms';
         if (Array.isArray(fallbackFields) && fallbackFields.length > 0) {
@@ -1130,6 +1131,27 @@ function status_badge($status) {
           return;
         }
         shortcutPolicyReadout.textContent = policyReadoutText(policy, fallbackFields);
+        refreshPolicyReadoutTone();
+      }
+      function refreshPolicyReadoutTone() {
+        if (!shortcutPolicyReadout) {
+          return;
+        }
+        if (lastPolicyCopyFailed) {
+          shortcutPolicyReadout.style.color = '#7c2d12';
+          shortcutPolicyReadout.style.background = '#fff7ed';
+          shortcutPolicyReadout.style.borderRadius = '6px';
+          shortcutPolicyReadout.style.padding = '2px 6px';
+          shortcutPolicyReadout.style.borderTopColor = '#fdba74';
+          shortcutPolicyReadout.title = 'Last policy copy failed. Retry with Shift+K.';
+        } else {
+          shortcutPolicyReadout.style.color = '#334155';
+          shortcutPolicyReadout.style.background = 'transparent';
+          shortcutPolicyReadout.style.borderRadius = '';
+          shortcutPolicyReadout.style.padding = '';
+          shortcutPolicyReadout.style.borderTopColor = '#cbd5e1';
+          shortcutPolicyReadout.title = 'Current policy readout.';
+        }
       }
       function loadCopyAnnouncementPolicy() {
         const toastPolicy = readPolicyMs('data-origin-toast-cooldown-ms', copyAnnouncementPolicyDefaults.originToastCooldownMs, 'Toast');
@@ -1508,6 +1530,8 @@ function status_badge($status) {
         if (!policyText) {
           setKeyStatus(prefix + ' -> unavailable');
           showToast('Policy copy unavailable.', false);
+          lastPolicyCopyFailed = true;
+          refreshPolicyReadoutTone();
           announcePolicyCopyFailure(prefix + ' unavailable');
           return;
         }
@@ -1516,10 +1540,14 @@ function status_badge($status) {
             setKeyStatus(prefix + ' -> copied');
             showToast('Policy copied (' + policyText.length + ' chars).', false);
             flashShortcutCopyBadge('policy');
+            lastPolicyCopyFailed = false;
+            refreshPolicyReadoutTone();
             announcePolicyCopy('readout', prefix);
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy policy readout.', true);
+            lastPolicyCopyFailed = true;
+            refreshPolicyReadoutTone();
             announcePolicyCopyFailure(prefix);
           }
         });
