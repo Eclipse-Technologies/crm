@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 37)
+
+### Scope (Aria-Live Debounce)
+
+- Reduce screen-reader announcement noise by debouncing rapid hint-mode changes.
+
+### Key Changes (Aria-Live Debounce)
+
+- Added debounce state in `tasks.php` hint shell logic:
+  - `hintLiveDebounceMs = 120`
+  - `hintLiveTimer`
+- Updated `announceHintMode(...)` in `tasks.php`:
+  - rapid calls now collapse into a single delayed live-region update,
+  - final message reflects the latest mode/trigger event.
+- Kept all existing hint mode controls and persistence behavior unchanged.
+
+### Important Files (Aria-Live Debounce)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Aria-Live Debounce)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - rapid repeated `H` key presses produce a single live-region mutation,
+  - final announcement text reflects the last resulting hint mode.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 36)
 
 ### Scope (Reliable Live Destination Announcements)

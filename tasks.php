@@ -1023,6 +1023,8 @@ function status_badge($status) {
       const emptyNote = shell.querySelector('.task-audit-history-empty');
       const shortcutHintCompactText = 'Shortcuts: A S R C G H ? Esc';
       const shortcutHintDetailedText = 'Shortcuts: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Global mode, H = Hint detail, Shift+H = Compact';
+      const hintLiveDebounceMs = 120;
+      let hintLiveTimer = null;
       let isShortcutHintDetailed = false;
 
       function setShortcutHelpVisible(visible) {
@@ -1036,10 +1038,14 @@ function status_badge($status) {
         if (!hintLiveRegion) {
           return;
         }
-        hintLiveRegion.textContent = '';
-        window.setTimeout(function () {
-          hintLiveRegion.textContent = 'Hint mode: ' + modeLabel + '. Trigger: ' + triggerLabel + '.';
-        }, 0);
+        const message = 'Hint mode: ' + modeLabel + '. Trigger: ' + triggerLabel + '.';
+        if (hintLiveTimer) {
+          window.clearTimeout(hintLiveTimer);
+        }
+        hintLiveTimer = window.setTimeout(function () {
+          hintLiveRegion.textContent = message;
+          hintLiveTimer = null;
+        }, hintLiveDebounceMs);
       }
 
       function setShortcutHintDetailed(detailed) {
