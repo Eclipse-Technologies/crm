@@ -1071,16 +1071,36 @@ function status_badge($status) {
         }
       }
 
-      function resetHintToCompact(statusText, triggerLabel) {
-        if (!isShortcutHintDetailed) {
+      function applyHintModeTransition(nextDetailed, options) {
+        const targetDetailed = Boolean(nextDetailed);
+        const opts = options || {};
+        if (targetDetailed === isShortcutHintDetailed) {
+          if (opts.noChangeStatusText) {
+            setKeyStatus(opts.noChangeStatusText);
+          }
           return false;
         }
-        setShortcutHintDetailed(false);
-        setStoredAuditHintMode(taskId, 'compact');
-        announceHintMode('Compact', triggerLabel || 'reset');
-        setKeyStatus(statusText);
-        showToast('Shortcut hint reset to compact.', false);
+
+        setShortcutHintDetailed(targetDetailed);
+        setStoredAuditHintMode(taskId, targetDetailed ? 'detailed' : 'compact');
+        announceHintMode(targetDetailed ? 'Detailed' : 'Compact', opts.triggerLabel || 'mode change');
+
+        if (opts.statusText) {
+          setKeyStatus(opts.statusText);
+        }
+        if (opts.toastText) {
+          showToast(opts.toastText, false);
+        }
+
         return true;
+      }
+
+      function resetHintToCompact(statusText, triggerLabel) {
+        return applyHintModeTransition(false, {
+          triggerLabel: triggerLabel || 'reset',
+          statusText: statusText,
+          toastText: 'Shortcut hint reset to compact.'
+        });
       }
 
       function setKeyStatus(text) {
@@ -1097,9 +1117,6 @@ function status_badge($status) {
       if (shortcutHintResetButton) {
         shortcutHintResetButton.addEventListener('click', function (event) {
           event.preventDefault();
-          if (!isShortcutHintDetailed) {
-            return;
-          }
           resetHintToCompact('Reset hint button -> Hint compact', 'reset button');
         });
       }
@@ -1347,11 +1364,11 @@ function status_badge($status) {
         } else if (key === 'h') {
           event.preventDefault();
           const nextDetailed = !isShortcutHintDetailed;
-          setShortcutHintDetailed(nextDetailed);
-          setStoredAuditHintMode(taskId, nextDetailed ? 'detailed' : 'compact');
-          announceHintMode(nextDetailed ? 'Detailed' : 'Compact', 'keyboard H');
-          setKeyStatus('H -> Hint ' + (nextDetailed ? 'detailed' : 'compact'));
-          showToast('Shortcut hint: ' + (nextDetailed ? 'detailed' : 'compact') + '.', false);
+          applyHintModeTransition(nextDetailed, {
+            triggerLabel: 'keyboard H',
+            statusText: 'H -> Hint ' + (nextDetailed ? 'detailed' : 'compact'),
+            toastText: 'Shortcut hint: ' + (nextDetailed ? 'detailed' : 'compact') + '.'
+          });
         } else if (key === 'escape') {
           event.preventDefault();
           setKeyStatus('Escape -> Close panel');

@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 39)
+
+### Scope (Centralized Hint Mode Transition)
+
+- Centralize hint mode changes so no-change suppression, persistence, announcements, key status, and toasts are applied consistently across all hint controls.
+
+### Key Changes (Centralized Hint Mode Transition)
+
+- Added shared transition helper in `tasks.php`:
+  - `applyHintModeTransition(nextDetailed, options)`
+- Refactored existing mode-changing paths to use shared helper:
+  - `H` toggle shortcut,
+  - `Shift+H` compact reset (via `resetHintToCompact` wrapper),
+  - `Reset hint` button path.
+- Preserved no-change behavior:
+  - redundant compact reset remains a no-op for aria-live and toast,
+  - key status still records `Shift+H -> Hint compact (no change)`.
+
+### Important Files (Centralized Hint Mode Transition)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Centralized Hint Mode Transition)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - compact-state `Shift+H` causes zero live-region mutations,
+  - `H` toggles to detailed with correct live message + badge,
+  - `Reset hint` returns to compact with correct live message + key status.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 38)
 
 ### Scope (Suppress Unchanged Announcements)
