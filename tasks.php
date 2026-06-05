@@ -1126,6 +1126,7 @@ function status_badge($status) {
       let policyManualHintVisible = false;
       let lastPolicyManualHintLiveText = '';
       let lastPolicyManualHintLiveAt = 0;
+      let policyManualHintRestoreCueAnnounced = false;
       function policyReadoutText(policy, fallbackFields) {
         let text = 'Policy: Toast ' + policy.originToastCooldownMs + 'ms | Success ' + policy.originSuccessLiveCooldownMs + 'ms | Failure ' + policy.originFailureLiveCooldownMs + 'ms | Recovery ' + policy.originRecoveryWindowMs + 'ms';
         if (Array.isArray(fallbackFields) && fallbackFields.length > 0) {
@@ -1147,11 +1148,15 @@ function status_badge($status) {
         const unavailableHint = lastPolicyCopyFailed && policyCopyFailureStreak >= 2;
         if (!unavailableHint) {
           policyManualHintDismissed = false;
+          policyManualHintRestoreCueAnnounced = false;
         }
         if (shortcutPolicyManualHint) {
           const showManualHint = unavailableHint && !policyManualHintDismissed;
           shortcutPolicyManualHint.style.display = showManualHint ? 'block' : 'none';
           policyManualHintVisible = showManualHint;
+          if (showManualHint) {
+            policyManualHintRestoreCueAnnounced = false;
+          }
         }
         if (lastPolicyCopyFailed) {
           shortcutPolicyReadout.style.color = unavailableHint ? '#7f1d1d' : '#7c2d12';
@@ -1796,6 +1801,21 @@ function status_badge($status) {
         }, hintLiveDebounceMs);
       }
 
+      function announcePolicyManualHintRestoreCue(triggerLabel) {
+        if (!hintLiveRegion || policyManualHintRestoreCueAnnounced) {
+          return;
+        }
+        const message = 'Manual hint hidden. Trigger: ' + String(triggerLabel || 'manual dismiss') + '. Press Shift+J to show it again.';
+        policyManualHintRestoreCueAnnounced = true;
+        if (hintLiveTimer) {
+          window.clearTimeout(hintLiveTimer);
+        }
+        hintLiveTimer = window.setTimeout(function () {
+          hintLiveRegion.textContent = message;
+          hintLiveTimer = null;
+        }, hintLiveDebounceMs);
+      }
+
       function getHintActionMessages(nextDetailed, triggerKey) {
         const modeLower = nextDetailed ? 'detailed' : 'compact';
         const modeTitle = nextDetailed ? 'Detailed' : 'Compact';
@@ -2067,6 +2087,7 @@ function status_badge($status) {
           setKeyStatus('Manual hint dismissed');
           showToast('Manual policy-copy hint dismissed for this panel session. Press Shift+J to show again.', false);
           announcePolicyManualHintDismissed('manual hint dismissed');
+          announcePolicyManualHintRestoreCue('manual hint dismissed');
         });
       }
 
@@ -2083,6 +2104,7 @@ function status_badge($status) {
           setKeyStatus(statusPrefix + ' hidden');
           showToast('Manual policy-copy hint hidden for this panel session. Press Shift+J to show again.', false);
           announcePolicyManualHintDismissed(triggerLabel || 'keyboard Shift+J');
+          announcePolicyManualHintRestoreCue(triggerLabel || 'keyboard Shift+J');
         } else {
           setKeyStatus(statusPrefix + ' shown');
           showToast('Manual policy-copy hint shown.', false);

@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 103)
+
+### Scope (One-Time Live Restore Cue)
+
+- Add an explicit aria-live restore reminder after manual hint hide/dismiss so keyboard recovery remains discoverable for screen-reader users.
+
+### Key Changes (One-Time Live Restore Cue)
+
+- Added `announcePolicyManualHintRestoreCue(...)` in tasks.php.
+- Added hidden-state announcement flag (`policyManualHintRestoreCueAnnounced`) to avoid repeating the same cue during one hidden cycle.
+- Reset cue flag when:
+  - escalation clears,
+  - manual hint becomes visible again.
+- Hooked restore cue emission into both hide paths:
+  - manual `Dismiss` button,
+  - `Shift+J` hide toggle path.
+
+### Important Files (One-Time Live Restore Cue)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (One-Time Live Restore Cue)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - hide path live-region message includes `Press Shift+J to show it again`,
+  - show->hide cycle re-emits the cue as expected,
+  - dismiss path emits the same restore cue.
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 102)
 
 ### Scope (Restore Cue on Manual-Hint Hide/Dismiss)
