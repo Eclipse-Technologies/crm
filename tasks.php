@@ -1771,7 +1771,7 @@ function status_badge($status) {
         if (!hintLiveRegion) {
           return;
         }
-        const message = 'Policy manual copy hint shown. Trigger: ' + String(triggerLabel || 'policy copy escalation') + '. Select policy text, then press Ctrl+C.';
+        const message = 'Policy manual copy hint shown. Trigger: ' + String(triggerLabel || 'policy copy escalation') + '. Select policy text, then press Ctrl+C. Press Shift+J to hide this hint.';
         const nowMs = Date.now();
         if (message === lastPolicyManualHintLiveText && (nowMs - lastPolicyManualHintLiveAt) < copyAnnouncementPolicy.originFailureLiveCooldownMs) {
           return;

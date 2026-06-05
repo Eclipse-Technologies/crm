@@ -3,6 +3,31 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 104)
+
+### Scope (Shown-State Live Symmetry)
+
+- Make manual-hint live messaging symmetrical by adding hide-key guidance when the hint is announced as shown.
+
+### Key Changes (Shown-State Live Symmetry)
+
+- Updated `announcePolicyManualHintVisible(...)` aria-live text in tasks.php.
+- Added explicit hide guidance to shown-state live message: `Press Shift+J to hide this hint.`
+- Kept all existing cooldown, gating, and trigger-label behavior unchanged.
+
+### Important Files (Shown-State Live Symmetry)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Shown-State Live Symmetry)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed shown-state live output contains both:
+  - `press Ctrl+C` copy guidance,
+  - `Press Shift+J to hide this hint` hide guidance.
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 103)
 
 ### Scope (One-Time Live Restore Cue)
