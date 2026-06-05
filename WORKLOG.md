@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 65)
+
+### Scope (Ctrl+Y Source+Filter Copy)
+
+- Add `Ctrl+Y` shortcut to copy source label plus current filter mode for reporting context.
+
+### Key Changes (Ctrl+Y Source+Filter Copy)
+
+- Added `buildSourceFilterSnapshot()` in `tasks.php` client logic:
+  - captures current source label
+  - captures active filter label (`All Events` / `Status Changes`)
+- Added pre-guard keydown branch to handle `Ctrl+Y` before generic modifier-key return path.
+- Wired `Ctrl+Y` to copy `Source: ... | Filter: ...` payload and show source/filter-specific success toast.
+- Updated shortcut guidance in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`):
+  - cheatline text
+  - compact/detailed hint strings
+  - shortcut help mapping
+- Updated keyboard source tooltip shortcut list to include `Ctrl+Y`.
+
+### Important Files (Ctrl+Y Source+Filter Copy)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Ctrl+Y Source+Filter Copy)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - cheatline/help include `Ctrl+Y`,
+  - `Ctrl+Y` updates key status with source+filter action,
+  - toast shows copied `Source: ... | Filter: ...` payload.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 64)
 
 ### Scope (Snapshot Toast Length Suffix)
