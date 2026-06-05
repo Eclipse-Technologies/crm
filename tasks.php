@@ -1522,7 +1522,7 @@ function status_badge($status) {
         if (!hintLiveRegion) {
           return;
         }
-        const message = 'Origin copy failed. Trigger: ' + String(triggerLabel || 'copy action') + '.';
+        const message = 'Origin copy failed. Trigger: ' + String(triggerLabel || 'copy action') + '. Try again or use Origin chip.';
         const nowMs = Date.now();
         if (message === lastOriginFailureLiveText && (nowMs - lastOriginFailureLiveAt) < originFailureLiveCooldownMs) {
           return;

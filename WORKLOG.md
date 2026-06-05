@@ -3,6 +3,32 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 83)
+
+### Scope (Failure Live Recovery Hint)
+
+- Add a concise recovery hint to origin-copy failure aria-live announcements so assistive-tech users get immediate next-step guidance.
+
+### Key Changes (Failure Live Recovery Hint)
+
+- Updated `announceOriginCopyFailure(triggerLabel)` in `tasks.php` to append:
+  - `Try again or use Origin chip.`
+- Applied uniformly across both failure triggers that already route through this helper:
+  - `O` origin copy failure
+  - `Shift+O` origin-context copy failure
+- Kept failure cooldown/dedup behavior unchanged.
+
+### Important Files (Failure Live Recovery Hint)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Failure Live Recovery Hint)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` (forced clipboard failure) confirmed live-region messages now include recovery hint for both `O` and `Shift+O` failure paths.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 82)
 
 ### Scope (Failure Aria-Live Cooldown)
