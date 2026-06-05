@@ -34,6 +34,20 @@ function statusLabel(string $status): string {
     return $labels[$status] ?? ucfirst($status);
 }
 
+function classifyStatusDiffTone(string $fromStatus, string $toStatus): string {
+    $terminalStatuses = ['completed', 'archived'];
+    $from = trim((string) $fromStatus);
+    $to = trim((string) $toStatus);
+
+    if ($from !== '' && $to !== '' && !in_array($from, $terminalStatuses, true) && in_array($to, $terminalStatuses, true)) {
+        return 'closed';
+    }
+    if ($from !== '' && $to !== '' && in_array($from, $terminalStatuses, true) && !in_array($to, $terminalStatuses, true)) {
+        return 'reopened';
+    }
+    return 'progress';
+}
+
 function fetchLatestTaskAuditPreview(string $taskId): ?array {
     if ($taskId === '' || !function_exists('get_mysql_connection')) {
         return null;
@@ -103,6 +117,14 @@ function fetchTaskAuditHistory(string $taskId, int $limit = 3): array {
                     'status' => trim((string) ($row['status'] ?? '')),
                     'status_diff' => extractStatusDiffFromChanges((string) ($row['changes'] ?? '')),
                 ];
+                [$statusFrom, $statusTo] = extractStatusDiffPartsFromChanges((string) ($row['changes'] ?? ''));
+                $index = count($entries) - 1;
+                $entries[$index]['status_from'] = $statusFrom;
+                $entries[$index]['status_to'] = $statusTo;
+                $entries[$index]['status_diff_label'] = ($statusFrom !== '' || $statusTo !== '')
+                    ? statusLabel($statusFrom) . ' -> ' . statusLabel($statusTo)
+                    : '';
+                $entries[$index]['status_diff_tone'] = classifyStatusDiffTone($statusFrom, $statusTo);
             }
             $result->free();
         }
@@ -132,6 +154,21 @@ function extractStatusDiffFromChanges($changesRaw): string {
     }
 
     return $old . ' -> ' . $new;
+}
+
+function extractStatusDiffPartsFromChanges($changesRaw): array {
+    if (!is_string($changesRaw) || trim($changesRaw) === '') {
+        return ['', ''];
+    }
+
+    $decoded = json_decode($changesRaw, true);
+    if (!is_array($decoded) || !isset($decoded['status']) || !is_array($decoded['status'])) {
+        return ['', ''];
+    }
+
+    $old = trim((string) ($decoded['status']['old'] ?? ''));
+    $new = trim((string) ($decoded['status']['new'] ?? ''));
+    return [$old, $new];
 }
 
 function redirectTaskStatus(string $status = 'updated', string $returnQuery = ''): void {

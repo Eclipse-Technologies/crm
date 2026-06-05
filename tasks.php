@@ -7,6 +7,54 @@ function normalizeTaskValue($value): string {
   return strtolower(trim((string) $value));
 }
 
+function taskStatusLabel(string $status): string {
+  $labels = [
+    'not_started' => 'Not Started',
+    'in_progress' => 'In Progress',
+    'waiting' => 'Waiting/Blocked',
+    'review' => 'Review',
+    'completed' => 'Completed',
+    'archived' => 'Archived',
+  ];
+
+  $normalized = normalizeTaskValue($status);
+  if ($normalized === '') {
+    return '';
+  }
+
+  return $labels[$normalized] ?? ucwords(str_replace('_', ' ', $normalized));
+}
+
+function classifyStatusDiffTone(string $fromStatus, string $toStatus): string {
+  $terminalStatuses = ['completed', 'archived'];
+  $from = normalizeTaskValue($fromStatus);
+  $to = normalizeTaskValue($toStatus);
+
+  if ($to === '' && $from === '') {
+    return 'neutral';
+  }
+
+  if (!in_array($from, $terminalStatuses, true) && in_array($to, $terminalStatuses, true)) {
+    return 'closed';
+  }
+
+  if (in_array($from, $terminalStatuses, true) && !in_array($to, $terminalStatuses, true) && $to !== '') {
+    return 'reopened';
+  }
+
+  return 'progress';
+}
+
+function statusDiffToneStyle(string $tone): string {
+  if ($tone === 'closed') {
+    return 'color:#7c2d12;';
+  }
+  if ($tone === 'reopened') {
+    return 'color:#1d4ed8;';
+  }
+  return 'color:#0f766e;';
+}
+
 function isTaskOpenStatus(string $status): bool {
   return !in_array($status, ['completed', 'archived'], true);
 }
@@ -103,6 +151,21 @@ function extractStatusDiffFromChanges($changesRaw): string {
   return $old . ' -> ' . $new;
 }
 
+function extractStatusDiffPartsFromChanges($changesRaw): array {
+  if (!is_string($changesRaw) || trim($changesRaw) === '') {
+    return ['', ''];
+  }
+
+  $decoded = json_decode($changesRaw, true);
+  if (!is_array($decoded) || !isset($decoded['status']) || !is_array($decoded['status'])) {
+    return ['', ''];
+  }
+
+  $old = trim((string) ($decoded['status']['old'] ?? ''));
+  $new = trim((string) ($decoded['status']['new'] ?? ''));
+  return [$old, $new];
+}
+
 function fetchTaskAuditHistories(array $taskIds, int $limitPerTask = 3): array {
   $taskIds = array_values(array_unique(array_filter(array_map(static function ($id) {
     return trim((string) $id);
@@ -152,6 +215,14 @@ function fetchTaskAuditHistories(array $taskIds, int $limitPerTask = 3): array {
           'status' => trim((string) ($row['status'] ?? '')),
           'status_diff' => extractStatusDiffFromChanges((string) ($row['changes'] ?? '')),
         ];
+        [$statusFrom, $statusTo] = extractStatusDiffPartsFromChanges((string) ($row['changes'] ?? ''));
+        $historyIndex = count($historyMap[$entityId]) - 1;
+        $historyMap[$entityId][$historyIndex]['status_from'] = $statusFrom;
+        $historyMap[$entityId][$historyIndex]['status_to'] = $statusTo;
+        $historyMap[$entityId][$historyIndex]['status_diff_label'] = ($statusFrom !== '' || $statusTo !== '')
+          ? taskStatusLabel($statusFrom) . ' -> ' . taskStatusLabel($statusTo)
+          : '';
+        $historyMap[$entityId][$historyIndex]['status_diff_tone'] = classifyStatusDiffTone($statusFrom, $statusTo);
       }
       $result->free();
     }
@@ -178,6 +249,8 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     $action = trim((string) ($entry['action'] ?? ''));
     $status = trim((string) ($entry['status'] ?? ''));
     $statusDiff = trim((string) ($entry['status_diff'] ?? ''));
+    $statusDiffLabel = trim((string) ($entry['status_diff_label'] ?? ''));
+    $statusDiffTone = trim((string) ($entry['status_diff_tone'] ?? ''));
 
     $metaParts = [];
     if ($timestamp !== '') {
@@ -196,7 +269,9 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     $items .= '<li style="margin:0 0 8px 0;">'
       . '<div style="font-size:12px;font-weight:600;color:#111827;">' . htmlspecialchars($summary) . '</div>'
       . '<div style="font-size:11px;color:#6b7280;">' . htmlspecialchars(implode(' | ', $metaParts)) . '</div>'
-      . ($statusDiff !== '' ? '<div style="font-size:11px;color:#0f766e;">status: ' . htmlspecialchars($statusDiff) . '</div>' : '')
+        . ($statusDiff !== ''
+          ? '<div style="font-size:11px;' . statusDiffToneStyle($statusDiffTone) . '">status: ' . htmlspecialchars($statusDiffLabel !== '' ? $statusDiffLabel : $statusDiff) . '</div>'
+          : '')
       . '</li>';
   }
 
@@ -576,6 +651,41 @@ function status_badge($status) {
       return '<div style="font-size:12px;color:#6b7280;">No audit history available for this task.</div>';
     }
 
+    function toStatusLabel(status) {
+      const key = String(status || '').trim();
+      if (!key) {
+        return '';
+      }
+      if (statusLabels[key]) {
+        return statusLabels[key];
+      }
+      return key.replace(/_/g, ' ').replace(/\b\w/g, function (match) { return match.toUpperCase(); });
+    }
+
+    function classifyTone(fromStatus, toStatus) {
+      const terminal = ['completed', 'archived'];
+      const fromKey = String(fromStatus || '').trim();
+      const toKey = String(toStatus || '').trim();
+
+      if (fromKey && toKey && !terminal.includes(fromKey) && terminal.includes(toKey)) {
+        return 'closed';
+      }
+      if (fromKey && toKey && terminal.includes(fromKey) && !terminal.includes(toKey)) {
+        return 'reopened';
+      }
+      return 'progress';
+    }
+
+    function toneColor(tone) {
+      if (tone === 'closed') {
+        return '#7c2d12';
+      }
+      if (tone === 'reopened') {
+        return '#1d4ed8';
+      }
+      return '#0f766e';
+    }
+
     const items = entries.map(function (entry) {
       const summary = String(entry && entry.summary ? entry.summary : '').trim() || 'Task activity logged';
       const timestamp = String(entry && entry.timestamp ? entry.timestamp : '').trim();
@@ -583,6 +693,10 @@ function status_badge($status) {
       const action = String(entry && entry.action ? entry.action : '').trim();
       const status = String(entry && entry.status ? entry.status : '').trim();
       const statusDiff = String(entry && entry.status_diff ? entry.status_diff : '').trim();
+      const statusFrom = String(entry && entry.status_from ? entry.status_from : '').trim();
+      const statusTo = String(entry && entry.status_to ? entry.status_to : '').trim();
+      const explicitLabel = String(entry && entry.status_diff_label ? entry.status_diff_label : '').trim();
+      const explicitTone = String(entry && entry.status_diff_tone ? entry.status_diff_tone : '').trim();
       const metaParts = [];
 
       if (timestamp) {
@@ -598,10 +712,23 @@ function status_badge($status) {
         metaParts.push(status);
       }
 
+      let diffLabel = explicitLabel;
+      if (!diffLabel && statusDiff) {
+        const parts = statusDiff.split('->').map(function (p) { return p.trim(); });
+        if (parts.length === 2) {
+          diffLabel = toStatusLabel(parts[0]) + ' -> ' + toStatusLabel(parts[1]);
+        }
+      }
+      if (!diffLabel && (statusFrom || statusTo)) {
+        diffLabel = toStatusLabel(statusFrom) + ' -> ' + toStatusLabel(statusTo);
+      }
+
+      const diffTone = explicitTone || classifyTone(statusFrom, statusTo);
+
       return '<li style="margin:0 0 8px 0;">' +
         '<div style="font-size:12px;font-weight:600;color:#111827;">' + escapeHtml(summary) + '</div>' +
         '<div style="font-size:11px;color:#6b7280;">' + escapeHtml(metaParts.join(' | ')) + '</div>' +
-        (statusDiff ? ('<div style="font-size:11px;color:#0f766e;">status: ' + escapeHtml(statusDiff) + '</div>') : '') +
+        ((statusDiff || diffLabel) ? ('<div style="font-size:11px;color:' + toneColor(diffTone) + ';">status: ' + escapeHtml(diffLabel || statusDiff) + '</div>') : '') +
       '</li>';
     }).join('');
 

@@ -3,6 +3,36 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 8)
+
+### Scope (Readable Diff Labels + Visual Tone)
+
+- Improve audit diff readability by converting raw status keys to human labels and adding tone-based color signals for transition type.
+
+### Key Changes (Readable Diff Labels + Visual Tone)
+
+- Updated `tasks.php` server-side history shaping to add structured status transition fields for each task audit item:
+  - `status_from`,
+  - `status_to`,
+  - `status_diff_label` (human-readable, e.g. `In Progress -> Review`),
+  - `status_diff_tone` (`progress`, `closed`, `reopened`).
+- Added helper logic in `tasks.php` to classify transition tone and apply corresponding render style.
+- Updated `tasks.php` history renderers (PHP + JS) to display human-friendly status diff labels and tone-based color styling.
+- Updated `update_task_status.php` AJAX history payload generation to include the same structured transition fields, keeping no-reload updates consistent with initial server render.
+
+### Important Files (Readable Diff Labels + Visual Tone)
+
+- tasks.php
+- update_task_status.php
+- WORKLOG.md
+
+### Validation (Readable Diff Labels + Visual Tone)
+
+- `php -l tasks.php` passed.
+- `php -l update_task_status.php` passed.
+- VS Code diagnostics report no errors in both files.
+- Runtime validation on `tasks.php` confirms expanded history rows show label-based diffs (e.g., `Waiting/Blocked -> Review`) with tone color styling.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 7)
 
 ### Scope (Audit History Diff Clarity)
