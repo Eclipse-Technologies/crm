@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 106)
+
+### Scope (Inline Manual-Hint Restore Control)
+
+- Add an inline restore control for escalated hidden-hint state so recovery is available via UI, not only keyboard.
+
+### Key Changes (Inline Manual-Hint Restore Control)
+
+- Added `Show manual hint (Shift+J)` control (`.js-audit-policy-manual-restore`) in both audit-history render paths in tasks.php.
+- Wired restore-control visibility to hidden escalated state in `refreshPolicyReadoutTone()`:
+  - hidden + escalated: restore control shown,
+  - otherwise: restore control hidden.
+- Added restore-control click handler:
+  - validates escalated mode,
+  - restores manual hint when dismissed,
+  - updates key status and toast,
+  - emits shown-state aria-live message via existing announcer.
+
+### Important Files (Inline Manual-Hint Restore Control)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Inline Manual-Hint Restore Control)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - restore control hidden before manual-hint hide,
+  - restore control appears after hide,
+  - activating restore control shows manual hint and hides restore control,
+  - key status reports `Restore button -> Manual hint shown`.
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 105)
 
 ### Scope (Restore-Cue Live Cooldown)
