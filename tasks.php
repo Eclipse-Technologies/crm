@@ -270,9 +270,9 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     $items .= '<li data-has-diff="' . ($hasStatusDiff ? '1' : '0') . '" style="margin:0 0 8px 0;">'
       . '<div style="font-size:12px;font-weight:600;color:#111827;">' . htmlspecialchars($summary) . '</div>'
       . '<div style="font-size:11px;color:#6b7280;">' . htmlspecialchars(implode(' | ', $metaParts)) . '</div>'
-        . ($statusDiff !== ''
-          ? '<div style="font-size:11px;' . statusDiffToneStyle($statusDiffTone) . '">status: ' . htmlspecialchars($statusDiffLabel !== '' ? $statusDiffLabel : $statusDiff) . '</div>'
-          : '')
+      . ($statusDiff !== ''
+        ? '<div style="font-size:11px;' . statusDiffToneStyle($statusDiffTone) . '">status: ' . htmlspecialchars($statusDiffLabel !== '' ? $statusDiffLabel : $statusDiff) . '</div>'
+        : '')
       . '</li>';
   }
 
@@ -295,7 +295,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M Shift+M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>'
     . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, Shift+H = Reset hint compact, M = Toggle hint toasts mute, Shift+M = Unmute hint toasts, Reset hint button = Compact, ? = Toggle this help.</div>'
     . '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>'
-    . '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;">Shortcut state: Hint Compact | Toasts On | Source Session</div>'
+    . '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;"><span class="js-audit-shortcut-state-base">Shortcut state: Hint Compact | Toasts On | Source Session</span><span class="js-audit-source-freshness" style="display:none;color:#64748b;opacity:1;transition:opacity .8s ease;"> | just now</span></div>'
     . '<div class="js-audit-hint-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Hint mode: Compact</div>'
     . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
     . '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>'
@@ -962,7 +962,7 @@ function status_badge($status) {
       '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M Shift+M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>' +
       '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, Shift+H = Reset hint compact, M = Toggle hint toasts mute, Shift+M = Unmute hint toasts, Reset hint button = Compact, ? = Toggle this help.</div>' +
       '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>' +
-      '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;">Shortcut state: Hint Compact | Toasts On | Source Session</div>' +
+      '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;"><span class="js-audit-shortcut-state-base">Shortcut state: Hint Compact | Toasts On | Source Session</span><span class="js-audit-source-freshness" style="display:none;color:#64748b;opacity:1;transition:opacity .8s ease;"> | just now</span></div>' +
       '<div class="js-audit-hint-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Hint mode: Compact</div>' +
       '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
       '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>' +
@@ -1050,6 +1050,8 @@ function status_badge($status) {
       const shortcutHelp = shell.querySelector('.js-audit-shortcut-help');
       const keyStatus = shell.querySelector('.js-audit-key-status');
       const shortcutStateSummary = shell.querySelector('.js-audit-shortcut-state');
+      const shortcutStateBase = shell.querySelector('.js-audit-shortcut-state-base');
+      const shortcutStateFreshness = shell.querySelector('.js-audit-source-freshness');
       const hintLiveRegion = shell.querySelector('.js-audit-hint-live');
       const rows = shell.querySelectorAll('.task-audit-history-list li');
       const emptyNote = shell.querySelector('.task-audit-history-empty');
@@ -1060,7 +1062,9 @@ function status_badge($status) {
       let isShortcutHintDetailed = false;
       let lastSettingSource = 'Session';
       let lastSettingFreshness = '';
-      let lastSettingFreshnessTimer = null;
+      let lastSettingFreshnessFading = false;
+      let lastSettingFreshnessFadeTimer = null;
+      let lastSettingFreshnessClearTimer = null;
 
       function setShortcutHelpVisible(visible) {
         if (!shortcutHelp) {
@@ -1174,21 +1178,48 @@ function status_badge($status) {
         }
         const hintLabel = isShortcutHintDetailed ? 'Detailed' : 'Compact';
         const toastMuted = isHintToastMuted(taskId);
-        const freshnessSuffix = lastSettingFreshness ? (' | ' + lastSettingFreshness) : '';
-        shortcutStateSummary.textContent = 'Shortcut state: Hint ' + hintLabel + ' | Toasts ' + (toastMuted ? 'Muted' : 'On') + ' | Source ' + lastSettingSource + freshnessSuffix;
+        const summaryText = 'Shortcut state: Hint ' + hintLabel + ' | Toasts ' + (toastMuted ? 'Muted' : 'On') + ' | Source ' + lastSettingSource;
+        if (shortcutStateBase) {
+          shortcutStateBase.textContent = summaryText;
+        } else {
+          shortcutStateSummary.textContent = summaryText;
+        }
+        if (shortcutStateFreshness) {
+          if (lastSettingFreshness) {
+            shortcutStateFreshness.style.display = 'inline-block';
+            shortcutStateFreshness.textContent = ' | ' + lastSettingFreshness;
+            shortcutStateFreshness.style.opacity = lastSettingFreshnessFading ? '0' : '1';
+          } else {
+            shortcutStateFreshness.style.display = 'none';
+            shortcutStateFreshness.style.opacity = '1';
+          }
+        }
         shortcutStateSummary.style.color = toastMuted ? '#7c2d12' : '#475569';
       }
 
       function markSettingFreshness() {
         lastSettingFreshness = 'just now';
+        lastSettingFreshnessFading = false;
         refreshShortcutStateSummary();
-        if (lastSettingFreshnessTimer) {
-          window.clearTimeout(lastSettingFreshnessTimer);
+        if (lastSettingFreshnessFadeTimer) {
+          window.clearTimeout(lastSettingFreshnessFadeTimer);
         }
-        lastSettingFreshnessTimer = window.setTimeout(function () {
-          lastSettingFreshness = '';
+        if (lastSettingFreshnessClearTimer) {
+          window.clearTimeout(lastSettingFreshnessClearTimer);
+        }
+        lastSettingFreshnessFadeTimer = window.setTimeout(function () {
+          if (!lastSettingFreshness) {
+            return;
+          }
+          lastSettingFreshnessFading = true;
           refreshShortcutStateSummary();
-          lastSettingFreshnessTimer = null;
+        }, 2800);
+        lastSettingFreshnessClearTimer = window.setTimeout(function () {
+          lastSettingFreshness = '';
+          lastSettingFreshnessFading = false;
+          refreshShortcutStateSummary();
+          lastSettingFreshnessFadeTimer = null;
+          lastSettingFreshnessClearTimer = null;
         }, 4200);
       }
 

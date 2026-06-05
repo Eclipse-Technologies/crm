@@ -3,6 +3,42 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 50)
+
+### Scope (Freshness Fade Motion)
+
+- Add subtle fade-out motion to the `just now` freshness token in shortcut state summary.
+
+### Key Changes (Freshness Fade Motion)
+
+- Updated shortcut summary markup in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`) to split state text into:
+  - base summary span (`.js-audit-shortcut-state-base`)
+  - freshness span (`.js-audit-source-freshness`)
+- Refactored `refreshShortcutStateSummary()` to update base text separately and drive freshness visibility/opacity without replacing the whole summary node.
+- Reworked freshness timers in `markSettingFreshness()`:
+  - start visible at full opacity,
+  - switch to fading state after ~2.8s,
+  - clear freshness token after ~4.2s.
+- Added explicit fade/clear timer tracking:
+  - `lastSettingFreshnessFading`
+  - `lastSettingFreshnessFadeTimer`
+  - `lastSettingFreshnessClearTimer`
+
+### Important Files (Freshness Fade Motion)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Freshness Fade Motion)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - freshness token displays as `| just now` at opacity 1 after a setting change,
+  - token transitions toward opacity 0 during fade window,
+  - token hides (`display:none`) after clear timeout,
+  - base summary remains stable and accurate after token removal.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 49)
 
 ### Scope (Shortcut Freshness Token)
