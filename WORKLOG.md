@@ -3,6 +3,28 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Tasks Route Compatibility Fix
+
+### Scope
+
+- Restore expected behavior when opening `task.php` by adding a compatibility entrypoint that forwards to the canonical tasks page.
+
+### Key Changes
+
+- Added new [task.php](task.php) as a lightweight redirect shim to [tasks.php](tasks.php).
+- Preserved query strings during redirect so existing links/bookmarks with filters continue to work.
+
+### Important Files
+
+- task.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l task.php` passed.
+- `php -l tasks.php` passed.
+- Browser check confirmed `http://localhost:8010/task.php` lands on [tasks.php](tasks.php) and renders task rows.
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 111)
 
 ### Scope (Help Text Discoverability Parity)
