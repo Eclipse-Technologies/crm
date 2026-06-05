@@ -3,6 +3,41 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 43)
+
+### Scope (M Shortcut + Discoverability)
+
+- Add keyboard shortcut `M` to toggle per-row hint-toast mute on the focused history panel.
+- Update hint/cheat/help copy so mute controls are clearly discoverable.
+
+### Key Changes (M Shortcut + Discoverability)
+
+- Updated `tasks.php` shortcut copy (server-rendered and JS-rendered):
+  - cheat line includes `M`,
+  - compact/detailed shortcut hint strings include `M`,
+  - shortcut help includes `M = Toggle hint toasts mute`.
+- Added shared helper in `tasks.php`:
+  - `applyHintToastMuteToggle(statusPrefix)`
+  - reused by both mute button click path and new keyboard path.
+- Extended focused-shell keyboard handling in `tasks.php`:
+  - `M` toggles mute/unmute,
+  - key status updates (`M -> Hint toasts muted/unmuted`),
+  - existing mute toggle UI/chip state updates remain in sync.
+
+### Important Files (M Shortcut + Discoverability)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (M Shortcut + Discoverability)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - cheat/hint/help text all include `M`,
+  - pressing `M` toggles muted chip visibility and toggle label,
+  - key status reflects muted/unmuted states correctly.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 42)
 
 ### Scope (Muted State Chip)
