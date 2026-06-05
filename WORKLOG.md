@@ -3,6 +3,40 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 3)
+
+### Scope (Inline Status Actions + Traceability)
+
+- Add fast status-change controls directly in the task list while enforcing CSRF validation and writing structured audit entries for traceability.
+
+### Key Changes (Inline Status Actions + Traceability)
+
+- Updated `tasks.php` to render per-row inline status update controls in the Actions column:
+  - status dropdown,
+  - Save button,
+  - CSRF token per form.
+- Added filter-preserving return query support so inline updates return users to their active task view/status/assignee context.
+- Added new `update_task_status.php` endpoint to process inline updates safely:
+  - POST-only guard,
+  - CSRF validation,
+  - allowed-status validation,
+  - task existence check,
+  - status update via `update_task_mysql(...)`.
+- Added audit logging for inline status updates via `logAuditAction(...)` with old/new status values and success/failed state.
+
+### Important Files (Inline Status Actions + Traceability)
+
+- tasks.php
+- update_task_status.php
+- WORKLOG.md
+
+### Validation (Inline Status Actions + Traceability)
+
+- `php -l tasks.php` passed.
+- `php -l update_task_status.php` passed.
+- VS Code diagnostics report no errors in both files.
+- Runtime verification on `tasks.php?view=all` confirms inline status dropdown + Save controls render per row.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 2)
 
 ### Scope (Task View Defaults + Persistence)

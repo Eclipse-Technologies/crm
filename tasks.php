@@ -111,6 +111,18 @@ foreach ($filteredTasks as $task) {
   }
 }
 
+$returnQueryParams = [];
+if ($viewFilter !== '' && $viewFilter !== $defaultView) {
+  $returnQueryParams['view'] = $viewFilter;
+}
+if ($statusFilter !== '' && $statusFilter !== 'all') {
+  $returnQueryParams['status'] = $statusFilter;
+}
+if ($assigneeFilter !== '') {
+  $returnQueryParams['assignee'] = $assigneeFilter;
+}
+$returnQuery = http_build_query($returnQueryParams);
+
 // Status badge colors
 $statusColors = [
     'not_started' => '#f8d7da',
@@ -237,6 +249,20 @@ function status_badge($status) {
             <?php endif; ?>
           </td>
           <td>
+            <form method="POST" action="update_task_status.php" style="display:inline-flex;align-items:center;gap:6px;margin-right:8px;">
+              <?php renderCSRFInput(); ?>
+              <input type="hidden" name="id" value="<?= htmlspecialchars((string) $task['id']) ?>">
+              <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
+              <select name="status" style="padding:4px 6px;border-radius:6px;border:1px solid #d1d5db;font-size:12px;">
+                <option value="not_started" <?= ($task['status'] ?? '') === 'not_started' ? 'selected' : '' ?>>Not Started</option>
+                <option value="in_progress" <?= ($task['status'] ?? '') === 'in_progress' ? 'selected' : '' ?>>In Progress</option>
+                <option value="waiting" <?= ($task['status'] ?? '') === 'waiting' ? 'selected' : '' ?>>Waiting/Blocked</option>
+                <option value="review" <?= ($task['status'] ?? '') === 'review' ? 'selected' : '' ?>>Review</option>
+                <option value="completed" <?= ($task['status'] ?? '') === 'completed' ? 'selected' : '' ?>>Completed</option>
+                <option value="archived" <?= ($task['status'] ?? '') === 'archived' ? 'selected' : '' ?>>Archived</option>
+              </select>
+              <button type="submit" style="background:#0f766e;color:#fff;border:none;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;">Save</button>
+            </form>
             <a href="edit_task.php?id=<?= urlencode($task['id']) ?>" style="color:#007489;font-weight:600;">Edit</a> |
             <form method="POST" action="delete_task.php" style="display:inline;" onsubmit="return confirm('Delete this task?');">
               <?php renderCSRFInput(); ?>
