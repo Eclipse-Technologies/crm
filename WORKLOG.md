@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 89)
+
+### Scope (Runtime Policy Reload Shortcut)
+
+- Add an in-panel keyboard path to reload copy-announcement policy values from shell data attributes without closing/reopening the audit panel.
+
+### Key Changes (Runtime Policy Reload Shortcut)
+
+- Added `Shift+P` shortcut in `tasks.php` audit shell key handling to reload policy timing values from shell attributes at runtime.
+- Refactored policy setup into `loadCopyAnnouncementPolicy()` with mutable `copyAnnouncementPolicy` state so reloading updates active cooldown/recovery behavior immediately.
+- Added toast feedback and key-status update for `Shift+P` reload action.
+- Updated shortcut surfaces in both PHP and JS render paths for parity:
+  - cheatline,
+  - compact shortcut hint,
+  - detailed shortcut help text,
+  - keyboard source tooltip list.
+
+### Important Files (Runtime Policy Reload Shortcut)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Runtime Policy Reload Shortcut)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - `Shift+P` updates key status to policy reload,
+  - reload toast appears with timing values,
+  - after setting `data-origin-success-live-cooldown-ms="0"` and pressing `Shift+P`, rapid repeated `O` triggers multiple live-region mutations (dedup disabled as expected).
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 88)
 
 ### Scope (Data-Attribute Policy Tuning)
