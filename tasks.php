@@ -1084,6 +1084,9 @@ function status_badge($status) {
       let lastOriginToastText = '';
       let lastOriginToastAt = 0;
       const originToastCooldownMs = 550;
+      let lastOriginFailureLiveText = '';
+      let lastOriginFailureLiveAt = 0;
+      const originFailureLiveCooldownMs = 700;
 
       function sourcePulseAccent(sourceLabel) {
         if (sourceLabel === 'Keyboard') {
@@ -1520,6 +1523,12 @@ function status_badge($status) {
           return;
         }
         const message = 'Origin copy failed. Trigger: ' + String(triggerLabel || 'copy action') + '.';
+        const nowMs = Date.now();
+        if (message === lastOriginFailureLiveText && (nowMs - lastOriginFailureLiveAt) < originFailureLiveCooldownMs) {
+          return;
+        }
+        lastOriginFailureLiveText = message;
+        lastOriginFailureLiveAt = nowMs;
         if (hintLiveTimer) {
           window.clearTimeout(hintLiveTimer);
         }
