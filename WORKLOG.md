@@ -3,6 +3,41 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 33)
+
+### Scope (Inline Reset Hint Control)
+
+- Add a tiny clickable `Reset hint` control beside the hint mode badge to force compact mode with persistence.
+
+### Key Changes (Inline Reset Hint Control)
+
+- Updated `tasks.php` shortcut hint markup (server-rendered and JS-rendered) to include:
+  - `.js-audit-hint-reset` button next to `.js-audit-hint-mode-badge`.
+- Extended hint rendering/state helper logic in `tasks.php`:
+  - reattach/reset control when hint text rerenders,
+  - disable reset button while already in compact mode,
+  - enable it when in detailed mode.
+- Added shared compact reset helper in `tasks.php` and reused it for:
+  - existing `Shift+H` shortcut path,
+  - new `Reset hint` button click path.
+- Updated shortcut help text to include button behavior (`Reset hint button = Compact`).
+
+### Important Files (Inline Reset Hint Control)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Inline Reset Hint Control)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - reset button is disabled in compact mode,
+  - button enables in detailed mode,
+  - clicking button resets to compact and updates key status,
+  - reopened row restores compact mode,
+  - help text includes reset button guidance.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 32)
 
 ### Scope (Shift+H Compact Reset)
