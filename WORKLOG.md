@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 92)
+
+### Scope (Policy Readout Copy Shortcut)
+
+- Add one-key policy export from the audit panel so current tuning state can be copied quickly for handoff/debug notes.
+
+### Key Changes (Policy Readout Copy Shortcut)
+
+- Added `Shift+K` shortcut in `tasks.php` to copy the current policy readout text.
+- Added `copyPolicyReadout(...)` helper that copies the visible readout (fallbacks to generated readout text when needed).
+- Added `policy` badge style in shortcut copy badge feedback.
+- Updated shortcut surfaces in both render paths for parity:
+  - cheatline,
+  - compact hint,
+  - detailed shortcut help,
+  - keyboard source tooltip shortcut list.
+
+### Important Files (Policy Readout Copy Shortcut)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Policy Readout Copy Shortcut)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - help and hint include `Shift+K`,
+  - `Shift+K` copies the exact current policy readout text,
+  - key status, toast, and copy badge feedback all reflect policy-copy action.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 91)
 
 ### Scope (Invalid Policy Attribute Fallback Indicator)
