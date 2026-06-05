@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 31)
+
+### Scope (Inline Hint Mode Badge)
+
+- Add a small inline badge beside the shortcut hint showing current mode (`Hint: Compact` or `Hint: Detailed`).
+
+### Key Changes (Inline Hint Mode Badge)
+
+- Updated `tasks.php` history markup (server-rendered and JS-rendered) to include:
+  - `<span class="js-audit-hint-mode-badge">...` inside the shortcut hint line.
+- Extended `setShortcutHintDetailed(...)` in `tasks.php` to keep badge synchronized with mode changes:
+  - text updates to compact/detailed,
+  - tone colors update for clearer state visibility.
+- Preserved per-row persisted hint mode behavior from Slice 30 so badge state restores when rows reopen.
+
+### Important Files (Inline Hint Mode Badge)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Inline Hint Mode Badge)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - badge renders in shortcut hint line,
+  - pressing `H` toggles badge text and hint mode,
+  - reopening row restores persisted mode and matching badge text.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 30)
 
 ### Scope (Persist Hint Mode Per Row)
