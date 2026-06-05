@@ -3,6 +3,40 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 100)
+
+### Scope (Session-Local Manual Hint Dismiss)
+
+- Add a non-destructive, per-panel-session dismiss control for the escalated manual-copy fallback hint.
+
+### Key Changes (Session-Local Manual Hint Dismiss)
+
+- Added `Dismiss` control inside `.js-audit-policy-manual-hint` in both render paths in tasks.php.
+- Added session-local dismissed state (`policyManualHintDismissed`) in panel wiring.
+- Updated manual-hint visibility logic:
+  - when escalated unavailable mode is active, show hint only if not dismissed,
+  - keep hint dismissed for subsequent failures in the same panel session,
+  - reset dismissed flag when escalation state clears.
+- Added dismiss action feedback:
+  - key status update,
+  - toast confirmation,
+  - aria-live dismissal announcement (`announcePolicyManualHintDismissed(...)`).
+
+### Important Files (Session-Local Manual Hint Dismiss)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Session-Local Manual Hint Dismiss)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - escalated mode shows manual hint and dismiss control,
+  - clicking dismiss hides hint,
+  - subsequent failures in the same panel session keep hint hidden,
+  - dismissal key status, toast, and aria-live message are emitted.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 99)
 
 ### Scope (Explicit Manual Copy Keystroke)
