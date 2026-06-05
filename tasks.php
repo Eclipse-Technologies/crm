@@ -3,8 +3,78 @@
 require_once 'layout_start.php';
 require_once 'tasks_mysql.php';
 
+function normalizeTaskValue($value): string {
+  return strtolower(trim((string) $value));
+}
+
+function isTaskOpenStatus(string $status): bool {
+  return !in_array($status, ['completed', 'archived'], true);
+}
+
+function isTaskAssignedToUser(array $task, string $identity): bool {
+  if ($identity === '') {
+    return false;
+  }
+
+  $assigned = normalizeTaskValue($task['assigned_to'] ?? '');
+  return $assigned !== '' && $assigned === $identity;
+}
+
 // Fetch tasks from DB
 $tasks = fetch_tasks_mysql();
+
+$currentUserIdentity = normalizeTaskValue($_SESSION['username'] ?? ($_SESSION['user_id'] ?? ''));
+$statusFilter = trim((string) ($_GET['status'] ?? 'all'));
+$viewFilter = trim((string) ($_GET['view'] ?? 'all'));
+$assigneeFilter = trim((string) ($_GET['assignee'] ?? ''));
+
+$filteredTasks = [];
+foreach ($tasks as $task) {
+  $status = (string) ($task['status'] ?? '');
+
+  if ($statusFilter !== 'all' && $statusFilter !== '' && $status !== $statusFilter) {
+    continue;
+  }
+
+  if ($viewFilter === 'my_open' && !isTaskAssignedToUser($task, $currentUserIdentity)) {
+    continue;
+  }
+
+  if ($viewFilter === 'open' && !isTaskOpenStatus($status)) {
+    continue;
+  }
+
+  if ($assigneeFilter !== '' && normalizeTaskValue($task['assigned_to'] ?? '') !== normalizeTaskValue($assigneeFilter)) {
+    continue;
+  }
+
+  $filteredTasks[] = $task;
+}
+
+$today = date('Y-m-d');
+$summary = [
+  'total' => count($filteredTasks),
+  'my_open' => 0,
+  'due_today' => 0,
+  'overdue' => 0,
+];
+
+foreach ($filteredTasks as $task) {
+  $status = (string) ($task['status'] ?? '');
+  $dueDate = trim((string) ($task['due_date'] ?? ''));
+
+  if (isTaskAssignedToUser($task, $currentUserIdentity) && isTaskOpenStatus($status)) {
+    $summary['my_open']++;
+  }
+
+  if ($dueDate === $today && isTaskOpenStatus($status)) {
+    $summary['due_today']++;
+  }
+
+  if ($dueDate !== '' && $dueDate < $today && isTaskOpenStatus($status)) {
+    $summary['overdue']++;
+  }
+}
 
 // Status badge colors
 $statusColors = [
@@ -34,6 +104,48 @@ function status_badge($status) {
 
 <div class="tasks-main-wrapper" style="max-width:1100px;margin:40px auto;padding:0 20px;">
   <h1 style="font-size:2.2em;font-weight:700;color:#222;">Tasks</h1>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:18px 0 20px 0;">
+    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;">
+      <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.4px;">Visible Tasks</div>
+      <div style="font-size:24px;font-weight:700;color:#111827;"><?= (int) $summary['total'] ?></div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;">
+      <div style="font-size:12px;color:#166534;text-transform:uppercase;letter-spacing:0.4px;">My Open Tasks</div>
+      <div style="font-size:24px;font-weight:700;color:#166534;"><?= (int) $summary['my_open'] ?></div>
+    </div>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;">
+      <div style="font-size:12px;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.4px;">Due Today</div>
+      <div style="font-size:24px;font-weight:700;color:#1d4ed8;"><?= (int) $summary['due_today'] ?></div>
+    </div>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;">
+      <div style="font-size:12px;color:#b91c1c;text-transform:uppercase;letter-spacing:0.4px;">Overdue</div>
+      <div style="font-size:24px;font-weight:700;color:#b91c1c;"><?= (int) $summary['overdue'] ?></div>
+    </div>
+  </div>
+
+  <form method="GET" action="tasks.php" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;">
+    <select name="view" style="padding:8px 10px;border-radius:6px;border:1px solid #d1d5db;">
+      <option value="all" <?= $viewFilter === 'all' ? 'selected' : '' ?>>All Tasks</option>
+      <option value="open" <?= $viewFilter === 'open' ? 'selected' : '' ?>>Open Tasks</option>
+      <option value="my_open" <?= $viewFilter === 'my_open' ? 'selected' : '' ?>>My Open Tasks</option>
+    </select>
+
+    <select name="status" style="padding:8px 10px;border-radius:6px;border:1px solid #d1d5db;">
+      <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>All Statuses</option>
+      <option value="not_started" <?= $statusFilter === 'not_started' ? 'selected' : '' ?>>Not Started</option>
+      <option value="in_progress" <?= $statusFilter === 'in_progress' ? 'selected' : '' ?>>In Progress</option>
+      <option value="waiting" <?= $statusFilter === 'waiting' ? 'selected' : '' ?>>Waiting/Blocked</option>
+      <option value="review" <?= $statusFilter === 'review' ? 'selected' : '' ?>>Review</option>
+      <option value="completed" <?= $statusFilter === 'completed' ? 'selected' : '' ?>>Completed</option>
+      <option value="archived" <?= $statusFilter === 'archived' ? 'selected' : '' ?>>Archived</option>
+    </select>
+
+    <input type="text" name="assignee" value="<?= htmlspecialchars($assigneeFilter) ?>" placeholder="Filter assignee" style="padding:8px 10px;border-radius:6px;border:1px solid #d1d5db;min-width:180px;">
+
+    <button type="submit" style="padding:8px 14px;border:none;border-radius:6px;background:#111827;color:#fff;font-weight:600;">Apply</button>
+    <a href="tasks.php" style="padding:8px 14px;border-radius:6px;background:#f3f4f6;color:#111827;text-decoration:none;font-weight:600;">Reset</a>
+  </form>
+
   <div style="margin-bottom:24px;">
     <form method="POST" action="add_task.php" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
       <?php renderCSRFInput(); ?>
@@ -71,7 +183,7 @@ function status_badge($status) {
       </tr>
     </thead>
     <tbody>
-      <?php foreach ($tasks as $task): ?>
+      <?php foreach ($filteredTasks as $task): ?>
         <tr>
           <td style="padding:10px 8px;"><?= htmlspecialchars($task['title']) ?></td>
           <td><?= status_badge($task['status']) ?></td>

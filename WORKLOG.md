@@ -3,6 +3,36 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 1)
+
+### Scope (Task Module UX + Reporting Quick Wins)
+
+- Deliver first concrete modernization slice from the task roadmap with lightweight reporting and assignee-aware filtering on the main tasks page.
+
+### Key Changes (Task Module UX + Reporting Quick Wins)
+
+- Updated `tasks.php` with an at-a-glance summary strip showing:
+  - visible task count,
+  - my open task count,
+  - due today count,
+  - overdue count.
+- Added filter controls on `tasks.php` for:
+  - view mode (`All`, `Open`, `My Open`),
+  - status,
+  - assignee text match.
+- Implemented in-page filter application logic that preserves existing add/edit/delete task flows and does not change DB schema.
+
+### Important Files (Task Module UX + Reporting Quick Wins)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Task Module UX + Reporting Quick Wins)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms new summary cards and filter bar render and interact correctly.
+
 ## 2026-06-04 - Admin Sales Integrity Reporting and Bulk Ops Cleanup
 
 ### Scope (Admin Visibility + Interaction Safety)
