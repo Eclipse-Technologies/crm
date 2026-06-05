@@ -1203,6 +1203,16 @@ function status_badge($status) {
         return 'Source: ' + sourceLabel + ' | Hint: ' + hintLabel + ' | Toasts: ' + toastLabel;
       }
 
+      function snapshotPreviewToastText(snapshotText) {
+        const text = String(snapshotText || '').trim();
+        if (!text) {
+          return 'Snapshot copied.';
+        }
+        const maxLen = 72;
+        const safePreview = text.length > maxLen ? (text.slice(0, maxLen - 3) + '...') : text;
+        return 'Snapshot copied: ' + safePreview;
+      }
+
       function copyCurrentSourceLabel(statusPrefix, explicitPayload, successToastText, badgeMode) {
         const sourceLabel = String(lastSettingSource || '').trim();
         const prefix = String(statusPrefix || 'Glyph copy');
@@ -1836,7 +1846,7 @@ function status_badge($status) {
         } else if (key === 'y' && event.shiftKey) {
           event.preventDefault();
           const snapshot = buildRichSourceSnapshot();
-          copyCurrentSourceLabel('Shift+Y -> Copy snapshot', snapshot, 'Snapshot copied.', 'snapshot');
+          copyCurrentSourceLabel('Shift+Y -> Copy snapshot', snapshot, snapshotPreviewToastText(snapshot), 'snapshot');
         } else if (key === 'y') {
           event.preventDefault();
           copyCurrentSourceLabel('Y -> Copy source', undefined, undefined, 'copied');

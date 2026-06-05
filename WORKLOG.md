@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 63)
+
+### Scope (Snapshot Toast Preview)
+
+- Show the copied snapshot payload in the `Shift+Y` success toast with readable truncation.
+
+### Key Changes (Snapshot Toast Preview)
+
+- Added `snapshotPreviewToastText(snapshotText)` in `tasks.php` client logic.
+- Implemented safe ASCII truncation (`...`) for long snapshot payloads to keep toast output concise.
+- Updated `Shift+Y` handler path to pass the snapshot preview string as the success toast text.
+- Preserved existing copy behavior split:
+  - `Y` keeps source-only toast text,
+  - `Shift+Y` now shows snapshot content preview.
+
+### Important Files (Snapshot Toast Preview)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Snapshot Toast Preview)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - `Y` toast remains `Source copied: <Source>.`,
+  - `Shift+Y` toast now shows `Snapshot copied: Source: ... | Hint: ... | Toasts: ...`,
+  - key status remains accurate for `Shift+Y` copy action.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 62)
 
 ### Scope (Copy Badge Variants)
