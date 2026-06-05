@@ -1077,6 +1077,20 @@ function status_badge($status) {
         }, hintLiveDebounceMs);
       }
 
+      function announceHintToastMute(muted, triggerLabel) {
+        if (!hintLiveRegion) {
+          return;
+        }
+        const message = 'Hint toasts: ' + (muted ? 'Muted' : 'Unmuted') + '. Trigger: ' + triggerLabel + '.';
+        if (hintLiveTimer) {
+          window.clearTimeout(hintLiveTimer);
+        }
+        hintLiveTimer = window.setTimeout(function () {
+          hintLiveRegion.textContent = message;
+          hintLiveTimer = null;
+        }, hintLiveDebounceMs);
+      }
+
       function getHintActionMessages(nextDetailed, triggerKey) {
         const modeLower = nextDetailed ? 'detailed' : 'compact';
         const modeTitle = nextDetailed ? 'Detailed' : 'Compact';
@@ -1222,6 +1236,7 @@ function status_badge($status) {
         const muted = !isHintToastMuted(taskId);
         setHintToastMuted(taskId, muted);
         refreshHintToastToggle();
+        announceHintToastMute(muted, statusPrefix === 'M -> Hint toasts' ? 'keyboard M' : 'toggle button');
         setKeyStatus(statusPrefix + ' ' + (muted ? 'muted' : 'unmuted'));
         showToast('Hint toasts ' + (muted ? 'muted.' : 'unmuted.'), false);
       }

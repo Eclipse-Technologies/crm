@@ -3,6 +3,34 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 44)
+
+### Scope (Mute Toggle Aria-Live Feedback)
+
+- Add aria-live announcements for hint-toast mute/unmute state changes to match keyboard/button accessibility feedback.
+
+### Key Changes (Mute Toggle Aria-Live Feedback)
+
+- Added helper in `tasks.php`:
+  - `announceHintToastMute(muted, triggerLabel)`
+- Wired helper into shared mute toggle flow in `tasks.php`:
+  - announces `Hint toasts: Muted/Unmuted` for both trigger types,
+  - trigger labels distinguish `toggle button` and `keyboard M`.
+- Reused existing live-region debounce/timer behavior to avoid announcement flooding.
+
+### Important Files (Mute Toggle Aria-Live Feedback)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Mute Toggle Aria-Live Feedback)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - button mute action announces `Hint toasts: Muted. Trigger: toggle button.`,
+  - keyboard `M` action announces `Hint toasts: Unmuted. Trigger: keyboard M.`.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 43)
 
 ### Scope (M Shortcut + Discoverability)
