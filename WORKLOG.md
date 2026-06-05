@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 51)
+
+### Scope (Source Pulse Feedback)
+
+- Add a subtle pulse highlight on the shortcut-state Source value when the source label changes.
+
+### Key Changes (Source Pulse Feedback)
+
+- Refined shortcut-state markup in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`) to split source into dedicated spans:
+  - `.js-audit-shortcut-state-prefix`
+  - `.js-audit-shortcut-state-source`
+  - existing `.js-audit-source-freshness`
+- Added `pulseShortcutSource()` helper in `tasks.php` client logic:
+  - short scale-up + color/background accent pulse,
+  - timed reset to baseline style.
+- Updated `setLastSettingSource()` to pulse only when source actually changes (`previousSource !== sourceLabel`), preventing repeated pulses for same-source actions.
+- Updated shortcut summary refresh logic to compose prefix/source/freshness parts independently while preserving existing freshness fade behavior.
+
+### Important Files (Source Pulse Feedback)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Source Pulse Feedback)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - source value pulses on Session -> Keyboard transition,
+  - source pulse resets to baseline,
+  - repeated same-source keyboard action does not pulse again,
+  - freshness token behavior remains intact.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 50)
 
 ### Scope (Freshness Fade Motion)
