@@ -292,9 +292,9 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>'
     . '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
     . '</div>'
-    . '<div class="js-audit-cheatline" style="display:none;font-size:10px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;margin:0 0 6px 0;width:max-content;">Keys: A S R C G H M Y Shift+Y Ctrl+Y Shift+M ? Esc</div>'
-    . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M Y Shift+Y Ctrl+Y Shift+M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>'
-    . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, M = Toggle hint toasts mute, Y = Copy current source label, Shift+Y = Copy source/hint/toasts snapshot, Ctrl+Y = Copy source/filter/origin context, Shift+H = Reset hint compact, Shift+M = Unmute hint toasts, Reset hint button = Compact, ? = Toggle this help.</div>'
+    . '<div class="js-audit-cheatline" style="display:none;font-size:10px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;margin:0 0 6px 0;width:max-content;">Keys: A S R C G H M Y O Shift+Y Ctrl+Y Shift+M ? Esc</div>'
+    . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M Y O Shift+Y Ctrl+Y Shift+M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>'
+    . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, M = Toggle hint toasts mute, Y = Copy current source label, O = Copy current origin label, Shift+Y = Copy source/hint/toasts snapshot, Ctrl+Y = Copy source/filter/origin context, Shift+H = Reset hint compact, Shift+M = Unmute hint toasts, Reset hint button = Compact, ? = Toggle this help.</div>'
     . '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>'
     . '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 4px 0;"><span class="js-audit-shortcut-state-prefix">Shortcut state: Hint Compact | Toasts On | Source </span><button type="button" class="js-audit-shortcut-state-glyph" title="Session source marker (click to copy)" aria-label="Copy source label" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:14px;padding:0 3px;margin-right:4px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-size:9px;font-weight:700;line-height:1;cursor:pointer;">[S]</button><span class="js-audit-shortcut-copy-badge" style="display:none;align-items:center;margin-right:4px;padding:0 5px;height:14px;border-radius:999px;background:#dcfce7;color:#166534;font-size:9px;font-weight:700;line-height:1;">Copied</span><span class="js-audit-shortcut-state-source" title="Session: restored from saved row/session preferences." style="display:inline-block;transition:transform .18s ease, background-color .25s ease, color .25s ease;transform:scale(1);border-radius:6px;padding:0 2px;">Session</span><span class="js-audit-source-freshness" style="display:none;color:#64748b;opacity:1;transition:opacity .8s ease;margin-left:2px;">| just now</span></div>'
     . '<div class="js-audit-source-legend" style="display:block;font-size:10px;color:#64748b;margin:0 0 4px 0;">Legend: <span style="display:inline-flex;align-items:center;gap:3px;"><span style="width:7px;height:7px;border-radius:999px;background:#0f766e;display:inline-block;"></span>Keyboard</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#1d4ed8;display:inline-block;"></span>Button</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#7c3aed;display:inline-block;"></span>Session</span></div>'
@@ -962,9 +962,9 @@ function status_badge($status) {
         '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>' +
         '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
       '</div>' +
-      '<div class="js-audit-cheatline" style="display:none;font-size:10px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;margin:0 0 6px 0;width:max-content;">Keys: A S R C G H M Y Shift+Y Ctrl+Y Shift+M ? Esc</div>' +
-      '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M Y Shift+Y Ctrl+Y Shift+M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>' +
-      '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, M = Toggle hint toasts mute, Y = Copy current source label, Shift+Y = Copy source/hint/toasts snapshot, Ctrl+Y = Copy source/filter/origin context, Shift+H = Reset hint compact, Shift+M = Unmute hint toasts, Reset hint button = Compact, ? = Toggle this help.</div>' +
+      '<div class="js-audit-cheatline" style="display:none;font-size:10px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;margin:0 0 6px 0;width:max-content;">Keys: A S R C G H M Y O Shift+Y Ctrl+Y Shift+M ? Esc</div>' +
+      '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M Y O Shift+Y Ctrl+Y Shift+M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>' +
+      '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, M = Toggle hint toasts mute, Y = Copy current source label, O = Copy current origin label, Shift+Y = Copy source/hint/toasts snapshot, Ctrl+Y = Copy source/filter/origin context, Shift+H = Reset hint compact, Shift+M = Unmute hint toasts, Reset hint button = Compact, ? = Toggle this help.</div>' +
       '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>' +
       '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 4px 0;"><span class="js-audit-shortcut-state-prefix">Shortcut state: Hint Compact | Toasts On | Source </span><button type="button" class="js-audit-shortcut-state-glyph" title="Session source marker (click to copy)" aria-label="Copy source label" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:14px;padding:0 3px;margin-right:4px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-size:9px;font-weight:700;line-height:1;cursor:pointer;">[S]</button><span class="js-audit-shortcut-copy-badge" style="display:none;align-items:center;margin-right:4px;padding:0 5px;height:14px;border-radius:999px;background:#dcfce7;color:#166534;font-size:9px;font-weight:700;line-height:1;">Copied</span><span class="js-audit-shortcut-state-source" title="Session: restored from saved row/session preferences." style="display:inline-block;transition:transform .18s ease, background-color .25s ease, color .25s ease;transform:scale(1);border-radius:6px;padding:0 2px;">Session</span><span class="js-audit-source-freshness" style="display:none;color:#64748b;opacity:1;transition:opacity .8s ease;margin-left:2px;">| just now</span></div>' +
       '<div class="js-audit-source-legend" style="display:block;font-size:10px;color:#64748b;margin:0 0 4px 0;">Legend: <span style="display:inline-flex;align-items:center;gap:3px;"><span style="width:7px;height:7px;border-radius:999px;background:#0f766e;display:inline-block;"></span>Keyboard</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#1d4ed8;display:inline-block;"></span>Button</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#7c3aed;display:inline-block;"></span>Session</span></div>' +
@@ -1066,8 +1066,8 @@ function status_badge($status) {
       const hintLiveRegion = shell.querySelector('.js-audit-hint-live');
       const rows = shell.querySelectorAll('.task-audit-history-list li');
       const emptyNote = shell.querySelector('.task-audit-history-empty');
-      const shortcutHintCompactText = 'Shortcuts: A S R C G H M Y Shift+Y Ctrl+Y Shift+M ? Esc';
-      const shortcutHintDetailedText = 'Shortcuts: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Global mode, H = Hint detail, M = Toast mute, Y = Copy source, Shift+Y = Copy snapshot, Ctrl+Y = Copy source+filter, Shift+H = Compact, Shift+M = Unmute';
+      const shortcutHintCompactText = 'Shortcuts: A S R C G H M Y O Shift+Y Ctrl+Y Shift+M ? Esc';
+      const shortcutHintDetailedText = 'Shortcuts: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Global mode, H = Hint detail, M = Toast mute, Y = Copy source, O = Copy origin, Shift+Y = Copy snapshot, Ctrl+Y = Copy source+filter, Shift+H = Compact, Shift+M = Unmute';
       const hintLiveDebounceMs = 120;
       let hintLiveTimer = null;
       let isShortcutHintDetailed = false;
@@ -1101,7 +1101,7 @@ function status_badge($status) {
 
       function sourceTooltipText(sourceLabel) {
         if (sourceLabel === 'Keyboard') {
-          return 'Keyboard: changed with panel shortcuts (A/S/R/C/G/H/M/Y/Shift+Y/Ctrl+Y/Shift+M/?/Esc).';
+          return 'Keyboard: changed with panel shortcuts (A/S/R/C/G/H/M/Y/O/Shift+Y/Ctrl+Y/Shift+M/?/Esc).';
         }
         if (sourceLabel === 'Button') {
           return 'Button: changed with an on-panel control click.';
@@ -1307,6 +1307,21 @@ function status_badge($status) {
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy source label.', true);
+          }
+        });
+      }
+
+      function copyCurrentOriginLabel(statusPrefix) {
+        const prefix = String(statusPrefix || 'Origin copy');
+        const originLabel = currentOriginLabel();
+        copyTextToClipboard(originLabel).then(function (copied) {
+          if (copied) {
+            setKeyStatus(prefix + ' -> ' + originLabel);
+            showToast('Origin copied: ' + originLabel + '.', false);
+            flashShortcutCopyBadge('origin');
+          } else {
+            setKeyStatus(prefix + ' failed');
+            showToast('Could not copy origin label.', true);
           }
         });
       }
@@ -1643,17 +1658,7 @@ function status_badge($status) {
       if (originChip) {
         originChip.addEventListener('click', function (event) {
           event.preventDefault();
-          const originLabel = currentOriginLabel();
-          copyTextToClipboard(originLabel).then(function (copied) {
-            if (copied) {
-              setKeyStatus('Origin chip copy -> ' + originLabel);
-              showToast('Origin copied: ' + originLabel + '.', false);
-              flashShortcutCopyBadge('origin');
-            } else {
-              setKeyStatus('Origin chip copy failed');
-              showToast('Could not copy origin label.', true);
-            }
-          });
+          copyCurrentOriginLabel('Origin chip copy');
         });
       }
 
@@ -1988,6 +1993,9 @@ function status_badge($status) {
           event.preventDefault();
           const snapshot = buildRichSourceSnapshot();
           copyCurrentSourceLabel('Shift+Y -> Copy snapshot', snapshot, snapshotPreviewToastText(snapshot), 'snapshot');
+        } else if (key === 'o') {
+          event.preventDefault();
+          copyCurrentOriginLabel('O -> Copy origin');
         } else if (key === 'y') {
           event.preventDefault();
           copyCurrentSourceLabel('Y -> Copy source', undefined, undefined, 'copied');

@@ -3,6 +3,42 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 71)
+
+### Scope (Keyboard Origin Copy Shortcut)
+
+- Add keyboard shortcut `O` to copy current Origin label, matching Origin chip click behavior and copy feedback conventions.
+
+### Key Changes (Keyboard Origin Copy Shortcut)
+
+- Added reusable `copyCurrentOriginLabel(statusPrefix)` helper in `tasks.php` panel logic.
+- Wired `O` key handler in audit shell keydown flow:
+  - copies current origin label,
+  - updates key status,
+  - shows origin copy toast,
+  - triggers `Origin` badge variant.
+- Refactored Origin chip click handler to reuse `copyCurrentOriginLabel(...)` for parity.
+- Updated shortcut guidance text in both render paths:
+  - cheatline includes `O`,
+  - compact/detailed hint strings include `O`,
+  - shortcut help explains `O = Copy current origin label`.
+- Updated keyboard source tooltip shortcut list to include `O`.
+
+### Important Files (Keyboard Origin Copy Shortcut)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Keyboard Origin Copy Shortcut)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - pressing `O` copies origin and shows `Origin copied: <label>.`,
+  - key status updates to `O -> Copy origin -> <label>`,
+  - copy badge shows `Origin`,
+  - cheatline/help text include origin shortcut guidance.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 70)
 
 ### Scope (Origin Chip Copy Action)
