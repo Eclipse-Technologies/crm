@@ -3,6 +3,40 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 40)
+
+### Scope (Per-Row Mute Hint Toasts)
+
+- Add a per-row session preference to mute hint-mode toasts while keeping aria-live announcements active.
+
+### Key Changes (Per-Row Mute Hint Toasts)
+
+- Added session storage support in `tasks.php`:
+  - key prefix: `taskAuditHintToastMute:`
+  - helpers: `isHintToastMuted(taskId)`, `setHintToastMuted(taskId, muted)`
+- Added inline toggle control to shortcut hint area (server-rendered and JS-rendered):
+  - `.js-audit-hint-toast-toggle`
+  - toggles text `Mute hint toasts` / `Unmute hint toasts`
+- Wired per-row toggle behavior in `tasks.php`:
+  - persists preference,
+  - refreshes toggle UI state,
+  - records key status and confirmation toast on toggle action.
+- Updated centralized hint transition helper flow so hint-mode toasts are conditionally suppressed when muted, while aria-live announcements remain unchanged.
+
+### Important Files (Per-Row Mute Hint Toasts)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Per-Row Mute Hint Toasts)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - mute toggle state text switches correctly,
+  - with mute enabled, `H` still updates aria-live but shows no hint-mode toast,
+  - with mute disabled, hint-mode toast reappears as expected.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 39)
 
 ### Scope (Centralized Hint Mode Transition)
