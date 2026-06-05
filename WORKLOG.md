@@ -3,6 +3,32 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 19)
+
+### Scope (Precedence Hint)
+
+- Add compact inline help text in task audit-history panels that explains filter precedence order.
+
+### Key Changes (Precedence Hint)
+
+- Updated `tasks.php` history toolbar markup (server-rendered and JS-rendered) to include a small hint:
+  - `Priority: Row > Global > Default`
+- Added a hover title (`Filter priority order`) for extra context without adding layout weight.
+- Kept the hint as passive explanatory UI so existing chip, summary, global badge, and bulk-action behavior remains unchanged.
+
+### Important Files (Precedence Hint)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Precedence Hint)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms precedence hint is present with expected text and title attribute:
+  - text: `Priority: Row > Global > Default`
+  - title: `Filter priority order`.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 18)
 
 ### Scope (Global Mode Badge)
