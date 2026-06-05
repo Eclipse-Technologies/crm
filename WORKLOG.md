@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 61)
+
+### Scope (Shift+Y Rich Snapshot Copy)
+
+- Add `Shift+Y` shortcut to copy a richer status snapshot (`Source`, `Hint`, `Toasts`) from panel focus.
+
+### Key Changes (Shift+Y Rich Snapshot Copy)
+
+- Added `buildRichSourceSnapshot()` in `tasks.php` client logic to compose:
+  - `Source: <...> | Hint: <Compact|Detailed> | Toasts: <On|Muted>`
+- Extended `copyCurrentSourceLabel(...)` to accept optional explicit payload and custom success toast text while preserving existing `Y` and glyph-click behavior.
+- Added key handler branch for `Shift+Y` (before plain `Y`) to trigger rich snapshot copy.
+- Updated shortcut guidance text in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`):
+  - cheatline
+  - compact/detailed shortcut hint strings
+  - shortcut help mapping
+- Updated keyboard tooltip wording to include `Y` and `Shift+Y` in the listed shortcut set.
+
+### Important Files (Shift+Y Rich Snapshot Copy)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Shift+Y Rich Snapshot Copy)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - cheatline/help include `Shift+Y`,
+  - `Y` keeps source-only copy status,
+  - `Shift+Y` triggers snapshot copy status,
+  - copied badge still shows and auto-hides after timeout.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 60)
 
 ### Scope (Temporary Copied Badge)
