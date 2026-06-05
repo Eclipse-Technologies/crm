@@ -1081,17 +1081,19 @@ function status_badge($status) {
       let shortcutCopyBadgeTimer = null;
       let originChipPulseResetTimer = null;
       let originChipTextResetTimer = null;
+      const copyAnnouncementPolicy = {
+        originToastCooldownMs: 550,
+        originSuccessLiveCooldownMs: 650,
+        originFailureLiveCooldownMs: 700,
+        originRecoveryWindowMs: 2400
+      };
       let lastOriginToastText = '';
       let lastOriginToastAt = 0;
-      const originToastCooldownMs = 550;
       let lastOriginSuccessLiveText = '';
       let lastOriginSuccessLiveAt = 0;
-      const originSuccessLiveCooldownMs = 650;
       let lastOriginFailureLiveText = '';
       let lastOriginFailureLiveAt = 0;
-      const originFailureLiveCooldownMs = 700;
       let lastOriginCopyFailureAt = 0;
-      const originRecoveryWindowMs = 2400;
 
       function sourcePulseAccent(sourceLabel) {
         if (sourceLabel === 'Keyboard') {
@@ -1334,7 +1336,7 @@ function status_badge($status) {
         const originLabel = currentOriginLabel();
         copyTextToClipboard(originLabel).then(function (copied) {
           if (copied) {
-            const recovered = lastOriginCopyFailureAt > 0 && (Date.now() - lastOriginCopyFailureAt) <= originRecoveryWindowMs;
+            const recovered = lastOriginCopyFailureAt > 0 && (Date.now() - lastOriginCopyFailureAt) <= copyAnnouncementPolicy.originRecoveryWindowMs;
             setKeyStatus(prefix + ' -> ' + originLabel);
             showOriginCopyToast('Origin copied: ' + originLabel + '.');
             flashShortcutCopyBadge('origin');
@@ -1412,7 +1414,7 @@ function status_badge($status) {
         const originLabel = currentOriginLabel();
         copyTextToClipboard(originContext).then(function (copied) {
           if (copied) {
-            const recovered = lastOriginCopyFailureAt > 0 && (Date.now() - lastOriginCopyFailureAt) <= originRecoveryWindowMs;
+            const recovered = lastOriginCopyFailureAt > 0 && (Date.now() - lastOriginCopyFailureAt) <= copyAnnouncementPolicy.originRecoveryWindowMs;
             setKeyStatus(prefix + ' -> ' + originLabel);
             showOriginCopyToast(originContextPreviewToastText(originContext));
             flashShortcutCopyBadge('origin-context');
@@ -1479,7 +1481,7 @@ function status_badge($status) {
           return;
         }
         const nowMs = Date.now();
-        if (text === lastOriginToastText && (nowMs - lastOriginToastAt) < originToastCooldownMs) {
+        if (text === lastOriginToastText && (nowMs - lastOriginToastAt) < copyAnnouncementPolicy.originToastCooldownMs) {
           return;
         }
         lastOriginToastText = text;
@@ -1522,7 +1524,7 @@ function status_badge($status) {
         const copyText = String(copyLabel || '').trim();
         const message = (recovered ? 'Origin copy recovered: ' : 'Origin copy: ') + copyText + '. Trigger: ' + String(triggerLabel || 'copy action') + '.';
         const nowMs = Date.now();
-        if (message === lastOriginSuccessLiveText && (nowMs - lastOriginSuccessLiveAt) < originSuccessLiveCooldownMs) {
+        if (message === lastOriginSuccessLiveText && (nowMs - lastOriginSuccessLiveAt) < copyAnnouncementPolicy.originSuccessLiveCooldownMs) {
           return;
         }
         lastOriginSuccessLiveText = message;
@@ -1542,7 +1544,7 @@ function status_badge($status) {
         }
         const message = 'Origin copy failed. Trigger: ' + String(triggerLabel || 'copy action') + '. Try again or use Origin chip.';
         const nowMs = Date.now();
-        if (message === lastOriginFailureLiveText && (nowMs - lastOriginFailureLiveAt) < originFailureLiveCooldownMs) {
+        if (message === lastOriginFailureLiveText && (nowMs - lastOriginFailureLiveAt) < copyAnnouncementPolicy.originFailureLiveCooldownMs) {
           return;
         }
         lastOriginFailureLiveText = message;

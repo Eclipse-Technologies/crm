@@ -3,6 +3,36 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 86)
+
+### Scope (Copy Announcement Policy Consolidation)
+
+- Improve maintainability by centralizing origin-copy announcement cooldown/recovery timing constants into a single policy block.
+
+### Key Changes (Copy Announcement Policy Consolidation)
+
+- Added `copyAnnouncementPolicy` object in tasks.php with unified timing values for:
+  - origin toast cooldown
+  - success live cooldown
+  - failure live cooldown
+  - recovery window
+- Rewired announcement/cooldown/recovery checks to read from the policy object.
+- Removed scattered standalone timing constants in favor of policy-based access.
+- Preserved all runtime behavior and messaging semantics.
+
+### Important Files (Copy Announcement Policy Consolidation)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Copy Announcement Policy Consolidation)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - success live dedup still yields single mutation on rapid repeated O,
+  - fail-then-success flow still announces failure then recovered success.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 85)
 
 ### Scope (Recovered Success Announcement)
