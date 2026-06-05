@@ -3,6 +3,36 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 56)
+
+### Scope (Source Glyph Marker)
+
+- Add a compact source glyph marker beside the Source value that changes by source type.
+
+### Key Changes (Source Glyph Marker)
+
+- Updated shortcut-state markup in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`) to add `.js-audit-shortcut-state-glyph` before source text.
+- Added `sourceGlyphText(sourceLabel)` helper in `tasks.php` client logic:
+  - `[K]` for Keyboard
+  - `[B]` for Button
+  - `[S]` for Session
+- Updated `refreshShortcutStateSummary()` to keep glyph synchronized with source label and reuse source accent colors for glyph border/text/background.
+- Preserved existing source pulse, tooltip, freshness, and meaning-line behavior.
+
+### Important Files (Source Glyph Marker)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Source Glyph Marker)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - initial source glyph renders `[S]` with Session accent,
+  - keyboard action updates glyph to `[K]` with Keyboard accent,
+  - button action updates glyph to `[B]` with Button accent.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 55)
 
 ### Scope (Live Source Meaning Line)
