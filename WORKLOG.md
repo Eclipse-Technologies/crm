@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 60)
+
+### Scope (Temporary Copied Badge)
+
+- Add a short-lived `Copied` badge near the source glyph after successful source copy (click or `Y`).
+
+### Key Changes (Temporary Copied Badge)
+
+- Added `.js-audit-shortcut-copy-badge` in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`) directly beside source glyph.
+- Added timer-driven helper in `tasks.php` client logic:
+  - `flashShortcutCopyBadge()`
+  - shows badge immediately on successful copy
+  - auto-hides after ~1.1s
+- Reused existing copy success path so badge triggers for both:
+  - glyph click copy
+  - keyboard `Y` copy shortcut
+
+### Important Files (Temporary Copied Badge)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Temporary Copied Badge)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - badge hidden before copy,
+  - badge visible right after successful `Y` copy,
+  - badge auto-hides after timeout window,
+  - key status copy feedback remains intact.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 59)
 
 ### Scope (Keyboard Copy Shortcut)
