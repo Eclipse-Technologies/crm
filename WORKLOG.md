@@ -3,6 +3,41 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 47)
+
+### Scope (Last Setting Source Indicator)
+
+- Add lightweight `Source` context (Keyboard vs Button vs Session) beside the shortcut state summary line.
+
+### Key Changes (Last Setting Source Indicator)
+
+- Updated `tasks.php` shortcut state summary default text (server-rendered and JS-rendered):
+  - `Shortcut state: Hint Compact | Toasts On | Source Session`
+- Added source-state tracking in `tasks.php`:
+  - `lastSettingSource` variable (initial `Session`),
+  - `setLastSettingSource(sourceLabel)` helper.
+- Extended summary refresh logic to include source:
+  - `Shortcut state: Hint <...> | Toasts <...> | Source <...>`
+- Wired source updates into setting mutation paths:
+  - keyboard hint/toggle actions -> `Source Keyboard`,
+  - button-based actions -> `Source Button`,
+  - initial/restored state remains `Source Session`.
+
+### Important Files (Last Setting Source Indicator)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Last Setting Source Indicator)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms state transitions:
+  - initial: `Source Session`,
+  - keyboard action: `Source Keyboard`,
+  - button action: `Source Button`,
+  - subsequent keyboard action returns to `Source Keyboard`.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 46)
 
 ### Scope (Shift+M Explicit Unmute)
