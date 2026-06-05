@@ -3,6 +3,36 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 34)
+
+### Scope (One-Time Restored Hint Toast)
+
+- Add a one-time toast when opening a task history row that restores detailed hint mode from session preference.
+
+### Key Changes (One-Time Restored Hint Toast)
+
+- Added in-memory tracking in `tasks.php` for per-row restore notifications:
+  - `detailedHintRestoreToastShown` set keyed by task id.
+- Extended `openHistoryRow(...)` in `tasks.php`:
+  - on open, if stored hint mode is `detailed` and row has not yet shown restore notice,
+  - show toast: `Hint mode restored from session: Detailed.`
+  - mark row as already notified for this page session.
+- Preserved existing open/focus/toggle behavior with no changes to filter logic.
+
+### Important Files (One-Time Restored Hint Toast)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (One-Time Restored Hint Toast)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - after storing detailed mode, first reopen shows restore toast,
+  - subsequent reopen of same row suppresses repeated restore toast,
+  - no regressions in existing hint/badge/reset keyboard behaviors.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 33)
 
 ### Scope (Inline Reset Hint Control)

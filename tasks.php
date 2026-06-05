@@ -622,6 +622,7 @@ function status_badge($status) {
   const toast = document.getElementById('task-toast');
   let toastTimer = null;
   let toastActionId = 0;
+  const detailedHintRestoreToastShown = new Set();
 
   function getTaskIdForHistoryShell(shell) {
     if (!shell || typeof shell.closest !== 'function') {
@@ -1520,6 +1521,11 @@ function status_badge($status) {
     const shell = historyRow.querySelector('.task-audit-history-shell');
     if (shell && typeof shell.focus === 'function') {
       shell.focus();
+    }
+
+    if (!detailedHintRestoreToastShown.has(safeTaskId) && getStoredAuditHintMode(safeTaskId) === 'detailed') {
+      detailedHintRestoreToastShown.add(safeTaskId);
+      showToast('Hint mode restored from session: Detailed.', false);
     }
   }
 
