@@ -285,6 +285,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<input type="checkbox" class="js-audit-history-remember-global" style="margin:0;">Remember for all rows'
     . '</label>'
     . '<button type="button" class="js-audit-history-apply-visible" style="margin-left:auto;border:none;background:transparent;color:#0f766e;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Apply this view to visible rows</button>'
+    . '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>'
     . '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
     . '</div>'
     . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
@@ -881,6 +882,7 @@ function status_badge($status) {
           '<input type="checkbox" class="js-audit-history-remember-global" style="margin:0;">Remember for all rows' +
         '</label>' +
         '<button type="button" class="js-audit-history-apply-visible" style="margin-left:auto;border:none;background:transparent;color:#0f766e;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Apply this view to visible rows</button>' +
+        '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>' +
         '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
       '</div>' +
       '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
@@ -898,6 +900,7 @@ function status_badge($status) {
       const taskId = getTaskIdForHistoryShell(shell);
       const chips = shell.querySelectorAll('.js-audit-history-chip');
       const applyVisibleButton = shell.querySelector('.js-audit-history-apply-visible');
+      const clearVisibleButton = shell.querySelector('.js-audit-history-clear-visible');
       const resetButton = shell.querySelector('.js-audit-history-reset');
       const rememberGlobalCheckbox = shell.querySelector('.js-audit-history-remember-global');
       const sourceIndicator = shell.querySelector('.js-audit-history-source');
@@ -1101,6 +1104,68 @@ function status_badge($status) {
               });
 
               showToast('Bulk apply was undone.', false);
+            }
+          });
+        });
+      }
+
+      if (clearVisibleButton) {
+        clearVisibleButton.addEventListener('click', function () {
+          const previousRows = [];
+          let clearedCount = 0;
+
+          document.querySelectorAll('tr[data-task-id]:not(.task-audit-history-row)').forEach(function (taskRow) {
+            const visibleTaskId = String(taskRow.getAttribute('data-task-id') || '').trim();
+            if (!visibleTaskId) {
+              return;
+            }
+
+            const prior = getStoredAuditFilter(visibleTaskId);
+            previousRows.push({ taskId: visibleTaskId, filter: prior });
+            if (prior === 'status_changes' || prior === 'all') {
+              clearedCount++;
+            }
+            clearStoredAuditFilter(visibleTaskId);
+          });
+
+          const globalState = getGlobalAuditFilterState();
+          document.querySelectorAll('.task-audit-history-shell').forEach(function (targetShell) {
+            const targetTaskId = getTaskIdForHistoryShell(targetShell);
+            const restoredFilter = getStoredAuditFilter(targetTaskId);
+            const nextFilter = (restoredFilter === 'status_changes' || restoredFilter === 'all')
+              ? restoredFilter
+              : (globalState.enabled ? globalState.filter : 'all');
+            const nextSource = (restoredFilter === 'status_changes' || restoredFilter === 'all')
+              ? 'row'
+              : (globalState.enabled ? 'global' : 'default');
+            refreshShellVisualState(targetShell, nextFilter, nextSource);
+          });
+
+          showToast('Cleared ' + clearedCount + ' row override' + (clearedCount === 1 ? '' : 's') + '.', false, {
+            label: 'Undo',
+            onClick: function () {
+              previousRows.forEach(function (entry) {
+                if (entry.filter === 'status_changes' || entry.filter === 'all') {
+                  setStoredAuditFilter(entry.taskId, entry.filter);
+                } else {
+                  clearStoredAuditFilter(entry.taskId);
+                }
+              });
+
+              const restoredGlobalState = getGlobalAuditFilterState();
+              document.querySelectorAll('.task-audit-history-shell').forEach(function (targetShell) {
+                const targetTaskId = getTaskIdForHistoryShell(targetShell);
+                const restoredFilter = getStoredAuditFilter(targetTaskId);
+                const nextFilter = (restoredFilter === 'status_changes' || restoredFilter === 'all')
+                  ? restoredFilter
+                  : (restoredGlobalState.enabled ? restoredGlobalState.filter : 'all');
+                const nextSource = (restoredFilter === 'status_changes' || restoredFilter === 'all')
+                  ? 'row'
+                  : (restoredGlobalState.enabled ? 'global' : 'default');
+                refreshShellVisualState(targetShell, nextFilter, nextSource);
+              });
+
+              showToast('Clear row overrides was undone.', false);
             }
           });
         });

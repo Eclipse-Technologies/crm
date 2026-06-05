@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 16)
+
+### Scope (Clear Row Overrides)
+
+- Add a companion bulk action to clear row-level audit-history filter overrides across visible task rows.
+
+### Key Changes (Clear Row Overrides)
+
+- Updated `tasks.php` history filter toolbar markup (server-rendered and JS-rendered) to add `Clear row overrides (visible)`.
+- Implemented clear-visible handler in `tasks.php`:
+  - clears stored row overrides for listed task rows,
+  - computes and reports exact cleared override count,
+  - refreshes all bound history shells so source/filter chips immediately reflect global/default fallback.
+- Added undo support for clear-visible action using existing actionable toast pattern:
+  - snapshots prior row override state,
+  - restores previous values on Undo,
+  - refreshes all bound shells after restore,
+  - confirms with `Clear row overrides was undone.` toast.
+
+### Important Files (Clear Row Overrides)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Clear Row Overrides)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - clear-visible action reports `Cleared 2 row overrides.` on current dataset,
+  - without undo, target rows fall back to `Source: Default (All Events)` with status-changes chip inactive,
+  - with undo, prior row override state is restored (e.g., `Source: Row (Status Changes)`), and confirmation toast appears.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 15)
 
 ### Scope (Undo Last Bulk Apply)
