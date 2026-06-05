@@ -276,7 +276,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
       . '</li>';
   }
 
-  return '<div class="task-audit-history-shell">'
+  return '<div class="task-audit-history-shell" tabindex="0" aria-label="Task audit history panel">'
     . '<div class="task-audit-history-filters" style="display:flex;gap:6px;margin:0 0 8px 0;">'
     . '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>'
     . '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>'
@@ -876,7 +876,7 @@ function status_badge($status) {
       '</li>';
     }).join('');
 
-    return '<div class="task-audit-history-shell">' +
+    return '<div class="task-audit-history-shell" tabindex="0" aria-label="Task audit history panel">' +
       '<div class="task-audit-history-filters" style="display:flex;gap:6px;margin:0 0 8px 0;">' +
         '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>' +
         '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>' +
@@ -1031,6 +1031,16 @@ function status_badge($status) {
         return value === 'status_changes' ? 'status_changes' : 'all';
       }
 
+      function applyShortcutFilter(filter) {
+        const selectedFilter = (filter === 'status_changes') ? 'status_changes' : 'all';
+        activateFilter(selectedFilter, true, 'row');
+        refreshAllOverrideSummaries();
+        if (rememberGlobalCheckbox && rememberGlobalCheckbox.checked) {
+          setGlobalAuditFilterState(true, selectedFilter);
+          refreshAllGlobalModeBadges();
+        }
+      }
+
       function refreshShellVisualState(targetShell, selectedFilter, source) {
         const targetChips = targetShell.querySelectorAll('.js-audit-history-chip');
         const targetRows = targetShell.querySelectorAll('.task-audit-history-list li');
@@ -1078,6 +1088,28 @@ function status_badge($status) {
             setGlobalAuditFilterState(true, filter);
           }
         });
+      });
+
+      shell.addEventListener('keydown', function (event) {
+        if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) {
+          return;
+        }
+
+        const target = event.target;
+        if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName))) {
+          return;
+        }
+
+        const key = String(event.key || '').toLowerCase();
+        if (key === 'a') {
+          event.preventDefault();
+          applyShortcutFilter('all');
+          showToast('History view: All Events.', false);
+        } else if (key === 's') {
+          event.preventDefault();
+          applyShortcutFilter('status_changes');
+          showToast('History view: Status Changes.', false);
+        }
       });
 
       if (rememberGlobalCheckbox) {
@@ -1296,6 +1328,10 @@ function status_badge($status) {
       if (currentlyHidden) {
         historyRow.removeAttribute('hidden');
         button.textContent = 'Hide history';
+        const shell = historyRow.querySelector('.task-audit-history-shell');
+        if (shell && typeof shell.focus === 'function') {
+          shell.focus();
+        }
       } else {
         historyRow.setAttribute('hidden', 'hidden');
         button.textContent = 'View last 3 events';
@@ -1367,6 +1403,10 @@ function status_badge($status) {
               if (currentlyHidden) {
                 historyRow.removeAttribute('hidden');
                 replacementToggle.textContent = 'Hide history';
+                const shell = historyRow.querySelector('.task-audit-history-shell');
+                if (shell && typeof shell.focus === 'function') {
+                  shell.focus();
+                }
               } else {
                 historyRow.setAttribute('hidden', 'hidden');
                 replacementToggle.textContent = 'View last 3 events';

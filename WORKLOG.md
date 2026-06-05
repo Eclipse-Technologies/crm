@@ -3,6 +3,42 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 20)
+
+### Scope (Keyboard Shortcuts)
+
+- Add keyboard shortcuts for audit-history filter chips when a history panel is focused.
+
+### Key Changes (Keyboard Shortcuts)
+
+- Updated `tasks.php` history shell markup (server-rendered and JS-rendered) to be keyboard-focusable:
+  - `tabindex="0"`
+  - `aria-label="Task audit history panel"`
+- Added focused-panel keyboard shortcuts in `tasks.php`:
+  - `A` sets `All Events`
+  - `S` sets `Status Changes`
+- Shortcut behavior is scoped to the focused history shell and ignored for text-entry/control targets (`input`, `textarea`, `select`, `button`, contenteditable).
+- Shortcuts integrate with existing persistence behavior:
+  - writes row override,
+  - updates override summaries,
+  - updates global state when remember-mode is enabled.
+- Improved focus flow so opening a history panel via either toggle path moves focus into the panel shell, making shortcuts immediately usable.
+
+### Important Files (Keyboard Shortcuts)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Keyboard Shortcuts)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - panel shell has `tabindex="0"` and expected aria label,
+  - pressing `S` activates the status-changes chip,
+  - pressing `A` activates the all-events chip,
+  - keyboard actions trigger user feedback toast.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 19)
 
 ### Scope (Precedence Hint)
