@@ -2,8 +2,11 @@
 
 require_once 'contact_validator.php';
 require_once 'csrf_helper.php';
+require_once __DIR__ . '/env_loader.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception as PHPMailerException;
+
+load_env();
 
 // Prefer Composer autoload when available; otherwise fallback to bundled vendor paths.
 $autoloadPath = __DIR__ . '/vendor/autoload.php';
@@ -133,6 +136,16 @@ try {
     // Email content
     $mail->Subject = 'New Contact Form Submission';
     $mail->Body = "Name: {$data['first_name']}\nEmail: {$data['email']}\nCompany: {$data['company']}\nMessage:\n{$data['message']}";
+
+    $remoteAddr = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+    $isLocalRequest = in_array($remoteAddr, ['127.0.0.1', '::1'], true);
+    $requireSmtpLocal = in_array(strtolower((string) getenv('CONTACT_FORM_REQUIRE_SMTP_LOCAL')), ['1', 'true', 'yes'], true);
+    $bypassSmtpForLocal = $isLocalRequest && !$requireSmtpLocal;
+
+    if ($bypassSmtpForLocal) {
+        error_log('Contact form [smtp_bypass_local]: SMTP send bypassed for local request');
+        contactRedirectWithReason('success', 'smtp_bypass_local');
+    }
 
     $mail->send();
 
