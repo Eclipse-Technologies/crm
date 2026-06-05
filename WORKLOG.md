@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 29)
+
+### Scope (Hint Detail Toggle)
+
+- Add a one-key inline legend state toggle so focused audit-history panels can switch between compact and detailed shortcut hint text.
+
+### Key Changes (Hint Detail Toggle)
+
+- Updated `tasks.php` history markup (server-rendered and JS-rendered) to:
+  - include `H` in compact key legend text,
+  - keep the shortcut help popover available via `?`.
+- Added hint-mode state and text helpers in `tasks.php`:
+  - compact hint mode: `Shortcuts: A S R C G H ? Esc`
+  - detailed hint mode: expanded key meanings.
+- Extended focused-shell keyboard handling:
+  - `H` toggles compact/detailed inline hint mode,
+  - key status updates (`H -> Hint detailed/compact`),
+  - toast confirms current hint mode.
+
+### Important Files (Hint Detail Toggle)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Hint Detail Toggle)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - initial hint is compact,
+  - pressing `H` switches to detailed hint and back on second press,
+  - pressing `?` still toggles help popover.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 28)
 
 ### Scope (Compact Focus Cheat Line)
