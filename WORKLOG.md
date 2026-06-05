@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 25)
+
+### Scope (R Shortcut for Reset View)
+
+- Add `R` keyboard shortcut in focused audit-history panels to run Reset view directly.
+
+### Key Changes (R Shortcut for Reset View)
+
+- Updated `tasks.php` shortcut hint/help text (server-rendered and JS-rendered) to include `R = Reset view`.
+- Added a shared reset-view shortcut handler in `tasks.php` and reused it for both:
+  - keyboard `R` action,
+  - reset button click action.
+- Extended focused-shell keyboard handling:
+  - `R` clears row override and applies global/default fallback,
+  - key status updates to `R -> Reset view`,
+  - toast confirms reset (`History view reset.`).
+
+### Important Files (R Shortcut for Reset View)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (R Shortcut for Reset View)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - shortcut hint displays `R = Reset view`,
+  - after `S`, panel source is `Row (Status Changes)`,
+  - after `R`, panel source returns to `Default (All Events)`,
+  - key status updates to `Last key action: R -> Reset view`,
+  - reset toast appears.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 24)
 
 ### Scope (Last Key Action Status)
