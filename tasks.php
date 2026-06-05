@@ -20,6 +20,70 @@ function isTaskAssignedToUser(array $task, string $identity): bool {
   return $assigned !== '' && $assigned === $identity;
 }
 
+function fetchRecentTaskAuditPreviews(array $taskIds): array {
+  $taskIds = array_values(array_unique(array_filter(array_map(static function ($id) {
+    return trim((string) $id);
+  }, $taskIds), static function ($id) {
+    return $id !== '';
+  })));
+
+  if (empty($taskIds) || !function_exists('get_mysql_connection')) {
+    return [];
+  }
+
+  try {
+    $conn = get_mysql_connection();
+    $placeholders = implode(',', array_fill(0, count($taskIds), '?'));
+    $sql = "SELECT entity_id, timestamp, user_id, summary, status FROM audit_log WHERE entity_type = 'task' AND entity_id IN ($placeholders) ORDER BY timestamp DESC";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+      $conn->close();
+      return [];
+    }
+
+    $types = str_repeat('s', count($taskIds));
+    $stmt->bind_param($types, ...$taskIds);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $previews = [];
+    if ($result) {
+      while ($row = $result->fetch_assoc()) {
+        $entityId = trim((string) ($row['entity_id'] ?? ''));
+        if ($entityId === '' || isset($previews[$entityId])) {
+          continue;
+        }
+        $previews[$entityId] = [
+          'summary' => trim((string) ($row['summary'] ?? '')),
+          'timestamp' => trim((string) ($row['timestamp'] ?? '')),
+          'user_id' => trim((string) ($row['user_id'] ?? '')),
+          'status' => trim((string) ($row['status'] ?? '')),
+        ];
+      }
+      $result->free();
+    }
+
+    $stmt->close();
+    $conn->close();
+    return $previews;
+  } catch (Throwable $e) {
+    return [];
+  }
+}
+
+function formatAuditPreviewTime(string $timestamp): string {
+  if ($timestamp === '') {
+    return '';
+  }
+
+  $parsed = strtotime($timestamp);
+  if ($parsed === false) {
+    return $timestamp;
+  }
+
+  return date('Y-m-d H:i', $parsed);
+}
+
 // Fetch tasks from DB
 $tasks = fetch_tasks_mysql();
 
@@ -122,6 +186,9 @@ if ($assigneeFilter !== '') {
   $returnQueryParams['assignee'] = $assigneeFilter;
 }
 $returnQuery = http_build_query($returnQueryParams);
+$taskAuditPreviews = fetchRecentTaskAuditPreviews(array_map(static function ($task) {
+  return $task['id'] ?? '';
+}, $filteredTasks));
 
 // Status badge colors
 $statusColors = [
@@ -226,6 +293,7 @@ function status_badge($status) {
         <th>Comments</th>
         <th>Recurrence</th>
         <th>Attachment</th>
+        <th>Recent Audit</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -246,6 +314,22 @@ function status_badge($status) {
           <td>
             <?php if (!empty($task['attachment'])): ?>
               <a href="<?= htmlspecialchars($task['attachment']) ?>" target="_blank">View</a>
+            <?php endif; ?>
+          </td>
+          <td class="task-audit-cell" style="min-width:220px;">
+            <?php
+              $auditPreview = $taskAuditPreviews[(string) ($task['id'] ?? '')] ?? null;
+              if (is_array($auditPreview)):
+                $auditSummary = trim((string) ($auditPreview['summary'] ?? ''));
+                $auditTime = formatAuditPreviewTime(trim((string) ($auditPreview['timestamp'] ?? '')));
+                $auditUser = trim((string) ($auditPreview['user_id'] ?? ''));
+            ?>
+              <div style="font-size:12px;color:#111827;font-weight:600;line-height:1.25;"><?= htmlspecialchars($auditSummary !== '' ? $auditSummary : 'Task activity logged') ?></div>
+              <div style="font-size:11px;color:#6b7280;line-height:1.3;">
+                <?= htmlspecialchars($auditTime) ?><?= $auditUser !== '' ? ' by ' . htmlspecialchars($auditUser) : '' ?>
+              </div>
+            <?php else: ?>
+              <span style="font-size:11px;color:#9ca3af;">No recent task audit</span>
             <?php endif; ?>
           </td>
           <td>
@@ -339,6 +423,20 @@ function status_badge($status) {
     return '<span class="task-status-badge" data-status="' + escapeHtml(key) + '" style="background:' + color + ';padding:4px 10px;border-radius:12px;font-weight:600;font-size:0.95em;">' + escapeHtml(label) + '</span>';
   }
 
+  function renderAuditPreview(preview) {
+    if (!preview || typeof preview !== 'object') {
+      return '<span style="font-size:11px;color:#9ca3af;">No recent task audit</span>';
+    }
+
+    const summary = String(preview.summary || '').trim() || 'Task activity logged';
+    const timestamp = String(preview.timestamp || '').trim();
+    const user = String(preview.user_id || '').trim();
+    const meta = timestamp + (user ? (' by ' + user) : '');
+
+    return '<div style="font-size:12px;color:#111827;font-weight:600;line-height:1.25;">' + escapeHtml(summary) + '</div>' +
+      '<div style="font-size:11px;color:#6b7280;line-height:1.3;">' + escapeHtml(meta) + '</div>';
+  }
+
   function shouldRemoveRowAfterUpdate(status) {
     if (activeStatusFilter && activeStatusFilter !== 'all' && status !== activeStatusFilter) {
       return true;
@@ -359,6 +457,7 @@ function status_badge($status) {
       const select = form.querySelector('.js-inline-status-select');
       const row = form.closest('tr');
       const statusCell = row ? row.querySelector('.task-status-cell') : null;
+      const auditCell = row ? row.querySelector('.task-audit-cell') : null;
       if (!saveButton || !select) {
         form.submit();
         return;
@@ -394,6 +493,10 @@ function status_badge($status) {
 
         if (statusCell) {
           statusCell.innerHTML = renderBadge(nextStatus);
+        }
+
+        if (auditCell && payload.audit_preview) {
+          auditCell.innerHTML = renderAuditPreview(payload.audit_preview);
         }
 
         if (shouldRemoveRowAfterUpdate(nextStatus) && row) {

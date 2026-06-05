@@ -34,6 +34,46 @@ function statusLabel(string $status): string {
     return $labels[$status] ?? ucfirst($status);
 }
 
+function fetchLatestTaskAuditPreview(string $taskId): ?array {
+    if ($taskId === '' || !function_exists('get_mysql_connection')) {
+        return null;
+    }
+
+    try {
+        $conn = get_mysql_connection();
+        $sql = "SELECT timestamp, user_id, summary, status FROM audit_log WHERE entity_type = 'task' AND entity_id = ? ORDER BY timestamp DESC LIMIT 1";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            $conn->close();
+            return null;
+        }
+
+        $stmt->bind_param('s', $taskId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result ? $result->fetch_assoc() : null;
+
+        if ($result) {
+            $result->free();
+        }
+        $stmt->close();
+        $conn->close();
+
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return [
+            'summary' => trim((string) ($row['summary'] ?? '')),
+            'timestamp' => trim((string) ($row['timestamp'] ?? '')),
+            'user_id' => trim((string) ($row['user_id'] ?? '')),
+            'status' => trim((string) ($row['status'] ?? '')),
+        ];
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
 function redirectTaskStatus(string $status = 'updated', string $returnQuery = ''): void {
     $target = 'tasks.php';
     $params = [];
@@ -105,12 +145,14 @@ if (!$task) {
 $oldStatus = trim((string) ($task['status'] ?? ''));
 if ($oldStatus === $newStatus) {
     if ($isAjax) {
+        $auditPreview = fetchLatestTaskAuditPreview($taskId);
         sendTaskStatusJson([
             'ok' => true,
             'task_id' => $taskId,
             'status' => $newStatus,
             'status_label' => statusLabel($newStatus),
             'changed' => false,
+            'audit_preview' => $auditPreview,
         ]);
     }
     redirectTaskStatus('updated', $returnQuery);
@@ -145,12 +187,14 @@ logAuditAction(
 );
 
 if ($isAjax) {
+    $auditPreview = fetchLatestTaskAuditPreview($taskId);
     sendTaskStatusJson([
         'ok' => true,
         'task_id' => $taskId,
         'status' => $newStatus,
         'status_label' => statusLabel($newStatus),
         'changed' => true,
+        'audit_preview' => $auditPreview,
     ]);
 }
 

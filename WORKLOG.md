@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 5)
+
+### Scope (Per-Task Audit Visibility)
+
+- Surface recent task audit activity directly in the task list and keep it synced during inline status updates.
+
+### Key Changes (Per-Task Audit Visibility)
+
+- Updated `tasks.php` to load recent audit preview data for visible tasks using a single batched `audit_log` query keyed by task IDs.
+- Added a new `Recent Audit` column to the task table showing:
+  - latest summary,
+  - timestamp,
+  - actor (`user_id`) when available,
+  - fallback message when no task audit exists.
+- Extended async inline status JS in `tasks.php` to refresh the `Recent Audit` cell in place from endpoint JSON after status saves.
+- Updated `update_task_status.php` to include `audit_preview` in AJAX responses by fetching the latest task audit row for the updated task.
+
+### Important Files (Per-Task Audit Visibility)
+
+- tasks.php
+- update_task_status.php
+- WORKLOG.md
+
+### Validation (Per-Task Audit Visibility)
+
+- `php -l tasks.php` passed.
+- `php -l update_task_status.php` passed.
+- VS Code diagnostics report no errors in both files.
+- Runtime verification on `tasks.php` confirms:
+  - `Recent Audit` column renders,
+  - inline status save updates both status badge and audit preview in place,
+  - toast confirms successful status update.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 4)
 
 ### Scope (Async Inline Status UX)
