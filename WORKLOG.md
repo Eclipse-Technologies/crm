@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 67)
+
+### Scope (Ctrl+Y Origin Context)
+
+- Include current source-indicator origin (`Row`/`Global`/`Default`) in Ctrl+Y copied payload.
+
+### Key Changes (Ctrl+Y Origin Context)
+
+- Updated `buildSourceFilterSnapshot()` in `tasks.php` to parse the panel source indicator and derive current origin label.
+- Extended Ctrl+Y payload format to include origin:
+  - `Source: ... | Filter: ... | Origin: ...`
+- Updated shortcut help text in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`) to describe expanded Ctrl+Y context copy behavior.
+
+### Important Files (Ctrl+Y Origin Context)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Ctrl+Y Origin Context)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - Ctrl+Y toast now includes `Origin: <Row|Global|Default>`,
+  - key status remains accurate for Ctrl+Y action,
+  - shortcut help text reflects source/filter/origin copy scope.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 66)
 
 ### Scope (Ctrl+Y Filter Badge Variant)
