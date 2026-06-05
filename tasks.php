@@ -1119,6 +1119,7 @@ function status_badge($status) {
       };
       let lastPolicyFallbackFields = [];
       let lastPolicyCopyFailed = false;
+      let policyCopyFailureStreak = 0;
       function policyReadoutText(policy, fallbackFields) {
         let text = 'Policy: Toast ' + policy.originToastCooldownMs + 'ms | Success ' + policy.originSuccessLiveCooldownMs + 'ms | Failure ' + policy.originFailureLiveCooldownMs + 'ms | Recovery ' + policy.originRecoveryWindowMs + 'ms';
         if (Array.isArray(fallbackFields) && fallbackFields.length > 0) {
@@ -1137,13 +1138,16 @@ function status_badge($status) {
         if (!shortcutPolicyReadout) {
           return;
         }
+        const unavailableHint = lastPolicyCopyFailed && policyCopyFailureStreak >= 2;
         if (lastPolicyCopyFailed) {
-          shortcutPolicyReadout.style.color = '#7c2d12';
-          shortcutPolicyReadout.style.background = '#fff7ed';
+          shortcutPolicyReadout.style.color = unavailableHint ? '#7f1d1d' : '#7c2d12';
+          shortcutPolicyReadout.style.background = unavailableHint ? '#fef2f2' : '#fff7ed';
           shortcutPolicyReadout.style.borderRadius = '6px';
           shortcutPolicyReadout.style.padding = '2px 6px';
-          shortcutPolicyReadout.style.borderTopColor = '#fdba74';
-          shortcutPolicyReadout.title = 'Last policy copy failed. Retry with Shift+K.';
+          shortcutPolicyReadout.style.borderTopColor = unavailableHint ? '#fca5a5' : '#fdba74';
+          shortcutPolicyReadout.title = unavailableHint
+            ? 'Policy copy may be unavailable in this browser context. Try manual selection.'
+            : 'Last policy copy failed. Retry with Shift+K.';
         } else {
           shortcutPolicyReadout.style.color = '#334155';
           shortcutPolicyReadout.style.background = 'transparent';
@@ -1152,6 +1156,16 @@ function status_badge($status) {
           shortcutPolicyReadout.style.borderTopColor = '#cbd5e1';
           shortcutPolicyReadout.title = 'Current policy readout.';
         }
+      }
+      function markPolicyCopyFailure() {
+        policyCopyFailureStreak += 1;
+        lastPolicyCopyFailed = true;
+        refreshPolicyReadoutTone();
+      }
+      function markPolicyCopySuccess() {
+        policyCopyFailureStreak = 0;
+        lastPolicyCopyFailed = false;
+        refreshPolicyReadoutTone();
       }
       function loadCopyAnnouncementPolicy() {
         const toastPolicy = readPolicyMs('data-origin-toast-cooldown-ms', copyAnnouncementPolicyDefaults.originToastCooldownMs, 'Toast');
@@ -1529,9 +1543,10 @@ function status_badge($status) {
           : policyReadoutText(copyAnnouncementPolicy, lastPolicyFallbackFields);
         if (!policyText) {
           setKeyStatus(prefix + ' -> unavailable');
-          showToast('Policy copy unavailable.', false);
-          lastPolicyCopyFailed = true;
-          refreshPolicyReadoutTone();
+          markPolicyCopyFailure();
+          showToast(policyCopyFailureStreak >= 2
+            ? 'Policy copy appears unavailable in this browser context.'
+            : 'Policy copy unavailable.', false);
           announcePolicyCopyFailure(prefix + ' unavailable');
           return;
         }
@@ -1540,14 +1555,14 @@ function status_badge($status) {
             setKeyStatus(prefix + ' -> copied');
             showToast('Policy copied (' + policyText.length + ' chars).', false);
             flashShortcutCopyBadge('policy');
-            lastPolicyCopyFailed = false;
-            refreshPolicyReadoutTone();
+            markPolicyCopySuccess();
             announcePolicyCopy('readout', prefix);
           } else {
             setKeyStatus(prefix + ' failed');
-            showToast('Could not copy policy readout.', true);
-            lastPolicyCopyFailed = true;
-            refreshPolicyReadoutTone();
+            markPolicyCopyFailure();
+            showToast(policyCopyFailureStreak >= 2
+              ? 'Could not copy policy readout. Clipboard may be unavailable in this browser context.'
+              : 'Could not copy policy readout.', true);
             announcePolicyCopyFailure(prefix);
           }
         });

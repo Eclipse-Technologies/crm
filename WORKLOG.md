@@ -3,6 +3,41 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 95)
+
+### Scope (Repeated Failure Unavailable Hint)
+
+- Improve Shift+K failure guidance by escalating from generic retry messaging to an explicit browser-context unavailable hint after consecutive copy failures.
+
+### Key Changes (Repeated Failure Unavailable Hint)
+
+- Added policy copy failure streak tracking in tasks.php (`policyCopyFailureStreak`).
+- Added policy copy state helpers:
+  - `markPolicyCopyFailure()`
+  - `markPolicyCopySuccess()`
+- Updated `refreshPolicyReadoutTone()` to switch to stronger unavailable-context styling and title after repeated failures.
+- Updated Shift+K copy messaging:
+  - first failure: standard failure/retry guidance,
+  - repeated failures: explicit clipboard/browser-context unavailable hints in toast and readout title.
+
+### Important Files (Repeated Failure Unavailable Hint)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Repeated Failure Unavailable Hint)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - first forced Shift+K failure shows retry title,
+  - second forced Shift+K failure escalates to unavailable-context title and warning tone,
+  - second failure toast includes browser-context clipboard hint.
+
+### Validation Note
+
+- Because the key handler is bound to the shell element, shell focus was re-applied between forced failure attempts during browser validation to ensure both Shift+K events were handled by the panel.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 94)
 
 ### Scope (Policy Copy Retry Hint Tone)
