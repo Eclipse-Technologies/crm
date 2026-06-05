@@ -3,6 +3,40 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 15)
+
+### Scope (Undo Last Bulk Apply)
+
+- Add a one-click Undo action for the most recent audit-history bulk apply operation.
+
+### Key Changes (Undo Last Bulk Apply)
+
+- Extended toast behavior in `tasks.php` to support optional inline action buttons.
+- Updated bulk apply flow in `tasks.php` to snapshot previous state before apply:
+  - per-row stored history filter for all listed task rows,
+  - global remember-mode state (enabled/filter) when global mode is being updated.
+- Added toast action `Undo` after bulk apply.
+- Implemented undo restore logic in `tasks.php`:
+  - restores each row override to its prior value (or clears when previously unset),
+  - restores global remember-mode state when it was changed by bulk apply,
+  - refreshes all bound history shells so chips/source labels reflect restored state immediately,
+  - confirms completion with `Bulk apply was undone.` toast.
+
+### Important Files (Undo Last Bulk Apply)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Undo Last Bulk Apply)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - bulk apply toast shows an actionable Undo button,
+  - clicking Undo reverts target rows to prior filter/source state,
+  - second row returns to `Source: Default (All Events)` with status-changes chip inactive,
+  - toast confirms undo completion.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 14)
 
 ### Scope (Bulk View Apply)

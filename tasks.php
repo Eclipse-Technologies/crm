@@ -612,6 +612,7 @@ function status_badge($status) {
   const auditGlobalFilterKey = 'taskAuditGlobalFilter';
   const toast = document.getElementById('task-toast');
   let toastTimer = null;
+  let toastActionId = 0;
 
   function getTaskIdForHistoryShell(shell) {
     if (!shell || typeof shell.closest !== 'function') {
@@ -705,7 +706,7 @@ function status_badge($status) {
     });
   }
 
-  function showToast(message, isError) {
+  function showToast(message, isError, action) {
     if (!toast) {
       return;
     }
@@ -714,14 +715,43 @@ function status_badge($status) {
       window.clearTimeout(toastTimer);
     }
 
-    toast.textContent = message;
+    const hasAction = action && typeof action.label === 'string' && typeof action.onClick === 'function';
+    const actionId = hasAction ? (++toastActionId) : 0;
+
+    toast.innerHTML = '';
+    const messageSpan = document.createElement('span');
+    messageSpan.textContent = message;
+    toast.appendChild(messageSpan);
+
+    if (hasAction) {
+      const actionButton = document.createElement('button');
+      actionButton.type = 'button';
+      actionButton.textContent = action.label;
+      actionButton.style.marginLeft = '10px';
+      actionButton.style.border = 'none';
+      actionButton.style.background = 'transparent';
+      actionButton.style.color = '#67e8f9';
+      actionButton.style.fontSize = '12px';
+      actionButton.style.fontWeight = '700';
+      actionButton.style.cursor = 'pointer';
+      actionButton.addEventListener('click', function () {
+        if (actionId !== toastActionId) {
+          return;
+        }
+        action.onClick();
+      });
+      toast.appendChild(actionButton);
+    }
+
     toast.style.background = isError ? '#991b1b' : '#0f172a';
     toast.style.opacity = '1';
     toast.style.transform = 'translateY(0)';
+    toast.style.pointerEvents = hasAction ? 'auto' : 'none';
 
     toastTimer = window.setTimeout(function () {
       toast.style.opacity = '0';
       toast.style.transform = 'translateY(8px)';
+      toast.style.pointerEvents = 'none';
     }, 2200);
   }
 
@@ -1007,6 +1037,9 @@ function status_badge($status) {
       if (applyVisibleButton) {
         applyVisibleButton.addEventListener('click', function () {
           const selectedFilter = currentActiveFilter();
+          const previousGlobalState = getGlobalAuditFilterState();
+          const shouldWriteGlobal = Boolean(rememberGlobalCheckbox && rememberGlobalCheckbox.checked);
+          const previousRows = [];
           let updatedCount = 0;
 
           document.querySelectorAll('tr[data-task-id]:not(.task-audit-history-row)').forEach(function (taskRow) {
@@ -1014,6 +1047,11 @@ function status_badge($status) {
             if (!visibleTaskId) {
               return;
             }
+
+            previousRows.push({
+              taskId: visibleTaskId,
+              filter: getStoredAuditFilter(visibleTaskId)
+            });
 
             setStoredAuditFilter(visibleTaskId, selectedFilter);
             updatedCount++;
@@ -1029,11 +1067,42 @@ function status_badge($status) {
             }
           });
 
-          if (rememberGlobalCheckbox && rememberGlobalCheckbox.checked) {
+          if (shouldWriteGlobal) {
             setGlobalAuditFilterState(true, selectedFilter);
           }
 
-          showToast('Applied to ' + updatedCount + ' visible row' + (updatedCount === 1 ? '' : 's') + '.', false);
+          showToast('Applied to ' + updatedCount + ' visible row' + (updatedCount === 1 ? '' : 's') + '.', false, {
+            label: 'Undo',
+            onClick: function () {
+              previousRows.forEach(function (entry) {
+                if (entry.filter === 'status_changes' || entry.filter === 'all') {
+                  setStoredAuditFilter(entry.taskId, entry.filter);
+                } else {
+                  clearStoredAuditFilter(entry.taskId);
+                }
+              });
+
+              if (shouldWriteGlobal) {
+                setGlobalAuditFilterState(previousGlobalState.enabled, previousGlobalState.filter);
+                syncRememberGlobalCheckboxes(previousGlobalState.enabled);
+              }
+
+              const restoredGlobalState = getGlobalAuditFilterState();
+              document.querySelectorAll('.task-audit-history-shell').forEach(function (targetShell) {
+                const targetTaskId = getTaskIdForHistoryShell(targetShell);
+                const restoredFilter = getStoredAuditFilter(targetTaskId);
+                const nextFilter = (restoredFilter === 'status_changes' || restoredFilter === 'all')
+                  ? restoredFilter
+                  : (restoredGlobalState.enabled ? restoredGlobalState.filter : 'all');
+                const nextSource = (restoredFilter === 'status_changes' || restoredFilter === 'all')
+                  ? 'row'
+                  : (restoredGlobalState.enabled ? 'global' : 'default');
+                refreshShellVisualState(targetShell, nextFilter, nextSource);
+              });
+
+              showToast('Bulk apply was undone.', false);
+            }
+          });
         });
       }
 
