@@ -3,6 +3,40 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 93)
+
+### Scope (Policy Copy Aria-Live Parity)
+
+- Add accessibility parity for `Shift+K` policy copy by emitting explicit aria-live feedback for success/failure paths.
+
+### Key Changes (Policy Copy Aria-Live Parity)
+
+- Added policy-copy live announcement state tracking in `tasks.php`:
+  - success message + cooldown timestamp,
+  - failure message + cooldown timestamp.
+- Added live-region announcers:
+  - `announcePolicyCopy(...)`
+  - `announcePolicyCopyFailure(...)`
+- Updated `copyPolicyReadout(...)` to emit live-region announcements for:
+  - success,
+  - failed clipboard write,
+  - unavailable policy-readout payload.
+- Reused existing policy cooldown values and hint live debounce behavior for consistent announcement cadence.
+
+### Important Files (Policy Copy Aria-Live Parity)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Policy Copy Aria-Live Parity)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - `Shift+K` success updates live region with policy-copy announcement,
+  - key status and toast remain correct,
+  - copied payload remains intact.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 92)
 
 ### Scope (Policy Readout Copy Shortcut)

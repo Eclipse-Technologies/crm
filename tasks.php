@@ -1155,6 +1155,10 @@ function status_badge($status) {
       let lastOriginSuccessLiveAt = 0;
       let lastOriginFailureLiveText = '';
       let lastOriginFailureLiveAt = 0;
+      let lastPolicySuccessLiveText = '';
+      let lastPolicySuccessLiveAt = 0;
+      let lastPolicyFailureLiveText = '';
+      let lastPolicyFailureLiveAt = 0;
       let lastOriginCopyFailureAt = 0;
 
       function sourcePulseAccent(sourceLabel) {
@@ -1504,6 +1508,7 @@ function status_badge($status) {
         if (!policyText) {
           setKeyStatus(prefix + ' -> unavailable');
           showToast('Policy copy unavailable.', false);
+          announcePolicyCopyFailure(prefix + ' unavailable');
           return;
         }
         copyTextToClipboard(policyText).then(function (copied) {
@@ -1511,9 +1516,11 @@ function status_badge($status) {
             setKeyStatus(prefix + ' -> copied');
             showToast('Policy copied (' + policyText.length + ' chars).', false);
             flashShortcutCopyBadge('policy');
+            announcePolicyCopy('readout', prefix);
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy policy readout.', true);
+            announcePolicyCopyFailure(prefix);
           }
         });
       }
@@ -1637,6 +1644,47 @@ function status_badge($status) {
         }
         lastOriginFailureLiveText = message;
         lastOriginFailureLiveAt = nowMs;
+        if (hintLiveTimer) {
+          window.clearTimeout(hintLiveTimer);
+        }
+        hintLiveTimer = window.setTimeout(function () {
+          hintLiveRegion.textContent = message;
+          hintLiveTimer = null;
+        }, hintLiveDebounceMs);
+      }
+
+      function announcePolicyCopy(copyLabel, triggerLabel) {
+        if (!hintLiveRegion) {
+          return;
+        }
+        const copyText = String(copyLabel || 'readout').trim() || 'readout';
+        const message = 'Policy copy: ' + copyText + '. Trigger: ' + String(triggerLabel || 'copy action') + '.';
+        const nowMs = Date.now();
+        if (message === lastPolicySuccessLiveText && (nowMs - lastPolicySuccessLiveAt) < copyAnnouncementPolicy.originSuccessLiveCooldownMs) {
+          return;
+        }
+        lastPolicySuccessLiveText = message;
+        lastPolicySuccessLiveAt = nowMs;
+        if (hintLiveTimer) {
+          window.clearTimeout(hintLiveTimer);
+        }
+        hintLiveTimer = window.setTimeout(function () {
+          hintLiveRegion.textContent = message;
+          hintLiveTimer = null;
+        }, hintLiveDebounceMs);
+      }
+
+      function announcePolicyCopyFailure(triggerLabel) {
+        if (!hintLiveRegion) {
+          return;
+        }
+        const message = 'Policy copy failed. Trigger: ' + String(triggerLabel || 'copy action') + '. Try Shift+K again.';
+        const nowMs = Date.now();
+        if (message === lastPolicyFailureLiveText && (nowMs - lastPolicyFailureLiveAt) < copyAnnouncementPolicy.originFailureLiveCooldownMs) {
+          return;
+        }
+        lastPolicyFailureLiveText = message;
+        lastPolicyFailureLiveAt = nowMs;
         if (hintLiveTimer) {
           window.clearTimeout(hintLiveTimer);
         }
