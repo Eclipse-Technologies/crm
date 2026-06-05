@@ -3,6 +3,29 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 87)
+
+### Scope (Policy Intent Comment)
+
+- Improve maintainability by adding an explicit code note explaining why copy-feedback timings are centralized.
+
+### Key Changes (Policy Intent Comment)
+
+- Added a concise comment above `copyAnnouncementPolicy` in `tasks.php` clarifying the intent:
+  - keep copy-feedback timing values in one location for easier UX tuning and reduced handler churn.
+- No logic changes.
+
+### Important Files (Policy Intent Comment)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Policy Intent Comment)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime sanity check on `tasks.php` confirmed origin copy status/live announcements remain unchanged.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 86)
 
 ### Scope (Copy Announcement Policy Consolidation)

@@ -1081,6 +1081,7 @@ function status_badge($status) {
       let shortcutCopyBadgeTimer = null;
       let originChipPulseResetTimer = null;
       let originChipTextResetTimer = null;
+      // Keep copy-feedback timing in one place so UX tuning does not require hunting through handlers.
       const copyAnnouncementPolicy = {
         originToastCooldownMs: 550,
         originSuccessLiveCooldownMs: 650,
