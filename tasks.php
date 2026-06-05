@@ -84,6 +84,25 @@ function formatAuditPreviewTime(string $timestamp): string {
   return date('Y-m-d H:i', $parsed);
 }
 
+function extractStatusDiffFromChanges($changesRaw): string {
+  if (!is_string($changesRaw) || trim($changesRaw) === '') {
+    return '';
+  }
+
+  $decoded = json_decode($changesRaw, true);
+  if (!is_array($decoded) || !isset($decoded['status']) || !is_array($decoded['status'])) {
+    return '';
+  }
+
+  $old = trim((string) ($decoded['status']['old'] ?? ''));
+  $new = trim((string) ($decoded['status']['new'] ?? ''));
+  if ($old === '' && $new === '') {
+    return '';
+  }
+
+  return $old . ' -> ' . $new;
+}
+
 function fetchTaskAuditHistories(array $taskIds, int $limitPerTask = 3): array {
   $taskIds = array_values(array_unique(array_filter(array_map(static function ($id) {
     return trim((string) $id);
@@ -98,7 +117,7 @@ function fetchTaskAuditHistories(array $taskIds, int $limitPerTask = 3): array {
   try {
     $conn = get_mysql_connection();
     $placeholders = implode(',', array_fill(0, count($taskIds), '?'));
-    $sql = "SELECT entity_id, timestamp, user_id, summary, action, status FROM audit_log WHERE entity_type = 'task' AND entity_id IN ($placeholders) ORDER BY timestamp DESC";
+    $sql = "SELECT entity_id, timestamp, user_id, summary, action, status, changes FROM audit_log WHERE entity_type = 'task' AND entity_id IN ($placeholders) ORDER BY timestamp DESC";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
       $conn->close();
@@ -131,6 +150,7 @@ function fetchTaskAuditHistories(array $taskIds, int $limitPerTask = 3): array {
           'user_id' => trim((string) ($row['user_id'] ?? '')),
           'action' => trim((string) ($row['action'] ?? '')),
           'status' => trim((string) ($row['status'] ?? '')),
+          'status_diff' => extractStatusDiffFromChanges((string) ($row['changes'] ?? '')),
         ];
       }
       $result->free();
@@ -157,6 +177,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     $userId = trim((string) ($entry['user_id'] ?? ''));
     $action = trim((string) ($entry['action'] ?? ''));
     $status = trim((string) ($entry['status'] ?? ''));
+    $statusDiff = trim((string) ($entry['status_diff'] ?? ''));
 
     $metaParts = [];
     if ($timestamp !== '') {
@@ -175,6 +196,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     $items .= '<li style="margin:0 0 8px 0;">'
       . '<div style="font-size:12px;font-weight:600;color:#111827;">' . htmlspecialchars($summary) . '</div>'
       . '<div style="font-size:11px;color:#6b7280;">' . htmlspecialchars(implode(' | ', $metaParts)) . '</div>'
+      . ($statusDiff !== '' ? '<div style="font-size:11px;color:#0f766e;">status: ' . htmlspecialchars($statusDiff) . '</div>' : '')
       . '</li>';
   }
 
@@ -560,6 +582,7 @@ function status_badge($status) {
       const user = String(entry && entry.user_id ? entry.user_id : '').trim();
       const action = String(entry && entry.action ? entry.action : '').trim();
       const status = String(entry && entry.status ? entry.status : '').trim();
+      const statusDiff = String(entry && entry.status_diff ? entry.status_diff : '').trim();
       const metaParts = [];
 
       if (timestamp) {
@@ -578,6 +601,7 @@ function status_badge($status) {
       return '<li style="margin:0 0 8px 0;">' +
         '<div style="font-size:12px;font-weight:600;color:#111827;">' + escapeHtml(summary) + '</div>' +
         '<div style="font-size:11px;color:#6b7280;">' + escapeHtml(metaParts.join(' | ')) + '</div>' +
+        (statusDiff ? ('<div style="font-size:11px;color:#0f766e;">status: ' + escapeHtml(statusDiff) + '</div>') : '') +
       '</li>';
     }).join('');
 

@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 7)
+
+### Scope (Audit History Diff Clarity)
+
+- Make task audit history entries more informative by showing a compact status transition diff for status update events.
+
+### Key Changes (Audit History Diff Clarity)
+
+- Updated `tasks.php` to parse `audit_log.changes` and extract status transitions from JSON payloads (`status.old` -> `status.new`).
+- Extended server-rendered expandable history entries in `tasks.php` with a compact diff line:
+  - `status: old -> new`.
+- Updated client-side history renderer in `tasks.php` so async refreshes include the same diff line after inline status saves.
+- Updated `update_task_status.php` history payload generation to include `status_diff` for each returned history entry.
+
+### Important Files (Audit History Diff Clarity)
+
+- tasks.php
+- update_task_status.php
+- WORKLOG.md
+
+### Validation (Audit History Diff Clarity)
+
+- `php -l tasks.php` passed.
+- `php -l update_task_status.php` passed.
+- VS Code diagnostics report no errors in both files.
+- Runtime validation on `tasks.php` confirms expanded history rows display status transition lines and refresh correctly after inline status updates.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 6)
 
 ### Scope (Expandable Task Audit Timeline)

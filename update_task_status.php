@@ -81,7 +81,7 @@ function fetchTaskAuditHistory(string $taskId, int $limit = 3): array {
 
     try {
         $conn = get_mysql_connection();
-        $sql = "SELECT timestamp, user_id, summary, action, status FROM audit_log WHERE entity_type = 'task' AND entity_id = ? ORDER BY timestamp DESC LIMIT ?";
+        $sql = "SELECT timestamp, user_id, summary, action, status, changes FROM audit_log WHERE entity_type = 'task' AND entity_id = ? ORDER BY timestamp DESC LIMIT ?";
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
             $conn->close();
@@ -101,6 +101,7 @@ function fetchTaskAuditHistory(string $taskId, int $limit = 3): array {
                     'user_id' => trim((string) ($row['user_id'] ?? '')),
                     'action' => trim((string) ($row['action'] ?? '')),
                     'status' => trim((string) ($row['status'] ?? '')),
+                    'status_diff' => extractStatusDiffFromChanges((string) ($row['changes'] ?? '')),
                 ];
             }
             $result->free();
@@ -112,6 +113,25 @@ function fetchTaskAuditHistory(string $taskId, int $limit = 3): array {
     } catch (Throwable $e) {
         return [];
     }
+}
+
+function extractStatusDiffFromChanges($changesRaw): string {
+    if (!is_string($changesRaw) || trim($changesRaw) === '') {
+        return '';
+    }
+
+    $decoded = json_decode($changesRaw, true);
+    if (!is_array($decoded) || !isset($decoded['status']) || !is_array($decoded['status'])) {
+        return '';
+    }
+
+    $old = trim((string) ($decoded['status']['old'] ?? ''));
+    $new = trim((string) ($decoded['status']['new'] ?? ''));
+    if ($old === '' && $new === '') {
+        return '';
+    }
+
+    return $old . ' -> ' . $new;
 }
 
 function redirectTaskStatus(string $status = 'updated', string $returnQuery = ''): void {
