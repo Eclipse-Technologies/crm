@@ -1326,7 +1326,7 @@ function status_badge($status) {
             setKeyStatus(prefix + ' -> ' + originLabel);
             showToast('Origin copied: ' + originLabel + '.', false);
             flashShortcutCopyBadge('origin');
-            pulseOriginChip();
+            pulseOriginChip('Copied');
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy origin label.', true);
@@ -1352,10 +1352,11 @@ function status_badge($status) {
         return 'Origin context copied: ' + safePreview + ' (' + text.length + ' chars)';
       }
 
-      function pulseOriginChip() {
+      function pulseOriginChip(copyLabel) {
         if (!originChip) {
           return;
         }
+        const confirmationLabel = String(copyLabel || 'Copied').trim() || 'Copied';
         const reduceMotion = typeof window.matchMedia === 'function'
           && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (originChipPulseResetTimer) {
@@ -1369,7 +1370,7 @@ function status_badge($status) {
           : 'transform .2s ease, box-shadow .2s ease, background-color .2s ease';
         originChip.style.transform = reduceMotion ? 'scale(1)' : 'scale(1.06)';
         if (reduceMotion) {
-          originChip.textContent = 'Origin: Copied';
+          originChip.textContent = 'Origin: ' + confirmationLabel;
           originChip.style.backgroundColor = '#eef2ff';
         }
         originChip.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.2)';
@@ -1397,7 +1398,7 @@ function status_badge($status) {
             setKeyStatus(prefix + ' -> ' + currentOriginLabel());
             showToast(originContextPreviewToastText(originContext), false);
             flashShortcutCopyBadge('origin-context');
-            pulseOriginChip();
+            pulseOriginChip('Context Copied');
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy origin context.', true);

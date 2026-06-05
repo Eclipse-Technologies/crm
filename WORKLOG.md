@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 78)
+
+### Scope (Reduced-Motion Shift+O Text Swap Parity)
+
+- Extend reduced-motion micro-confirmation so `Shift+O` has distinct context-copy text feedback on the Origin chip.
+
+### Key Changes (Reduced-Motion Shift+O Text Swap Parity)
+
+- Updated `pulseOriginChip(...)` in `tasks.php` to accept a custom confirmation label.
+- Reduced-motion chip text now uses operation-specific labels:
+  - origin copy (`O` / chip click): `Origin: Copied`
+  - origin-context copy (`Shift+O`): `Origin: Context Copied`
+- Updated call sites:
+  - `copyCurrentOriginLabel(...)` passes `Copied`
+  - `copyOriginContextSnapshot(...)` passes `Context Copied`
+- Kept reset behavior and default-motion branch unchanged.
+
+### Important Files (Reduced-Motion Shift+O Text Swap Parity)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Reduced-Motion Shift+O Text Swap Parity)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed (reduced-motion):
+  - `O`: `Origin: Copied` then reset,
+  - `Shift+O`: `Origin: Context Copied` then reset,
+  - `Shift+O` toast/key-status/badge remain correct.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 77)
 
 ### Scope (Reduced-Motion Origin Text Swap)
