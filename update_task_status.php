@@ -4,6 +4,36 @@ require_once __DIR__ . '/csrf_helper.php';
 require_once __DIR__ . '/simple_auth/middleware.php';
 require_once __DIR__ . '/audit_handler.php';
 
+function isAjaxTaskStatusRequest(): bool {
+    $requestedWith = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''));
+    if ($requestedWith === 'xmlhttprequest') {
+        return true;
+    }
+
+    $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
+    return strpos($accept, 'application/json') !== false;
+}
+
+function sendTaskStatusJson(array $payload, int $statusCode = 200): void {
+    http_response_code($statusCode);
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode($payload);
+    exit;
+}
+
+function statusLabel(string $status): string {
+    $labels = [
+        'not_started' => 'Not Started',
+        'in_progress' => 'In Progress',
+        'waiting' => 'Waiting/Blocked',
+        'review' => 'Review',
+        'completed' => 'Completed',
+        'archived' => 'Archived',
+    ];
+
+    return $labels[$status] ?? ucfirst($status);
+}
+
 function redirectTaskStatus(string $status = 'updated', string $returnQuery = ''): void {
     $target = 'tasks.php';
     $params = [];
@@ -32,12 +62,19 @@ function redirectTaskStatus(string $status = 'updated', string $returnQuery = ''
 }
 
 $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+$isAjax = isAjaxTaskStatusRequest();
 if ($requestMethod !== 'POST') {
+    if ($isAjax) {
+        sendTaskStatusJson(['ok' => false, 'error' => 'invalid_request'], 405);
+    }
     header('Location: tasks.php?error=invalid_request');
     exit;
 }
 
 if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    if ($isAjax) {
+        sendTaskStatusJson(['ok' => false, 'error' => 'csrf'], 403);
+    }
     header('Location: tasks.php?error=csrf');
     exit;
 }
@@ -48,6 +85,9 @@ $returnQuery = trim((string) ($_POST['return_query'] ?? ''));
 $allowedStatuses = ['not_started', 'in_progress', 'waiting', 'review', 'completed', 'archived'];
 
 if ($taskId === '' || !in_array($newStatus, $allowedStatuses, true)) {
+    if ($isAjax) {
+        sendTaskStatusJson(['ok' => false, 'error' => 'invalid_request'], 422);
+    }
     header('Location: tasks.php?error=invalid_request');
     exit;
 }
@@ -55,12 +95,24 @@ if ($taskId === '' || !in_array($newStatus, $allowedStatuses, true)) {
 $tasks = fetch_tasks_mysql(['id' => $taskId]);
 $task = $tasks[0] ?? null;
 if (!$task) {
+    if ($isAjax) {
+        sendTaskStatusJson(['ok' => false, 'error' => 'not_found'], 404);
+    }
     header('Location: tasks.php?error=not_found');
     exit;
 }
 
 $oldStatus = trim((string) ($task['status'] ?? ''));
 if ($oldStatus === $newStatus) {
+    if ($isAjax) {
+        sendTaskStatusJson([
+            'ok' => true,
+            'task_id' => $taskId,
+            'status' => $newStatus,
+            'status_label' => statusLabel($newStatus),
+            'changed' => false,
+        ]);
+    }
     redirectTaskStatus('updated', $returnQuery);
 }
 
@@ -75,6 +127,9 @@ if (!$updateOk) {
         'failed',
         'Database update returned false'
     );
+    if ($isAjax) {
+        sendTaskStatusJson(['ok' => false, 'error' => 'update_failed'], 500);
+    }
     header('Location: tasks.php?error=invalid_request');
     exit;
 }
@@ -88,5 +143,15 @@ logAuditAction(
     'success',
     null
 );
+
+if ($isAjax) {
+    sendTaskStatusJson([
+        'ok' => true,
+        'task_id' => $taskId,
+        'status' => $newStatus,
+        'status_label' => statusLabel($newStatus),
+        'changed' => true,
+    ]);
+}
 
 redirectTaskStatus('updated', $returnQuery);

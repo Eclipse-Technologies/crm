@@ -3,6 +3,42 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 4)
+
+### Scope (Async Inline Status UX)
+
+- Remove full-page reload dependency for inline task status changes and provide immediate user feedback.
+
+### Key Changes (Async Inline Status UX)
+
+- Updated `update_task_status.php` to support AJAX/JSON responses when requested:
+  - detects XMLHttpRequest or JSON Accept headers,
+  - returns structured success/error payloads with HTTP status codes,
+  - keeps existing redirect behavior as a non-JavaScript fallback.
+- Updated `tasks.php` inline status controls for progressive enhancement:
+  - added JS hook classes for inline status forms/buttons/selects,
+  - added status badge metadata for in-place badge refresh,
+  - added toast notification surface for success/failure feedback.
+- Added client-side async submit logic on `tasks.php`:
+  - intercepts inline status form submit,
+  - posts via `fetch` with same-origin credentials,
+  - updates row status badge in place,
+  - removes rows that no longer match active status/open filters,
+  - shows error/success toast messages.
+
+### Important Files (Async Inline Status UX)
+
+- tasks.php
+- update_task_status.php
+- WORKLOG.md
+
+### Validation (Async Inline Status UX)
+
+- `php -l tasks.php` passed.
+- `php -l update_task_status.php` passed.
+- VS Code diagnostics report no errors in both files.
+- Runtime inspection confirms task rows render JS-enhanced inline status controls and status badge metadata.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 3)
 
 ### Scope (Inline Status Actions + Traceability)

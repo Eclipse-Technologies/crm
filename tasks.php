@@ -145,7 +145,7 @@ function status_badge($status) {
     ];
     $color = $statusColors[$status] ?? '#eee';
     $text = $label[$status] ?? ucfirst($status);
-    return "<span style='background:$color;padding:4px 10px;border-radius:12px;font-weight:600;font-size:0.95em;'>$text</span>";
+    return "<span class='task-status-badge' data-status='" . htmlspecialchars((string) $status, ENT_QUOTES, 'UTF-8') . "' style='background:$color;padding:4px 10px;border-radius:12px;font-weight:600;font-size:0.95em;'>$text</span>";
 }
 ?>
 
@@ -231,9 +231,9 @@ function status_badge($status) {
     </thead>
     <tbody>
       <?php foreach ($filteredTasks as $task): ?>
-        <tr>
+        <tr data-task-id="<?= htmlspecialchars((string) $task['id']) ?>">
           <td style="padding:10px 8px;"><?= htmlspecialchars($task['title']) ?></td>
-          <td><?= status_badge($task['status']) ?></td>
+          <td class="task-status-cell"><?= status_badge($task['status']) ?></td>
           <td><?= htmlspecialchars($task['due_date']) ?></td>
           <td><?= htmlspecialchars($task['priority']) ?></td>
           <td><?= htmlspecialchars($task['assigned_to']) ?></td>
@@ -249,11 +249,11 @@ function status_badge($status) {
             <?php endif; ?>
           </td>
           <td>
-            <form method="POST" action="update_task_status.php" style="display:inline-flex;align-items:center;gap:6px;margin-right:8px;">
+            <form method="POST" action="update_task_status.php" class="js-inline-status-form" style="display:inline-flex;align-items:center;gap:6px;margin-right:8px;">
               <?php renderCSRFInput(); ?>
               <input type="hidden" name="id" value="<?= htmlspecialchars((string) $task['id']) ?>">
               <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
-              <select name="status" style="padding:4px 6px;border-radius:6px;border:1px solid #d1d5db;font-size:12px;">
+              <select name="status" class="js-inline-status-select" style="padding:4px 6px;border-radius:6px;border:1px solid #d1d5db;font-size:12px;">
                 <option value="not_started" <?= ($task['status'] ?? '') === 'not_started' ? 'selected' : '' ?>>Not Started</option>
                 <option value="in_progress" <?= ($task['status'] ?? '') === 'in_progress' ? 'selected' : '' ?>>In Progress</option>
                 <option value="waiting" <?= ($task['status'] ?? '') === 'waiting' ? 'selected' : '' ?>>Waiting/Blocked</option>
@@ -261,7 +261,7 @@ function status_badge($status) {
                 <option value="completed" <?= ($task['status'] ?? '') === 'completed' ? 'selected' : '' ?>>Completed</option>
                 <option value="archived" <?= ($task['status'] ?? '') === 'archived' ? 'selected' : '' ?>>Archived</option>
               </select>
-              <button type="submit" style="background:#0f766e;color:#fff;border:none;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;">Save</button>
+              <button type="submit" class="js-inline-status-save" data-default-label="Save" style="background:#0f766e;color:#fff;border:none;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;">Save</button>
             </form>
             <a href="edit_task.php?id=<?= urlencode($task['id']) ?>" style="color:#007489;font-weight:600;">Edit</a> |
             <form method="POST" action="delete_task.php" style="display:inline;" onsubmit="return confirm('Delete this task?');">
@@ -275,4 +275,141 @@ function status_badge($status) {
     </tbody>
   </table>
 </div>
+
+<div id="task-toast" style="position:fixed;right:22px;bottom:22px;z-index:11000;background:#0f172a;color:#fff;padding:10px 14px;border-radius:8px;box-shadow:0 10px 24px rgba(15,23,42,0.25);font-size:13px;font-weight:600;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .2s ease, transform .2s ease;"></div>
+
+<script>
+(function () {
+  const statusLabels = {
+    not_started: 'Not Started',
+    in_progress: 'In Progress',
+    waiting: 'Waiting/Blocked',
+    review: 'Review',
+    completed: 'Completed',
+    archived: 'Archived'
+  };
+
+  const statusColors = {
+    not_started: '#f8d7da',
+    in_progress: '#fff3cd',
+    waiting: '#d1ecf1',
+    review: '#d6d8d9',
+    completed: '#d4edda',
+    archived: '#e2e3e5'
+  };
+
+  const activeStatusFilter = <?= json_encode((string) $statusFilter) ?>;
+  const activeViewFilter = <?= json_encode((string) $viewFilter) ?>;
+  const toast = document.getElementById('task-toast');
+  let toastTimer = null;
+
+  function showToast(message, isError) {
+    if (!toast) {
+      return;
+    }
+
+    if (toastTimer) {
+      window.clearTimeout(toastTimer);
+    }
+
+    toast.textContent = message;
+    toast.style.background = isError ? '#991b1b' : '#0f172a';
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+
+    toastTimer = window.setTimeout(function () {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(8px)';
+    }, 2200);
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function renderBadge(status) {
+    const key = status in statusLabels ? status : 'not_started';
+    const label = statusLabels[key] || key;
+    const color = statusColors[key] || '#eee';
+    return '<span class="task-status-badge" data-status="' + escapeHtml(key) + '" style="background:' + color + ';padding:4px 10px;border-radius:12px;font-weight:600;font-size:0.95em;">' + escapeHtml(label) + '</span>';
+  }
+
+  function shouldRemoveRowAfterUpdate(status) {
+    if (activeStatusFilter && activeStatusFilter !== 'all' && status !== activeStatusFilter) {
+      return true;
+    }
+
+    if (activeViewFilter === 'open' && (status === 'completed' || status === 'archived')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  document.querySelectorAll('form.js-inline-status-form').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      const saveButton = form.querySelector('.js-inline-status-save');
+      const select = form.querySelector('.js-inline-status-select');
+      const row = form.closest('tr');
+      const statusCell = row ? row.querySelector('.task-status-cell') : null;
+      if (!saveButton || !select) {
+        form.submit();
+        return;
+      }
+
+      const previousLabel = saveButton.getAttribute('data-default-label') || 'Save';
+      const formData = new FormData(form);
+
+      saveButton.disabled = true;
+      select.disabled = true;
+      saveButton.textContent = 'Saving...';
+
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        }
+      }).then(function (response) {
+        return response.json().catch(function () {
+          return { ok: false, error: 'invalid_json' };
+        });
+      }).then(function (payload) {
+        if (!payload || payload.ok !== true) {
+          showToast('Status update failed. Please retry.', true);
+          return;
+        }
+
+        const nextStatus = String(payload.status || select.value || 'not_started');
+        const nextLabel = String(payload.status_label || statusLabels[nextStatus] || nextStatus);
+
+        if (statusCell) {
+          statusCell.innerHTML = renderBadge(nextStatus);
+        }
+
+        if (shouldRemoveRowAfterUpdate(nextStatus) && row) {
+          row.remove();
+        }
+
+        showToast('Status updated to ' + nextLabel + '.', false);
+      }).catch(function () {
+        showToast('Network error while saving status.', true);
+      }).finally(function () {
+        saveButton.disabled = false;
+        select.disabled = false;
+        saveButton.textContent = previousLabel;
+      });
+    });
+  });
+})();
+</script>
 <?php require_once 'layout_end.php'; ?>
