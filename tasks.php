@@ -251,6 +251,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     $statusDiff = trim((string) ($entry['status_diff'] ?? ''));
     $statusDiffLabel = trim((string) ($entry['status_diff_label'] ?? ''));
     $statusDiffTone = trim((string) ($entry['status_diff_tone'] ?? ''));
+    $hasStatusDiff = ($statusDiff !== '' || $statusDiffLabel !== '');
 
     $metaParts = [];
     if ($timestamp !== '') {
@@ -266,7 +267,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
       $metaParts[] = $status;
     }
 
-    $items .= '<li style="margin:0 0 8px 0;">'
+    $items .= '<li data-has-diff="' . ($hasStatusDiff ? '1' : '0') . '" style="margin:0 0 8px 0;">'
       . '<div style="font-size:12px;font-weight:600;color:#111827;">' . htmlspecialchars($summary) . '</div>'
       . '<div style="font-size:11px;color:#6b7280;">' . htmlspecialchars(implode(' | ', $metaParts)) . '</div>'
         . ($statusDiff !== ''
@@ -275,7 +276,14 @@ function renderTaskAuditHistoryHtml(array $entries): string {
       . '</li>';
   }
 
-  return '<ul style="margin:0;padding-left:18px;">' . $items . '</ul>';
+  return '<div class="task-audit-history-shell">'
+    . '<div class="task-audit-history-filters" style="display:flex;gap:6px;margin:0 0 8px 0;">'
+    . '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>'
+    . '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>'
+    . '</div>'
+    . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
+    . '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>'
+    . '</div>';
 }
 
 // Fetch tasks from DB
@@ -724,15 +732,77 @@ function status_badge($status) {
       }
 
       const diffTone = explicitTone || classifyTone(statusFrom, statusTo);
+      const hasDiff = Boolean(statusDiff || diffLabel);
 
-      return '<li style="margin:0 0 8px 0;">' +
+      return '<li data-has-diff="' + (hasDiff ? '1' : '0') + '" style="margin:0 0 8px 0;">' +
         '<div style="font-size:12px;font-weight:600;color:#111827;">' + escapeHtml(summary) + '</div>' +
         '<div style="font-size:11px;color:#6b7280;">' + escapeHtml(metaParts.join(' | ')) + '</div>' +
         ((statusDiff || diffLabel) ? ('<div style="font-size:11px;color:' + toneColor(diffTone) + ';">status: ' + escapeHtml(diffLabel || statusDiff) + '</div>') : '') +
       '</li>';
     }).join('');
 
-    return '<ul style="margin:0;padding-left:18px;">' + items + '</ul>';
+    return '<div class="task-audit-history-shell">' +
+      '<div class="task-audit-history-filters" style="display:flex;gap:6px;margin:0 0 8px 0;">' +
+        '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>' +
+        '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>' +
+      '</div>' +
+      '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
+      '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>' +
+    '</div>';
+  }
+
+  function wireAuditHistoryFilters(scope) {
+    const root = scope || document;
+    root.querySelectorAll('.task-audit-history-shell').forEach(function (shell) {
+      if (shell.getAttribute('data-filters-bound') === '1') {
+        return;
+      }
+
+      const chips = shell.querySelectorAll('.js-audit-history-chip');
+      const rows = shell.querySelectorAll('.task-audit-history-list li');
+      const emptyNote = shell.querySelector('.task-audit-history-empty');
+
+      function setChipStyles(activeChip) {
+        chips.forEach(function (chip) {
+          const isActive = chip === activeChip;
+          chip.classList.toggle('is-active', isActive);
+          chip.style.border = isActive ? '1px solid #0f766e' : '1px solid #cbd5e1';
+          chip.style.background = isActive ? '#ecfeff' : '#fff';
+          chip.style.color = isActive ? '#0f766e' : '#475569';
+        });
+      }
+
+      function applyFilter(filter) {
+        let visibleCount = 0;
+        rows.forEach(function (row) {
+          const hasDiff = row.getAttribute('data-has-diff') === '1';
+          const show = (filter === 'all') || (filter === 'status_changes' && hasDiff);
+          row.style.display = show ? '' : 'none';
+          if (show) {
+            visibleCount++;
+          }
+        });
+
+        if (emptyNote) {
+          emptyNote.style.display = visibleCount === 0 ? '' : 'none';
+        }
+      }
+
+      chips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          const filter = String(chip.getAttribute('data-filter') || 'all');
+          setChipStyles(chip);
+          applyFilter(filter);
+        });
+      });
+
+      const defaultChip = shell.querySelector('.js-audit-history-chip[data-filter="all"]') || chips[0];
+      if (defaultChip) {
+        setChipStyles(defaultChip);
+      }
+      applyFilter('all');
+      shell.setAttribute('data-filters-bound', '1');
+    });
   }
 
   function shouldRemoveRowAfterUpdate(status) {
@@ -769,6 +839,8 @@ function status_badge($status) {
       }
     });
   });
+
+  wireAuditHistoryFilters(document);
 
   document.querySelectorAll('form.js-inline-status-form').forEach(function (form) {
     form.addEventListener('submit', function (event) {
@@ -842,6 +914,7 @@ function status_badge($status) {
 
         if (historyContent && Array.isArray(payload.audit_history)) {
           historyContent.innerHTML = renderAuditHistory(payload.audit_history);
+          wireAuditHistoryFilters(historyContent);
         }
 
         if (shouldRemoveRowAfterUpdate(nextStatus) && row) {

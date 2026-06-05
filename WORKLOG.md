@@ -3,6 +3,41 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 9)
+
+### Scope (History Filter Chips)
+
+- Add compact per-task history filter chips so users can switch between all events and status-change-only entries in expanded audit rows.
+
+### Key Changes (History Filter Chips)
+
+- Updated `tasks.php` history panel markup (server + async renderer) to include chips:
+  - `All Events`,
+  - `Status Changes`.
+- Added per-entry diff marker metadata (`data-has-diff`) and empty-state note for status-only views with no matching items.
+- Added reusable client-side wiring in `tasks.php` (`wireAuditHistoryFilters`) to:
+  - bind chip interactions,
+  - apply row visibility filtering,
+  - keep chip active styling consistent,
+  - auto-bind newly rendered async history content after inline status updates.
+- Preserved structured transition fields from `update_task_status.php` history payload so status-only filtering works the same in no-reload flows.
+
+### Important Files (History Filter Chips)
+
+- tasks.php
+- update_task_status.php
+- WORKLOG.md
+
+### Validation (History Filter Chips)
+
+- `php -l tasks.php` passed.
+- `php -l update_task_status.php` passed.
+- VS Code diagnostics report no errors in both files.
+- Runtime validation on `tasks.php` confirms:
+  - chip controls render in expanded history rows,
+  - chip active state toggles correctly,
+  - labeled status diffs and tone colors remain intact.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 8)
 
 ### Scope (Readable Diff Labels + Visual Tone)

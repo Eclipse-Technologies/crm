@@ -31,7 +31,11 @@ function statusLabel(string $status): string {
         'archived' => 'Archived',
     ];
 
-    return $labels[$status] ?? ucfirst($status);
+    if (isset($labels[$status])) {
+        return $labels[$status];
+    }
+
+    return ucwords(str_replace('_', ' ', $status));
 }
 
 function classifyStatusDiffTone(string $fromStatus, string $toStatus): string {
