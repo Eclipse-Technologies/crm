@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 12)
+
+### Scope (Optional Global History Mode)
+
+- Add an optional global history filter memory mode that can apply one chip view across task rows, while preserving per-row override behavior.
+
+### Key Changes (Optional Global History Mode)
+
+- Updated `tasks.php` history panels (server + async renderer) to include a `Remember for all rows` checkbox in the chip toolbar.
+- Added global session storage keys in `tasks.php` to track:
+  - global-enabled state,
+  - global filter mode (`all` or `status_changes`).
+- Implemented precedence logic in `tasks.php` history binding:
+  - row-specific preference (if present),
+  - otherwise global preference when enabled,
+  - otherwise default `All Events`.
+- Synchronized `Remember for all rows` checkbox state across open panels.
+- Updated `Reset view` behavior to clear only row-specific override and fall back to global/default mode.
+
+### Important Files (Optional Global History Mode)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Optional Global History Mode)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime validation on `tasks.php` confirms:
+  - global remember mode can be enabled,
+  - row reset clears local override and re-applies global/default fallback,
+  - fallback behavior persists across close/reopen and page reload in the same session.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 11)
 
 ### Scope (Per-Task View Reset Control)
