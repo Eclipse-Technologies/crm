@@ -3,6 +3,44 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 72)
+
+### Scope (Shift+O Origin Context Copy)
+
+- Add `Shift+O` shortcut to copy compact origin context payload (`Origin`, `Source`, `Filter`) with consistent badge and toast feedback.
+
+### Key Changes (Shift+O Origin Context Copy)
+
+- Added `buildOriginContextSnapshot()` in `tasks.php` to build:
+  - `Origin: ... | Source: ... | Filter: ...`
+- Added `originContextPreviewToastText(snapshotText)` with preview + `(<n> chars)` suffix.
+- Added `Shift+O` key handler in audit shell keydown flow:
+  - copies origin context payload,
+  - updates key status,
+  - shows preview toast,
+  - triggers new `OriginCtx` badge variant.
+- Extended `flashShortcutCopyBadge(mode)` with `origin-context` mode.
+- Updated guidance text in both render paths:
+  - cheatline includes `Shift+O`,
+  - compact/detailed hint strings include `Shift+O`,
+  - shortcut help includes `Shift+O = Copy origin/source/filter context`.
+- Updated keyboard-source tooltip shortcut list to include `Shift+O`.
+
+### Important Files (Shift+O Origin Context Copy)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Shift+O Origin Context Copy)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - `Shift+O` toast shows origin-context preview + char count,
+  - key status updates for `Shift+O` copy action,
+  - badge shows `OriginCtx`,
+  - cheatline/help text include `Shift+O` guidance.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 71)
 
 ### Scope (Keyboard Origin Copy Shortcut)
