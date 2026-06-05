@@ -1068,16 +1068,36 @@ function status_badge($status) {
       let lastSettingFreshnessClearTimer = null;
       let sourcePulseResetTimer = null;
 
-      function pulseShortcutSource() {
+      function sourcePulseAccent(sourceLabel) {
+        if (sourceLabel === 'Keyboard') {
+          return {
+            color: '#0f766e',
+            backgroundColor: '#ecfeff'
+          };
+        }
+        if (sourceLabel === 'Button') {
+          return {
+            color: '#1d4ed8',
+            backgroundColor: '#eff6ff'
+          };
+        }
+        return {
+          color: '#7c3aed',
+          backgroundColor: '#f5f3ff'
+        };
+      }
+
+      function pulseShortcutSource(sourceLabel) {
         if (!shortcutStateSource) {
           return;
         }
         if (sourcePulseResetTimer) {
           window.clearTimeout(sourcePulseResetTimer);
         }
+        const accent = sourcePulseAccent(sourceLabel);
         shortcutStateSource.style.transform = 'scale(1.08)';
-        shortcutStateSource.style.color = '#0f766e';
-        shortcutStateSource.style.backgroundColor = '#ecfeff';
+        shortcutStateSource.style.color = accent.color;
+        shortcutStateSource.style.backgroundColor = accent.backgroundColor;
         sourcePulseResetTimer = window.setTimeout(function () {
           shortcutStateSource.style.transform = 'scale(1)';
           shortcutStateSource.style.color = '';
@@ -1264,7 +1284,7 @@ function status_badge($status) {
         lastSettingSource = sourceLabel;
         refreshShortcutStateSummary();
         if (previousSource !== sourceLabel) {
-          pulseShortcutSource();
+          pulseShortcutSource(sourceLabel);
         }
       }
 

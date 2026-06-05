@@ -3,6 +3,36 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 52)
+
+### Scope (Source-Specific Pulse Accents)
+
+- Add distinct pulse accent colors for Source changes by source type.
+
+### Key Changes (Source-Specific Pulse Accents)
+
+- Added `sourcePulseAccent(sourceLabel)` in `tasks.php` client logic to map source -> accent palette:
+  - Keyboard: teal accent
+  - Button: blue accent
+  - Session: violet accent fallback
+- Updated `pulseShortcutSource(sourceLabel)` to use the mapped accent colors instead of a single shared color.
+- Kept pulse timing and reset behavior unchanged so existing micro-interaction cadence remains stable.
+- Preserved source-change guard in `setLastSettingSource()` so pulse still triggers only when source label actually changes.
+
+### Important Files (Source-Specific Pulse Accents)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Source-Specific Pulse Accents)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - Keyboard-triggered source pulse uses teal tint,
+  - Button-triggered source pulse uses blue tint,
+  - summary/source behavior remains consistent with existing freshness flow.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 51)
 
 ### Scope (Source Pulse Feedback)
