@@ -3,6 +3,42 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 46)
+
+### Scope (Shift+M Explicit Unmute)
+
+- Add `Shift+M` as an explicit unmute shortcut while preserving `M` as a mute/unmute toggle.
+
+### Key Changes (Shift+M Explicit Unmute)
+
+- Updated `tasks.php` shortcut discoverability text (server-rendered + JS-rendered):
+  - cheat line includes `Shift+M`,
+  - compact/detailed shortcut hint strings include `Shift+M`,
+  - help popover includes `Shift+M = Unmute hint toasts`.
+- Added explicit unmute helper in `tasks.php`:
+  - `applyHintToastUnmute(statusText, triggerLabel)`
+  - unmute action path updates UI + storage + key status + toast + aria-live.
+- Extended focused-shell keyboard handling in `tasks.php`:
+  - `Shift+M` performs explicit unmute,
+  - if already unmuted, records no-change status.
+- Kept `M` behavior as toggle with existing mute-state feedback flows.
+
+### Important Files (Shift+M Explicit Unmute)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Shift+M Explicit Unmute)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - discoverability text includes `Shift+M`,
+  - from muted state, `Shift+M` unmuted state transition works,
+  - key status shows `Shift+M -> Hint toasts unmuted`,
+  - aria-live announces `Hint toasts: Unmuted. Trigger: keyboard Shift+M.`,
+  - repeated `Shift+M` when already unmuted reports no-change status.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 45)
 
 ### Scope (Current Shortcut State Line)

@@ -291,9 +291,9 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>'
     . '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
     . '</div>'
-    . '<div class="js-audit-cheatline" style="display:none;font-size:10px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;margin:0 0 6px 0;width:max-content;">Keys: A S R C G H M ? Esc</div>'
-    . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>'
-    . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, Shift+H = Reset hint compact, M = Toggle hint toasts mute, Reset hint button = Compact, ? = Toggle this help.</div>'
+    . '<div class="js-audit-cheatline" style="display:none;font-size:10px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;margin:0 0 6px 0;width:max-content;">Keys: A S R C G H M Shift+M ? Esc</div>'
+    . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M Shift+M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>'
+    . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, Shift+H = Reset hint compact, M = Toggle hint toasts mute, Shift+M = Unmute hint toasts, Reset hint button = Compact, ? = Toggle this help.</div>'
     . '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>'
     . '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;">Shortcut state: Hint Compact | Toasts On</div>'
     . '<div class="js-audit-hint-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Hint mode: Compact</div>'
@@ -958,9 +958,9 @@ function status_badge($status) {
         '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>' +
         '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
       '</div>' +
-      '<div class="js-audit-cheatline" style="display:none;font-size:10px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;margin:0 0 6px 0;width:max-content;">Keys: A S R C G H M ? Esc</div>' +
-      '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>' +
-      '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, Shift+H = Reset hint compact, M = Toggle hint toasts mute, Reset hint button = Compact, ? = Toggle this help.</div>' +
+      '<div class="js-audit-cheatline" style="display:none;font-size:10px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;margin:0 0 6px 0;width:max-content;">Keys: A S R C G H M Shift+M ? Esc</div>' +
+      '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M Shift+M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>' +
+      '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, Shift+H = Reset hint compact, M = Toggle hint toasts mute, Shift+M = Unmute hint toasts, Reset hint button = Compact, ? = Toggle this help.</div>' +
       '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>' +
       '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;">Shortcut state: Hint Compact | Toasts On</div>' +
       '<div class="js-audit-hint-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Hint mode: Compact</div>' +
@@ -1053,8 +1053,8 @@ function status_badge($status) {
       const hintLiveRegion = shell.querySelector('.js-audit-hint-live');
       const rows = shell.querySelectorAll('.task-audit-history-list li');
       const emptyNote = shell.querySelector('.task-audit-history-empty');
-      const shortcutHintCompactText = 'Shortcuts: A S R C G H M ? Esc';
-      const shortcutHintDetailedText = 'Shortcuts: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Global mode, H = Hint detail, Shift+H = Compact, M = Toast mute';
+      const shortcutHintCompactText = 'Shortcuts: A S R C G H M Shift+M ? Esc';
+      const shortcutHintDetailedText = 'Shortcuts: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Global mode, H = Hint detail, Shift+H = Compact, M = Toast mute, Shift+M = Unmute';
       const hintLiveDebounceMs = 120;
       let hintLiveTimer = null;
       let isShortcutHintDetailed = false;
@@ -1254,6 +1254,19 @@ function status_badge($status) {
         announceHintToastMute(muted, statusPrefix === 'M -> Hint toasts' ? 'keyboard M' : 'toggle button');
         setKeyStatus(statusPrefix + ' ' + (muted ? 'muted' : 'unmuted'));
         showToast('Hint toasts ' + (muted ? 'muted.' : 'unmuted.'), false);
+      }
+
+      function applyHintToastUnmute(statusText, triggerLabel) {
+        if (!isHintToastMuted(taskId)) {
+          setKeyStatus(statusText + ' (no change)');
+          return false;
+        }
+        setHintToastMuted(taskId, false);
+        refreshHintToastToggle();
+        announceHintToastMute(false, triggerLabel || 'keyboard Shift+M');
+        setKeyStatus(statusText);
+        showToast('Hint toasts unmuted.', false);
+        return true;
       }
 
       function applySourceIndicator(source, filter) {
@@ -1502,6 +1515,9 @@ function status_badge($status) {
           applyHintModeTransition(nextDetailed, {
             triggerKey: 'keyboard H'
           });
+        } else if (key === 'm' && event.shiftKey) {
+          event.preventDefault();
+          applyHintToastUnmute('Shift+M -> Hint toasts unmuted', 'keyboard Shift+M');
         } else if (key === 'm') {
           event.preventDefault();
           applyHintToastMuteToggle('M -> Hint toasts');
