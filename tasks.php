@@ -1072,11 +1072,15 @@ function status_badge($status) {
       }
 
       function resetHintToCompact(statusText, triggerLabel) {
+        if (!isShortcutHintDetailed) {
+          return false;
+        }
         setShortcutHintDetailed(false);
         setStoredAuditHintMode(taskId, 'compact');
         announceHintMode('Compact', triggerLabel || 'reset');
         setKeyStatus(statusText);
         showToast('Shortcut hint reset to compact.', false);
+        return true;
       }
 
       function setKeyStatus(text) {
@@ -1336,7 +1340,10 @@ function status_badge($status) {
           }
         } else if (key === 'h' && event.shiftKey) {
           event.preventDefault();
-          resetHintToCompact('Shift+H -> Hint compact', 'keyboard Shift+H');
+          const changed = resetHintToCompact('Shift+H -> Hint compact', 'keyboard Shift+H');
+          if (!changed) {
+            setKeyStatus('Shift+H -> Hint compact (no change)');
+          }
         } else if (key === 'h') {
           event.preventDefault();
           const nextDetailed = !isShortcutHintDetailed;

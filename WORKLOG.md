@@ -3,6 +3,36 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 38)
+
+### Scope (Suppress Unchanged Announcements)
+
+- Prevent aria-live announcements when hint mode does not actually change.
+
+### Key Changes (Suppress Unchanged Announcements)
+
+- Updated `resetHintToCompact(...)` in `tasks.php`:
+  - early-return no-op when already in compact mode,
+  - only announces/stores/toasts when a real detailed -> compact transition occurs,
+  - returns a boolean change flag.
+- Updated `Shift+H` handler in `tasks.php`:
+  - uses returned change flag,
+  - records key status with `(no change)` when reset is redundant,
+  - avoids redundant live announcements in that case.
+
+### Important Files (Suppress Unchanged Announcements)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Suppress Unchanged Announcements)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - `Shift+H` while already compact causes zero live-region mutations,
+  - actual compact transition from detailed still announces correctly.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 37)
 
 ### Scope (Aria-Live Debounce)
