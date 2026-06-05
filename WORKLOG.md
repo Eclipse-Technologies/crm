@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 35)
+
+### Scope (Aria-Live Hint Announcements)
+
+- Add screen-reader friendly live announcements whenever hint mode changes via keyboard or reset button actions.
+
+### Key Changes (Aria-Live Hint Announcements)
+
+- Added a hidden `aria-live="polite"` region in `tasks.php` history shell markup (server-rendered and JS-rendered):
+  - `.js-audit-hint-live`
+- Added announcement helper in `tasks.php`:
+  - `announceHintMode(modeLabel, triggerLabel)`
+- Wired live announcements to all mode-changing interactions:
+  - `H` toggle shortcut,
+  - `Shift+H` compact reset,
+  - `Reset hint` button compact reset.
+- Kept existing hint badge, key-status, toast, and persistence behavior unchanged.
+
+### Important Files (Aria-Live Hint Announcements)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Aria-Live Hint Announcements)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms live-region messages update for:
+  - keyboard `H`,
+  - keyboard `Shift+H`,
+  - `Reset hint` button click.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 34)
 
 ### Scope (One-Time Restored Hint Toast)
