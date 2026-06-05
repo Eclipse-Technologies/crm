@@ -3,7 +3,7 @@
 require_once 'contact_validator.php';
 require_once 'csrf_helper.php';
 use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
 // Prefer Composer autoload when available; otherwise fallback to bundled vendor paths.
 $autoloadPath = __DIR__ . '/vendor/autoload.php';
@@ -20,6 +20,24 @@ if (!class_exists(PHPMailer::class)) {
 $schema = require __DIR__ . '/contact_schema.php';
 $mail = new PHPMailer(true);
 
+function contactRedirectWithReason(string $status, string $reason = ''): void {
+    $url = 'contact_form.php?status=' . rawurlencode($status);
+    if ($reason !== '') {
+        $url .= '&reason=' . rawurlencode($reason);
+    }
+    header('Location: ' . $url);
+    exit;
+}
+
+function contactLogAndFail(string $reason, string $detail = ''): void {
+    $message = 'Contact form [' . $reason . ']';
+    if ($detail !== '') {
+        $message .= ': ' . $detail;
+    }
+    error_log($message);
+    contactRedirectWithReason('error', $reason);
+}
+
 try {
     if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
         http_response_code(405);
@@ -27,31 +45,49 @@ try {
     }
 
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        header('Location: contact_form.php?status=error');
-        exit;
+        contactLogAndFail('csrf', 'CSRF token validation failed');
     }
 
     // Honeypot field: legitimate users leave this empty.
     $hp = trim((string) ($_POST['website_url'] ?? ''));
     if ($hp !== '') {
-        header('Location: contact_form.php?status=success');
-        exit;
+        contactRedirectWithReason('success', 'honeypot');
     }
 
     // Basic per-IP cooldown to reduce spam bursts.
     $clientIp = trim((string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
     $rateKey = 'crm_contact_' . md5($clientIp);
     $rateFile = rtrim((string) sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $rateKey . '.txt';
+    $sessionRateKey = 'crm_contact_last_submit_ts';
+    $cookieRateKey = 'crm_contact_last_submit_ts';
     $cooldownSeconds = 20;
     $now = time();
+
+    $cookieLast = (int) ($_COOKIE[$cookieRateKey] ?? 0);
+    if ($cookieLast > 0 && ($now - $cookieLast) < $cooldownSeconds) {
+        contactLogAndFail('cooldown', 'Submission blocked by cookie cooldown window');
+    }
+
+    $sessionLast = (int) ($_SESSION[$sessionRateKey] ?? 0);
+    if ($sessionLast > 0 && ($now - $sessionLast) < $cooldownSeconds) {
+        contactLogAndFail('cooldown', 'Submission blocked by session cooldown window');
+    }
+
     if (file_exists($rateFile)) {
         $last = (int) trim((string) @file_get_contents($rateFile));
         if ($last > 0 && ($now - $last) < $cooldownSeconds) {
-            header('Location: contact_form.php?status=error');
-            exit;
+            contactLogAndFail('cooldown', 'Submission blocked by cooldown window');
         }
     }
 
+    $_SESSION[$sessionRateKey] = $now;
+    setcookie($cookieRateKey, (string) $now, [
+        'expires' => $now + $cooldownSeconds,
+        'path' => '/',
+        'secure' => false,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     @file_put_contents($rateFile, (string) $now, LOCK_EX);
 
     // Collect and sanitize form data
@@ -62,9 +98,12 @@ try {
         $data[$field] = $value;
     }
 
+    // Public form includes a free-text message field not present in contact schema.
+    $data['message'] = htmlspecialchars(trim((string) ($_POST['message'] ?? '')));
+
     // Validate required fields
     if (empty($data['first_name']) || empty($data['email']) || empty($data['message'])) {
-        throw new Exception("Please fill in all required fields.");
+        contactLogAndFail('validation', 'Missing one or more required fields');
     }
 
     // Save to CSV
@@ -75,7 +114,7 @@ try {
         fputcsv($file, $csvRow);
         fclose($file);
     } else {
-        throw new Exception("Unable to write to contacts.csv");
+        contactLogAndFail('csv_write', 'Unable to write to contacts.csv');
     }
 
     // GoDaddy relay SMTP settings
@@ -98,11 +137,10 @@ try {
     $mail->send();
 
     // Redirect with success status
-    header('Location: contact_form.php?status=success');
-    exit;
+    contactRedirectWithReason('success');
 
-} catch (Exception $e) {
-    error_log("Contact form error: " . $e->getMessage());
-    header('Location: contact_form.php?status=error');
-    exit;
+} catch (PHPMailerException $e) {
+    contactLogAndFail('smtp_send', $e->getMessage());
+} catch (Throwable $e) {
+    contactLogAndFail('submit_failed', $e->getMessage());
 }
