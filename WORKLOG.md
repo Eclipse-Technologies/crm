@@ -3,6 +3,36 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 55)
+
+### Scope (Live Source Meaning Line)
+
+- Add a compact always-visible line under source legend that explains what the current Source means.
+
+### Key Changes (Live Source Meaning Line)
+
+- Added `.js-audit-source-meaning` row in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`).
+- Added `sourceMeaningText(sourceLabel)` helper in `tasks.php` client logic for source-specific messaging:
+  - Session meaning text
+  - Keyboard meaning text
+  - Button meaning text
+- Wired meaning-line updates into `refreshShortcutStateSummary()` so the text updates immediately when source changes.
+- Kept existing tooltip and pulse behavior unchanged.
+
+### Important Files (Live Source Meaning Line)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Live Source Meaning Line)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - initial line shows Session meaning,
+  - keyboard action updates line to Keyboard meaning,
+  - button action updates line to Button meaning.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 54)
 
 ### Scope (Always-Visible Source Legend)
