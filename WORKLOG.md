@@ -3,6 +3,34 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Tasks Fallback Notice Actions
+
+### Scope
+
+- Add actionable controls to the auto-fallback notice and make dismiss behavior header-safe.
+
+### Key Changes
+
+- Added notice actions in tasks.php:
+  - `Show only My Open Tasks` quick-switch link,
+  - `Dismiss` link.
+- Added session-backed dismiss state (`tasks_auto_fallback_notice_dismissed`) and reset clearing.
+- Updated dismiss handling to avoid redirect/header dependency; dismiss now hides notice inline while keeping current page state.
+
+### Important Files
+
+- tasks.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Browser verification confirmed:
+  - fallback notice appears when applicable,
+  - dismiss hides notice while keeping rows visible and view=`all`,
+  - quick-switch link sets view=`my_open`.
+
 ## 2026-06-05 - Tasks Auto-Fallback Notice
 
 ### Scope

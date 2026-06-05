@@ -315,6 +315,11 @@ $defaultView = 'all';
 
 if (isset($_GET['reset_filters']) && $_GET['reset_filters'] === '1') {
   unset($_SESSION['tasks_filter_view'], $_SESSION['tasks_filter_status'], $_SESSION['tasks_filter_assignee']);
+  unset($_SESSION['tasks_auto_fallback_notice_dismissed']);
+}
+
+if (isset($_GET['dismiss_auto_fallback_notice']) && $_GET['dismiss_auto_fallback_notice'] === '1') {
+  $_SESSION['tasks_auto_fallback_notice_dismissed'] = '1';
 }
 
 $hasExplicitFilterInput = isset($_GET['view']) || isset($_GET['status']) || isset($_GET['assignee']);
@@ -392,6 +397,8 @@ if (!$hasExplicitFilterInput && $viewFilter === 'my_open' && count($filteredTask
   }
 }
 
+$showAutoFallbackNotice = $autoFallbackFromMyOpen && (($_SESSION['tasks_auto_fallback_notice_dismissed'] ?? '') !== '1');
+
 $today = date('Y-m-d');
 $summary = [
   'total' => count($filteredTasks),
@@ -428,6 +435,14 @@ if ($assigneeFilter !== '') {
   $returnQueryParams['assignee'] = $assigneeFilter;
 }
 $returnQuery = http_build_query($returnQueryParams);
+$myOpenQueryParams = ['view' => 'my_open'];
+if ($statusFilter !== '' && $statusFilter !== 'all') {
+  $myOpenQueryParams['status'] = $statusFilter;
+}
+if ($assigneeFilter !== '') {
+  $myOpenQueryParams['assignee'] = $assigneeFilter;
+}
+$myOpenSwitchUrl = 'tasks.php?' . http_build_query($myOpenQueryParams);
 $taskAuditPreviews = fetchRecentTaskAuditPreviews(array_map(static function ($task) {
   return $task['id'] ?? '';
 }, $filteredTasks));
@@ -482,9 +497,11 @@ function status_badge($status) {
     </div>
   </div>
 
-  <?php if ($autoFallbackFromMyOpen): ?>
+  <?php if ($showAutoFallbackNotice): ?>
     <div style="margin:0 0 14px 0;padding:10px 12px;border:1px solid #fde68a;background:#fffbeb;color:#92400e;border-radius:8px;font-size:13px;">
       Switched to <strong>All Tasks</strong> because your saved <strong>My Open Tasks</strong> filter returned no rows.
+      <a href="<?= htmlspecialchars($myOpenSwitchUrl) ?>" style="margin-left:8px;color:#92400e;font-weight:700;text-decoration:underline;">Show only My Open Tasks</a>
+      <a href="tasks.php?dismiss_auto_fallback_notice=1" style="margin-left:10px;color:#92400e;font-weight:700;text-decoration:underline;">Dismiss</a>
     </div>
   <?php endif; ?>
 
