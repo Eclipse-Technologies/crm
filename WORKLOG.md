@@ -3,6 +3,36 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 21)
+
+### Scope (Focus-Only Shortcut Hint)
+
+- Add visible keyboard hint text for focused audit-history panels to improve shortcut discoverability.
+
+### Key Changes (Focus-Only Shortcut Hint)
+
+- Updated `tasks.php` history markup (server-rendered and JS-rendered) to include a compact hint line:
+  - `Shortcuts: A = All Events, S = Status Changes`
+- Implemented focus-scoped hint visibility in `tasks.php`:
+  - hint is shown while focus is inside the history shell,
+  - hint is hidden when focus leaves the shell.
+- Used `focusin` / `focusout` handling with deferred active-element containment check for reliable hide behavior across nested controls.
+- Kept existing keyboard shortcuts (`A`/`S`) unchanged and integrated with current override/global-summary behavior.
+
+### Important Files (Focus-Only Shortcut Hint)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Focus-Only Shortcut Hint)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - opening a history panel focuses its shell and shows the hint,
+  - `S` shortcut still activates status-changes chip,
+  - after explicit shell blur, hint hides (`display: none`).
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 20)
 
 ### Scope (Keyboard Shortcuts)

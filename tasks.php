@@ -291,6 +291,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>'
     . '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
     . '</div>'
+    . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes</div>'
     . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
     . '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>'
     . '</div>';
@@ -891,6 +892,7 @@ function status_badge($status) {
         '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>' +
         '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
       '</div>' +
+      '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes</div>' +
       '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
       '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>' +
     '</div>';
@@ -968,6 +970,7 @@ function status_badge($status) {
       const resetButton = shell.querySelector('.js-audit-history-reset');
       const rememberGlobalCheckbox = shell.querySelector('.js-audit-history-remember-global');
       const sourceIndicator = shell.querySelector('.js-audit-history-source');
+      const shortcutHint = shell.querySelector('.js-audit-shortcut-hint');
       const rows = shell.querySelectorAll('.task-audit-history-list li');
       const emptyNote = shell.querySelector('.task-audit-history-empty');
 
@@ -1111,6 +1114,21 @@ function status_badge($status) {
           showToast('History view: Status Changes.', false);
         }
       });
+
+      if (shortcutHint) {
+        shell.addEventListener('focusin', function () {
+          shortcutHint.style.display = '';
+        });
+
+        shell.addEventListener('focusout', function () {
+          // Defer so document.activeElement is updated before containment check.
+          window.setTimeout(function () {
+            if (!shell.contains(document.activeElement)) {
+              shortcutHint.style.display = 'none';
+            }
+          }, 0);
+        });
+      }
 
       if (rememberGlobalCheckbox) {
         const globalState = getGlobalAuditFilterState();
