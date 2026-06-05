@@ -3,6 +3,32 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 99)
+
+### Scope (Explicit Manual Copy Keystroke)
+
+- Improve escalated fallback clarity by explicitly instructing users to press Ctrl+C after selecting policy text.
+
+### Key Changes (Explicit Manual Copy Keystroke)
+
+- Updated inline manual hint text in both render paths in tasks.php:
+  - from generic manual-copy wording to explicit “select policy line, then press Ctrl+C”.
+- Updated escalated manual-hint aria-live message to include Ctrl+C instruction for screen-reader parity.
+- Preserved all escalation gating and visibility behavior from prior slice.
+
+### Important Files (Explicit Manual Copy Keystroke)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Explicit Manual Copy Keystroke)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - escalated inline manual hint text contains Ctrl+C instruction,
+  - escalated aria-live manual-hint announcement contains Ctrl+C instruction.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 98)
 
 ### Scope (Manual-Hint Visibility Live Cue)
