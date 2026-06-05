@@ -3,6 +3,34 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 73)
+
+### Scope (Adaptive Origin Context Badge Label)
+
+- Improve `Shift+O` badge readability by auto-expanding the origin-context badge label on wider audit panels.
+
+### Key Changes (Adaptive Origin Context Badge Label)
+
+- Updated `flashShortcutCopyBadge(mode)` in `tasks.php`:
+  - detects current audit panel width,
+  - uses compact label `OriginCtx` on narrower shells,
+  - uses expanded label `Origin Context` on wider shells.
+- Kept badge color treatment and existing copy payload/toast behavior unchanged.
+
+### Important Files (Adaptive Origin Context Badge Label)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Adaptive Origin Context Badge Label)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - narrow shell (`~420px`) shows badge text `OriginCtx`,
+  - wide shell (`~760px`) shows badge text `Origin Context`,
+  - `Shift+O` origin-context toast remains correct.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 72)
 
 ### Scope (Shift+O Origin Context Copy)

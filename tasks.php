@@ -1180,6 +1180,7 @@ function status_badge($status) {
           return;
         }
         const badgeMode = String(mode || 'copied').toLowerCase();
+        const badgeHostWidth = shell && typeof shell.clientWidth === 'number' ? shell.clientWidth : 0;
         if (shortcutCopyBadgeTimer) {
           window.clearTimeout(shortcutCopyBadgeTimer);
         }
@@ -1188,7 +1189,7 @@ function status_badge($status) {
           shortcutCopyBadge.style.background = '#dbeafe';
           shortcutCopyBadge.style.color = '#1e3a8a';
         } else if (badgeMode === 'origin-context') {
-          shortcutCopyBadge.textContent = 'OriginCtx';
+          shortcutCopyBadge.textContent = badgeHostWidth >= 560 ? 'Origin Context' : 'OriginCtx';
           shortcutCopyBadge.style.background = '#ede9fe';
           shortcutCopyBadge.style.color = '#5b21b6';
         } else if (badgeMode === 'origin') {
