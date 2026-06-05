@@ -5,8 +5,9 @@
 // error_reporting(E_ALL);
 // Prevent accidental output before headers
 ob_start();
-require_once 'layout_start.php';
 require_once 'db_mysql.php';
+require_once 'csrf_helper.php';
+require_once 'simple_auth/middleware.php';
 $schema = require __DIR__ . '/opportunity_schema.php';
 $contactSchema = require __DIR__ . '/contact_schema.php';
 function fetch_companies_mysql() {
@@ -99,6 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 }
 ?>
+
+<?php require_once 'layout_start.php'; ?>
 
 <style>
   .page-header {

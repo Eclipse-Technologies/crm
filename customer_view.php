@@ -85,6 +85,18 @@ function customer_view_insert_followup_task(mysqli $conn, int $contactId, string
     $stmt->close();
 }
 
+function customer_view_is_customer_owned(string $ownership): bool
+{
+    $normalized = strtolower(trim($ownership));
+    return in_array($normalized, ['customer owned', 'customer-owned', 'purchased'], true);
+}
+
+function customer_view_is_service_owned(string $ownership): bool
+{
+    $normalized = strtolower(trim($ownership));
+    return in_array($normalized, ['rental', 'evoqua rental', 'lease', 'leased', 'evoqua lease'], true);
+}
+
 $customerId = $_GET['id'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_customer') {
@@ -342,6 +354,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'assig
 
         // Calculate how many to add or remove
         $toAssign = $numTanks - count($currentlyAssigned);
+        $assignedCount = 0;
+        $removedCount = 0;
         if ($toAssign > 0) {
             // Assign tanks from pool to this customer
             $assignIds = array_slice($availablePoolTanks, 0, $toAssign);
@@ -349,6 +363,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'assig
                 $stmt = $conn->prepare("UPDATE equipment SET customer_id = ? WHERE equipment_id = ?");
                 $stmt->bind_param('ss', $customerId, $eqId);
                 $stmt->execute();
+                $assignedCount += ($stmt->affected_rows > 0) ? 1 : 0;
                 $stmt->close();
             }
         } elseif ($toAssign < 0) {
@@ -358,11 +373,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'assig
                 $stmt = $conn->prepare("UPDATE equipment SET customer_id = NULL WHERE equipment_id = ?");
                 $stmt->bind_param('s', $eqId);
                 $stmt->execute();
+                $removedCount += ($stmt->affected_rows > 0) ? 1 : 0;
                 $stmt->close();
             }
         }
         $conn->close();
-        echo "<div class='alert alert-success'>Updated number of pool rental tanks assigned to customer.</div>";
+
+        $currentAfter = count($currentlyAssigned) + $assignedCount - $removedCount;
+        if ($toAssign > 0 && $assignedCount < $toAssign) {
+            echo "<div class='alert alert-warning'>Partial update: requested total {$numTanks} tanks, assigned {$assignedCount} of {$toAssign} additional requested. Customer now has {$currentAfter} assigned.</div>";
+        } elseif ($toAssign < 0 && $removedCount < abs($toAssign)) {
+            $expectedToRemove = abs($toAssign);
+            echo "<div class='alert alert-warning'>Partial update: needed to return {$expectedToRemove} tanks to pool, returned {$removedCount}. Customer now has {$currentAfter} assigned.</div>";
+        } elseif ($toAssign === 0) {
+            echo "<div class='alert alert-info'>No change needed. Customer already has {$numTanks} pool tanks assigned.</div>";
+        } else {
+            echo "<div class='alert alert-success'>Updated pool tank assignment. Customer now has {$currentAfter} assigned.</div>";
+        }
     }
 }
 $customerSchema = require __DIR__ . '/customer_schema.php';
@@ -380,14 +407,47 @@ if ($customerId !== '') {
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
-        $ownership = strtolower(trim($row['ownership'] ?? ''));
-        if ($ownership === 'customer owned' || $ownership === 'customer-owned') {
+        $ownership = (string) ($row['ownership'] ?? '');
+        if (customer_view_is_customer_owned($ownership)) {
             $customerOwnedEquipment[] = $row;
-        } elseif ($ownership === 'rental' || $ownership === 'lease' || $ownership === 'leased' || $ownership === 'evoqua rental' || $ownership === 'evoqua lease') {
+        } elseif (customer_view_is_service_owned($ownership)) {
             $serviceEquipment[] = $row;
         }
     }
     $stmt->close();
+    $conn->close();
+}
+
+$componentsByEquipment = [];
+$equipmentIdsForComponents = array_map(static function ($row) {
+    return (string) ($row['equipment_id'] ?? '');
+}, array_merge($customerOwnedEquipment, $serviceEquipment));
+$equipmentIdsForComponents = array_values(array_filter(array_unique($equipmentIdsForComponents)));
+if (!empty($equipmentIdsForComponents)) {
+    $conn = get_mysql_connection();
+    $placeholders = implode(',', array_fill(0, count($equipmentIdsForComponents), '?'));
+    $stmtComp = $conn->prepare('SELECT equipment_id, component_slot, item_id, quantity_required FROM equipment_components WHERE equipment_id IN (' . $placeholders . ')');
+    if ($stmtComp) {
+        $types = str_repeat('s', count($equipmentIdsForComponents));
+        $stmtComp->bind_param($types, ...$equipmentIdsForComponents);
+        $stmtComp->execute();
+        $resultComp = $stmtComp->get_result();
+        while ($rowComp = $resultComp ? $resultComp->fetch_assoc() : null) {
+            $equipmentId = (string) ($rowComp['equipment_id'] ?? '');
+            $slot = (string) ($rowComp['component_slot'] ?? '');
+            if ($equipmentId === '' || $slot === '') {
+                continue;
+            }
+            if (!isset($componentsByEquipment[$equipmentId])) {
+                $componentsByEquipment[$equipmentId] = [];
+            }
+            $componentsByEquipment[$equipmentId][$slot] = [
+                'item_id' => (string) ($rowComp['item_id'] ?? ''),
+                'quantity_required' => (float) ($rowComp['quantity_required'] ?? 0),
+            ];
+        }
+        $stmtComp->close();
+    }
     $conn->close();
 }
 
@@ -990,10 +1050,10 @@ if ($customerId !== '') {
                     </table>
                 </div>
                 <div class="cv-action-row">
-                    <a href="add_customer.php?contact_id=<?= urlencode($customer['contact_id']) ?>" class="btn-outline">➕ Add Equipment</a>
+                    <a href="equipment_form.php" class="btn-outline">➕ Add Equipment</a>
                 </div>
             <?php else: ?>
-                <div class="no-data">No service/rental tanks assigned at this site. <a href="add_customer.php?contact_id=<?= urlencode($customer['contact_id']) ?>">Add equipment</a></div>
+                <div class="no-data">No service/rental tanks assigned at this site. <a href="equipment_form.php">Add equipment</a></div>
             <?php endif; ?>
         </fieldset>
 

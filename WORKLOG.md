@@ -3,6 +3,189 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Admin Sales Integrity Reporting and Bulk Ops Cleanup
+
+### Scope (Admin Visibility + Interaction Safety)
+
+- Add a dedicated integrity audit screen for sales relationship consistency and clean up admin bulk-ops UI/template issues discovered during hardening.
+
+### Key Changes (Admin Visibility + Interaction Safety)
+
+- Added new `admin_integrity_report.php` with cross-module integrity checks and sample rows for:
+  - opportunities missing/invalid contact links,
+  - tasks referencing missing opportunities,
+  - discussion entries referencing missing opportunities,
+  - contracts referencing missing contacts/customers.
+- Added CSRF-protected, batch-limited one-click safe repair controls on `admin_integrity_report.php` for orphan link cleanup:
+  - clear `tasks.opportunity_id` when referenced opportunity is missing,
+  - clear `discussion_log.linked_opportunity_id` when referenced opportunity is missing.
+- Added guided, preview-first contract customer repair in `admin_integrity_report.php` for orphan `contracts.customer_id` links:
+  - requires preview action first,
+  - requires explicit typed confirmation (`CONFIRM`) before apply,
+  - enforces a preview expiry window before apply can run.
+- Added audit trail logging for integrity repairs via existing `logAuditAction(...)` into `audit_log` with action type, batch size, rows changed, and status for each run.
+- Normalized contract/customer relationship matching to handle zero-padded customer IDs (e.g., `00003`) versus plain numeric contract references (e.g., `3`) so integrity checks do not produce false orphan-customer positives.
+- Extended normalization hardening to all contact-link integrity checks in `admin_integrity_report.php`:
+  - opportunities missing contact,
+  - contracts missing contact,
+  - contracts missing customer.
+  These checks now use exact-match OR numeric-equivalent fallback to avoid false positives when IDs differ only by zero-padding format.
+- Refactored `admin_integrity_report.php` to use a single shared normalized-ID SQL helper (`normalizedIdExistsClause(...)`) consumed by both report and repair queries, reducing future drift risk between detection and fix paths.
+- Extracted reusable admin SQL helpers into new `admin_sql_helper.php` and switched both `admin_integrity_report.php` and `admin_bulk_ops.php` to consume shared functions (`adminTableHasColumn`, `adminOpportunityIdColumn`, `adminNormalizedIdExistsClause`) instead of duplicate local implementations.
+- Expanded shared-helper adoption to opportunity-related flows that previously duplicated ID-column/schema checks:
+  - `delete_opportunity.php`,
+  - `update_opportunity_inline.php`,
+  - `pipeline_board.php`,
+  - `edit_opportunity.php`.
+  These now use the same `adminOpportunityIdColumn`/`adminTableHasColumn` logic for consistent behavior.
+- Added CLI smoke test `tests/AdminSqlHelperSmokeTest.php` to regression-check:
+  - normalized predicate generation safety/shape,
+  - invalid input guardrails (exception paths),
+  - DB-backed helper behavior (`adminOpportunityIdColumn`, `adminTableHasColumn`).
+- Added one-command wrapper script `scripts/run-admin-sql-smoke.ps1` to run lint + helper smoke checks in a single step for local pre-deploy validation.
+- Added GitHub Actions workflow `.github/workflows/admin-sql-smoke.yml` to run the helper smoke test on push/PR in CI mode (`ADMIN_SQL_SMOKE_SKIP_DB=1`) so hosted runners do not require local DB state.
+- Hardened wrapper determinism: `scripts/run-admin-sql-smoke.ps1` now supports `-SkipDb` and explicitly sets/restores `ADMIN_SQL_SMOKE_SKIP_DB` each run to avoid terminal-session env leakage.
+- Extended CI workflow with a second DB-backed job (`admin-sql-smoke-db`) using a disposable MySQL 8 service container, schema bootstrap, and full smoke-test execution without skip mode.
+- Added endpoint-level regression smoke test `tests/OpportunityEndpointHelperUsageSmokeTest.php` to enforce helper adoption in opportunity/admin endpoints and block legacy local-ID-probe drift.
+- Added release-note artifact `ADMIN_SQL_HARDENING_RELEASE_NOTES_2026-06-04.md` to isolate this hardening stream for cleaner review in a dirty working tree.
+- Added an Admin Dashboard tool link to the new integrity report page.
+- Cleaned `admin_bulk_ops.php` template issues:
+  - replaced inline CSRF echo usage with `renderCSRFInput()` direct calls,
+  - resolved template/JS parser noise in select-all checkbox handlers,
+  - updated opportunity edit links in bulk views to `edit_opportunity.php?id=...`.
+- Fixed Admin Dashboard runtime error caused by collation mismatch in active-user join logic by switching username/user_id comparison to binary-safe matching in `admin_helper.php`.
+
+### Important Files (Admin Visibility + Interaction Safety)
+
+- admin_integrity_report.php
+- admin_dashboard.php
+- admin_bulk_ops.php
+- admin_helper.php
+- WORKLOG.md
+
+### Validation (Admin Visibility + Interaction Safety)
+
+- PHP syntax checks passed for `admin_integrity_report.php`, `admin_dashboard.php`, and `admin_bulk_ops.php`.
+- VS Code diagnostics: no errors in modified admin files.
+- Runtime verification passed:
+  - `admin_dashboard.php` loads without runtime error and shows the new Integrity Report tool link,
+  - `admin_integrity_report.php` loads and returns issue counts/tables,
+  - one-click repair action verified: discussion orphan-opportunity count reduced from 3 to 0 with success feedback,
+  - one-click repair action (`Fix Task Links`) verified post-audit update and created a new `audit_log` entry with `entity_type=integrity` and success status,
+  - guided contract-customer repair verified: preview action shows second-step apply form; invalid confirmation is blocked with warning and logged to `audit_log` as failed,
+  - normalized orphan-customer logic verified with direct SQL probe (`normalized_orphan_count=0`) and runtime dashboard count now shows `Contracts Missing Customer = 0`.
+  - normalized probes for all relevant link checks returned zero (`opps_missing_contact_norm=0`, `contracts_orphan_contact_norm=0`, `contracts_orphan_customer_norm=0`) and runtime integrity page remains clean.
+  - helper refactor validated: `php -l` clean, diagnostics clean, runtime page shows all-zero integrity counts with no query regressions.
+  - shared-helper extraction validated: syntax/diagnostics clean for helper + consumer pages and runtime loads verified for both `admin_integrity_report.php` and `admin_bulk_ops.php`.
+  - additional rollout validated: syntax/diagnostics clean for all updated opportunity files and runtime loads confirmed for `pipeline_board.php`.
+  - smoke test validated with `php tests/AdminSqlHelperSmokeTest.php` (PASS).
+  - wrapper script validated with `powershell -ExecutionPolicy Bypass -File .\\scripts\\run-admin-sql-smoke.ps1` (PASS).
+  - CI-mode path validated locally (`ADMIN_SQL_SMOKE_SKIP_DB=1` and wrapper `-SkipDb`) with passing output.
+  - DB-backed local smoke path revalidated after env reset (`Remove-Item Env:ADMIN_SQL_SMOKE_SKIP_DB; php tests/AdminSqlHelperSmokeTest.php`) with PASS.
+  - endpoint helper usage smoke test lint + execution validated in both wrapper modes (default and `-SkipDb`) with PASS.
+  - `admin_bulk_ops.php` loads and renders all bulk sections.
+
+## 2026-06-04 - Sales Module Interaction Audit and Cross-Flow Fixes
+
+### Scope (Sales/Tasks/Contracts/Discussions Integration)
+
+- Validate and correct interactions between opportunities, contracts, tasks, discussions, and shared layout/security patterns.
+
+### Key Changes (Sales/Tasks/Contracts/Discussions Integration)
+
+- Fixed task-to-opportunity navigation in `tasks.php` to use `edit_opportunity.php?id=...` (was using an unsupported query parameter key).
+- Updated `edit_task.php` status options to use the same canonical status vocabulary used by task creation and lists.
+- Updated `add_task.php` to persist `priority` and `assigned_to` when provided by UI forms.
+- Added CSRF token rendering to the dashboard calendar add-task form in `index.php` and aligned task status filters/colors with canonical statuses.
+- Refactored `discussion_logger.php` so it behaves as a safe helper when included by other files and only runs redirecting request logic when directly executed.
+- Fixed `opportunities_list.php` to rely on shared layout wrappers and close with `layout_end.php` instead of manual document wrappers.
+- Fixed `contracts_list.php` renewal action target to an existing page (`contract_edit.php`) and added missing `layout_end.php` include.
+- Updated `edit_opportunity.php` company change flow to relink opportunity contact by selected company without mutating contact master records.
+- Updated `add_opportunity.php` to run POST/redirect logic before layout output and added explicit CSRF/auth includes.
+- Updated `opportunity_form.php` to forward edit requests (`?id=`) to `edit_opportunity.php` and removed duplicate trailing submit markup.
+- Repaired broken `calculateAnnualValue()` JavaScript function wiring in `contract_form.php` so fee/date UI logic continues to execute correctly.
+- Hardened opportunity delete flows (`delete_opportunity.php`, `admin_bulk_ops.php`) to run transactional dependent cleanup before deletion: clear `tasks.opportunity_id` and `discussion_log.linked_opportunity_id` references to prevent orphaned cross-module links.
+
+### Important Files (Sales/Tasks/Contracts/Discussions Integration)
+
+- add_opportunity.php
+- edit_opportunity.php
+- opportunity_form.php
+- opportunities_list.php
+- contracts_list.php
+- add_task.php
+- edit_task.php
+- tasks.php
+- index.php
+- discussion_logger.php
+- contract_form.php
+- delete_opportunity.php
+- admin_bulk_ops.php
+- WORKLOG.md
+
+### Validation (Sales/Tasks/Contracts/Discussions Integration)
+
+- PHP syntax checks passed for all touched files.
+- VS Code diagnostics reported no errors for all touched files.
+- Runtime page checks passed for `opportunities_list.php`, `contracts_list.php`, and `tasks.php` after changes.
+
+## 2026-06-04 - Equipment/Inventory/Customer Integrity Hardening (Phase 1)
+
+### Scope (Cross-Module Consistency)
+
+- Remove data drift paths between equipment, inventory stock, and customer-facing equipment views.
+
+### Key Changes (Cross-Module Consistency)
+
+- Refactored `equipment_view.php` delete flow to run POST handling before output and to use transactional component-return logic (restock inventory, delete component rows, then delete equipment) to match list-page behavior.
+- Added ownership normalization in `equipment_form.php` so legacy `purchased` values are persisted as canonical `customer-owned` while still recognizing legacy values in the form UI.
+- Updated `equipment_list.php` filters to treat `purchased` as customer-owned for consistent exclusion from service/rental tank inventory views.
+- Updated `customer_view.php` ownership grouping to include legacy `purchased` values as customer-owned, added a missing `equipment_components` mapping query used by resin part display, and corrected add-equipment links to the equipment form flow.
+- Added inventory transaction logging (`inventory_transactions`) for equipment-driven stock mutations in `equipment_form.php`, `equipment_list.php`, and `equipment_view.php` so component consume/return actions are auditable alongside quick inventory updates.
+- Extracted shared inventory transaction logic to `inventory_tx_helper.php` and refactored equipment modules to call the shared helper, removing duplicated table/bootstrap and audit write logic.
+- Removed remaining pass-through wrapper functions in equipment modules so `equipment_form.php`, `equipment_list.php`, and `equipment_view.php` now call `inventory_tx_helper.php` functions directly.
+- Improved `customer_view.php` pool assignment UX feedback to show partial fulfillment warnings and exact resulting assignment counts instead of always showing generic success.
+
+### Important Files (Cross-Module Consistency)
+
+- equipment_view.php
+- equipment_form.php
+- equipment_list.php
+- customer_view.php
+- WORKLOG.md
+
+### Validation (Cross-Module Consistency)
+
+- PHP syntax checks passed for all modified files.
+- VS Code diagnostics reported no file errors in modified files.
+- Executed a controlled end-to-end smoke test for equipment create/update/delete stock effects via shared helper: consumed -1, consumed -1, returned +2 on a test item; `quantity_in_stock` returned to baseline and 3 `inventory_transactions` rows were recorded with ordered before/after quantities.
+
+## 2026-06-04 - Inventory Ledger MySQL Modernization (Phase 1)
+
+### Scope (Inventory Module Reliability)
+
+- Remove fragile CSV/file dependency paths in the active inventory ledger page and standardize on MySQL-backed storage.
+
+### Key Changes (Inventory Module Reliability)
+
+- Updated `inventory_ledger.php` to use MySQL-backed helper functions for ledger entries and serial tracking (`inventory_ledger_entries`, `inventory_serials`) instead of CSV file I/O.
+- Added table ensure/compatibility logic that backfills missing columns on pre-existing tables to avoid runtime breakage on mixed schemas.
+- Kept existing form workflows intact by preserving call signatures while routing reads/writes through DB-backed functions.
+- Merged transaction ledger rows from `inventory_transactions` into the ledger view with a `Source` column (`Manual` vs `Transaction`) and date-desc ordering.
+- Added filter bar controls for item, status, client, serial/reference, source type, and date range to make mixed ledger data navigable.
+- Moved `layout_start.php` include to render phase so POST handlers and redirects execute before output.
+
+### Important Files (Inventory Module Reliability)
+
+- inventory_ledger.php
+- WORKLOG.md
+
+### Validation (Inventory Module Reliability)
+
+- PHP syntax check passed for `inventory_ledger.php`.
+- Runtime verification passed: `inventory_ledger.php` loads successfully in browser (no fatal error) and renders ledger/serial forms.
+- Runtime verification passed after Phase 2 changes: merged ledger table renders transaction rows and filter controls operate without page errors.
+
 ## 2026-06-04 - Relationship Touchpoint Workflow (Phase 1)
 
 ### Scope (Bespoke High-Touch CRM)

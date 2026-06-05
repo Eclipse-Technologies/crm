@@ -201,14 +201,19 @@ if ($nextMonth > 12) {
   <label for="status">Filter by status:</label>
   <select name="status" id="status" onchange="this.form.submit()">
     <option value="">All</option>
-    <option value="pending" <?= $statusFilter === 'pending' ? 'selected' : '' ?>>Pending</option>
+    <option value="not_started" <?= $statusFilter === 'not_started' ? 'selected' : '' ?>>Not Started</option>
+    <option value="in_progress" <?= $statusFilter === 'in_progress' ? 'selected' : '' ?>>In Progress</option>
+    <option value="waiting" <?= $statusFilter === 'waiting' ? 'selected' : '' ?>>Waiting/Blocked</option>
+    <option value="review" <?= $statusFilter === 'review' ? 'selected' : '' ?>>Review</option>
     <option value="completed" <?= $statusFilter === 'completed' ? 'selected' : '' ?>>Completed</option>
+    <option value="archived" <?= $statusFilter === 'archived' ? 'selected' : '' ?>>Archived</option>
   </select>
   <input type="hidden" name="year" value="<?= $year ?>">
   <input type="hidden" name="month" value="<?= $month ?>">
 </form>
 
 <form method="POST" action="add_task.php" class="calendar-add-form" onsubmit="return validateForm()">
+  <?php renderCSRFInput(); ?>
   <input type="text" name="title" id="title" placeholder="Task Title" required>
   <input type="date" name="due_date" id="due_date" required>
   <label for="task_status" style="margin-bottom:0;">Status:</label>
@@ -247,10 +252,12 @@ while ($day <= $daysInMonth) {
       // Color by status
       $status = $task['status'];
       $color = '#ffeeba'; // default
-      if ($status === 'pending') $color = '#fff3cd';
+      if ($status === 'not_started') $color = '#f8d7da';
+      elseif ($status === 'in_progress') $color = '#fff3cd';
+      elseif ($status === 'waiting') $color = '#d1ecf1';
+      elseif ($status === 'review') $color = '#d6d8d9';
       elseif ($status === 'completed') $color = '#d4edda';
-      elseif ($status === 'archived') $color = '#f8d7da';
-      elseif ($status === 'incomplete') $color = '#fbeee6';
+      elseif ($status === 'archived') $color = '#e2e3e5';
       $taskBlocks .= "<div style='background:$color;padding:4px 8px;margin-bottom:4px;border-radius:5px;font-weight:500;'>" . htmlspecialchars($task['title']) . "</div>";
     }
     $week[] = "<td class='has-task' onclick=\"showTasks('$dateStr')\">$day<div id='popup-$dateStr' class='task-popup'>$taskBlocks</div></td>";

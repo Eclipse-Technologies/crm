@@ -1,6 +1,7 @@
 <?php
 require_once 'db_mysql.php';
 require_once 'csrf_helper.php';
+require_once __DIR__ . '/admin_sql_helper.php';
 $opportunitySchema = require 'opportunity_schema.php';
 $contactSchema = require 'contact_schema.php';
 function fetch_table_mysql($table, $schema) {
@@ -23,23 +24,6 @@ $opportunities = fetch_table_mysql('opportunities', $opportunitySchema);
 function getOpportunityKey(array $opp): string {
     $key = $opp['opportunity_id'] ?? ($opp['id'] ?? '');
     return trim((string) $key);
-}
-
-function getOpportunityIdColumn(mysqli $conn): string {
-    $hasOpportunityId = false;
-    $hasId = false;
-    if ($result = $conn->query("SHOW COLUMNS FROM opportunities LIKE 'opportunity_id'")) {
-        $hasOpportunityId = $result->num_rows > 0;
-        $result->free();
-    }
-    if ($result = $conn->query("SHOW COLUMNS FROM opportunities LIKE 'id'")) {
-        $hasId = $result->num_rows > 0;
-        $result->free();
-    }
-    if ($hasOpportunityId) {
-        return 'opportunity_id';
-    }
-    return $hasId ? 'id' : 'opportunity_id';
 }
 
 $pageTitle = 'Sales Pipeline Board';
@@ -125,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_stage'])) {
     }
 
     $conn = get_mysql_connection();
-    $idColumn = getOpportunityIdColumn($conn);
+    $idColumn = adminOpportunityIdColumn($conn);
     $stmt = $conn->prepare("UPDATE opportunities SET stage = ?, probability = ? WHERE {$idColumn} = ?");
     if (!$stmt) {
         $conn->close();

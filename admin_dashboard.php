@@ -134,6 +134,7 @@ $daily_call_status = getDailyCallStatus();
     <a href="admin_deduplicate.php" class="tool-btn">🔗 Deduplicate</a>
     <a href="admin_bulk_ops.php" class="tool-btn">📋 Bulk Operations</a>
     <a href="admin_search.php" class="tool-btn">🔍 Advanced Search</a>
+    <a href="admin_integrity_report.php" class="tool-btn">🧩 Integrity Report</a>
     <a href="admin_maintenance.php" class="tool-btn">🛠️ Maintenance</a>
     <a href="admin_reports.php" class="tool-btn">📈 Reports</a>
   </div>

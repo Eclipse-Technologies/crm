@@ -1,16 +1,6 @@
 <?php
 // discussion_logger.php
 require_once 'csv_handler.php';
-require_once 'csrf_helper.php';
-require_once __DIR__ . '/simple_auth/middleware.php';
-
-// Use $_POST directly
-if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-  die('CSRF validation failed');
-}
-
-$data = $_POST;
-$contactId = $data['contact_id'] ?? null;
 
 // Define the logging function
 require_once 'db_mysql.php';
@@ -64,12 +54,23 @@ function logDiscussionEntry(array $data): bool {
     return $result;
 }
 
-// Log the discussion entry and redirect
-if (!empty($data) && !empty($contactId) && logDiscussionEntry($data)) {
-    header('Location: contact_view.php?id=' . urlencode($contactId));
-    exit;
-} else {
-    // Fallback error
+// Only run request handling when this file is called directly, not when included.
+if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === basename(__FILE__)) {
+    require_once 'csrf_helper.php';
+    require_once __DIR__ . '/simple_auth/middleware.php';
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        die('CSRF validation failed');
+    }
+
+    $data = $_POST;
+    $contactId = $data['contact_id'] ?? null;
+
+    if (!empty($data) && !empty($contactId) && logDiscussionEntry($data)) {
+        header('Location: contact_view.php?id=' . urlencode((string) $contactId));
+        exit;
+    }
+
     header('Location: contacts_list.php');
     exit;
 }

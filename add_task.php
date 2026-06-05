@@ -19,6 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $comments = isset($_POST['comments']) ? trim($_POST['comments']) : '';
     $recurrence = isset($_POST['recurrence']) ? trim($_POST['recurrence']) : '';
     $attachment = isset($_POST['attachment']) ? trim($_POST['attachment']) : '';
+    $priority = isset($_POST['priority']) ? trim($_POST['priority']) : '';
+    $assigned_to = isset($_POST['assigned_to']) ? trim($_POST['assigned_to']) : '';
 
     $errors = [];
     if ($title === '') $errors[] = 'Task title is required.';
@@ -35,8 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $id = uniqid('task_', true);
-    $priority = '';
-    $assigned_to = '';
     $timestamp = date('Y-m-d H:i:s');
     $task = [
         'id' => $id,

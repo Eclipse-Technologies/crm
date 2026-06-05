@@ -3,6 +3,12 @@ require_once 'db_mysql.php';
 require_once 'sanitize_helper.php';
 $schema = require __DIR__ . '/opportunity_schema.php';
 
+$editId = trim((string) ($_GET['id'] ?? ''));
+if ($editId !== '') {
+  header('Location: edit_opportunity.php?id=' . urlencode($editId));
+  exit;
+}
+
 // Load contacts for dropdown (company + contact_id)
 $conn = get_mysql_connection();
 $contacts = [];
@@ -93,8 +99,5 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
-    <button type="submit" class="btn-primary">Save Opportunity</button>
-  </form>
-</div>
 
 <?php include_once(__DIR__ . '/layout_end.php'); ?>

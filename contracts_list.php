@@ -298,7 +298,7 @@ foreach ($contracts as &$contract) {
                                 <a href="contract_view.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-view">View</a>
                                 <a href="contract_edit.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-edit">Edit</a>
                                 <?php if ($contract['contract_status'] === 'Active' && isset($contract['days_to_expiry']) && $contract['days_to_expiry'] <= 90): ?>
-                                    <a href="contract_renew.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-renew">Renew</a>
+                                    <a href="contract_edit.php?id=<?= urlencode($contract['contract_id']) ?>" class="action-btn action-btn-renew">Renew</a>
                                 <?php endif; ?>
                                 <form method="POST" action="delete_contract.php" style="display:inline;" onsubmit="return confirm('Delete contract <?= htmlspecialchars($contract['contract_id']) ?>? This cannot be undone.');">
                                     <?php renderCSRFInput(); ?>
@@ -314,3 +314,5 @@ foreach ($contracts as &$contract) {
     <?php endif; ?>
 </div><!-- end contracts-table-scroll -->
 </div><!-- end contracts-table -->
+
+<?php require_once $basePath . 'layout_end.php'; ?>

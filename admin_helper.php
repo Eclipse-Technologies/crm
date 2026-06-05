@@ -169,7 +169,7 @@ function getActiveUsers(): array {
         FROM audit_log al
         LEFT JOIN users u
             ON CAST(u.id AS CHAR) = CAST(al.user_id AS CHAR)
-            OR u.username = CAST(al.user_id AS CHAR)
+            OR BINARY u.username = BINARY CAST(al.user_id AS CHAR)
         WHERE al.user_id IS NOT NULL
             AND TRIM(CAST(al.user_id AS CHAR)) <> ''
             AND TRIM(CAST(al.user_id AS CHAR)) <> '0'

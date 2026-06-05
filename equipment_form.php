@@ -1,5 +1,6 @@
 <?php
 require_once 'equipment_mysql.php';
+require_once __DIR__ . '/inventory_tx_helper.php';
 
 $schema = require __DIR__ . '/equipment_schema.php';
 $componentSlots = [
@@ -174,6 +175,24 @@ function normalize_location_value_form($value)
   return $compact;
 }
 
+function normalize_ownership_value_form($value)
+{
+  $raw = strtolower(trim((string) $value));
+  if ($raw === '') {
+    return null;
+  }
+
+  if (in_array($raw, ['purchased', 'customer owned', 'customer-owned'], true)) {
+    return 'customer-owned';
+  }
+
+  if (in_array($raw, ['rental', 'lease', 'leased', 'evoqua rental', 'evoqua lease'], true)) {
+    return $raw;
+  }
+
+  return $raw;
+}
+
 function is_resin_pool_product_form(array $product)
 {
   $haystack = strtolower(trim(implode(' ', array_filter([
@@ -210,6 +229,7 @@ $componentMap = [];
 
 $conn = get_mysql_connection();
 ensure_equipment_components_table_form($conn);
+ensure_inventory_transactions_table($conn);
 
 $products = [];
 $result = $conn->query('SELECT item_id, item_name, category, description, quantity_in_stock, unit FROM inventory ORDER BY item_name ASC, item_id ASC');
@@ -282,6 +302,10 @@ if ($requestMethod === 'POST') {
             $values[] = normalize_location_value_form($val);
             continue;
           }
+          if ($field === 'ownership') {
+            $values[] = normalize_ownership_value_form($val);
+            continue;
+          }
           if (in_array($field, $dateFields, true)) {
             $values[] = ($val !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)) ? $val : null;
           } else {
@@ -311,6 +335,10 @@ if ($requestMethod === 'POST') {
           $val = $_POST[$field] ?? '';
           if ($field === 'location') {
             $values[] = normalize_location_value_form($val);
+            continue;
+          }
+          if ($field === 'ownership') {
+            $values[] = normalize_ownership_value_form($val);
             continue;
           }
           if (in_array($field, $dateFields, true)) {
@@ -358,10 +386,14 @@ if ($requestMethod === 'POST') {
         if (abs($delta) < 0.000001) {
           continue;
         }
-        $stmtStock = $conn->prepare('UPDATE inventory SET quantity_in_stock = COALESCE(quantity_in_stock, 0) - ? WHERE item_id = ?');
-        $stmtStock->bind_param('ds', $delta, $itemId);
-        $stmtStock->execute();
-        $stmtStock->close();
+        inventory_tx_apply_delta_with_audit($conn, $itemId, -1.0 * $delta, [
+          'entity_type' => 'equipment',
+          'entity_id' => $equipmentId,
+          'source_type' => 'equipment',
+          'source_ref' => $equipmentId,
+          'reason_code' => 'equipment_component_change',
+          'reason_text' => 'equipment_form component delta',
+        ]);
       }
 
       $stmtDel = $conn->prepare('DELETE FROM equipment_components WHERE equipment_id = ?');
@@ -528,7 +560,7 @@ require_once 'layout_start.php';
               <select name="ownership" id="ownership">
                 <option value="">Select</option>
                 <option value="rental" <?= strtolower(trim((string) $value)) === 'rental' ? 'selected' : '' ?>>Rental</option>
-                <option value="purchased" <?= strtolower(trim((string) $value)) === 'purchased' ? 'selected' : '' ?>>Purchased</option>
+                <option value="customer-owned" <?= in_array(strtolower(trim((string) $value)), ['customer-owned', 'customer owned', 'purchased'], true) ? 'selected' : '' ?>>Customer Owned</option>
               </select>
             <?php elseif ($field === 'tank_size'): ?>
               <?php $tankSizeSelected = trim((string) $value); ?>

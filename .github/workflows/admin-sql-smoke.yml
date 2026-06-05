@@ -1,0 +1,112 @@
+name: Admin SQL Smoke
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  admin-sql-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mysqli
+
+      - name: Lint smoke test
+        run: php -l tests/AdminSqlHelperSmokeTest.php
+
+      - name: Lint endpoint helper smoke test
+        run: php -l tests/OpportunityEndpointHelperUsageSmokeTest.php
+
+      - name: Run smoke test (CI mode)
+        env:
+          ADMIN_SQL_SMOKE_SKIP_DB: '1'
+        run: php tests/AdminSqlHelperSmokeTest.php
+
+      - name: Run endpoint helper smoke test
+        run: php tests/OpportunityEndpointHelperUsageSmokeTest.php
+
+  admin-sql-smoke-db:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: crm_smoke
+          MYSQL_USER: crm_user
+          MYSQL_PASSWORD: crm_pass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mysqli
+
+      - name: Lint smoke test
+        run: php -l tests/AdminSqlHelperSmokeTest.php
+
+      - name: Lint endpoint helper smoke test
+        run: php -l tests/OpportunityEndpointHelperUsageSmokeTest.php
+
+      - name: Bootstrap smoke schema
+        env:
+          DB_HOST: 127.0.0.1
+          DB_NAME: crm_smoke
+          DB_USER: crm_user
+          DB_PASSWORD: crm_pass
+        run: |
+          php -r "
+          \$maxAttempts = 30;
+          \$attempt = 0;
+          \$conn = null;
+          while (\$attempt < \$maxAttempts) {
+              \$attempt++;
+              \$conn = @new mysqli(getenv('DB_HOST'), getenv('DB_USER'), getenv('DB_PASSWORD'), getenv('DB_NAME'));
+              if (\$conn && !\$conn->connect_error) {
+                  break;
+              }
+              usleep(500000);
+          }
+          if (!\$conn || \$conn->connect_error) {
+              fwrite(STDERR, 'Could not connect to MySQL service' . PHP_EOL);
+              exit(1);
+          }
+          \$sql = 'CREATE TABLE IF NOT EXISTS opportunities (
+              opportunity_id INT PRIMARY KEY AUTO_INCREMENT,
+              name VARCHAR(255) NULL
+          )';
+          if (!\$conn->query(\$sql)) {
+              fwrite(STDERR, 'Schema bootstrap failed: ' . \$conn->error . PHP_EOL);
+              exit(1);
+          }
+          \$conn->close();
+          "
+
+      - name: Run smoke test (DB-backed)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_NAME: crm_smoke
+          DB_USER: crm_user
+          DB_PASSWORD: crm_pass
+        run: php tests/AdminSqlHelperSmokeTest.php
+
+      - name: Run endpoint helper smoke test
+        run: php tests/OpportunityEndpointHelperUsageSmokeTest.php

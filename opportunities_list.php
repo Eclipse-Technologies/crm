@@ -151,23 +151,6 @@ function getStageColor($stage) {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CRM Opportunities Pipeline: Filter, search, and manage sales opportunities.">
-  <title>Opportunities Pipeline</title>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-  </style>
-</head>
-<body>
-<header>
-  <!-- Navigation can be included here if layout_start.php provides it -->
-</header>
-<main>
-
 <style>
   .opportunities-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -782,8 +765,4 @@ function getStageColor($stage) {
   }
 
 </script>
-
-<!-- Footer can be included here if layout_end.php provides it -->
-</main>
-</body>
-</html>
+<?php require_once __DIR__ . '/layout_end.php'; ?>

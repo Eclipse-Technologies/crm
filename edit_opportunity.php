@@ -5,31 +5,15 @@
 
 require_once 'db_mysql.php';
 require_once 'csrf_helper.php';
+require_once __DIR__ . '/admin_sql_helper.php';
 $schema = require __DIR__ . '/opportunity_schema.php';
 $contactSchema = require __DIR__ . '/contact_schema.php';
 
-function getOpportunityIdColumn(): string {
-  $conn = get_mysql_connection();
-  $hasOpportunityId = false;
-  $hasId = false;
-  if ($result = $conn->query("SHOW COLUMNS FROM opportunities LIKE 'opportunity_id'")) {
-    $hasOpportunityId = $result->num_rows > 0;
-    $result->free();
-  }
-  if ($result = $conn->query("SHOW COLUMNS FROM opportunities LIKE 'id'")) {
-    $hasId = $result->num_rows > 0;
-    $result->free();
-  }
-  $conn->close();
-  if ($hasOpportunityId) {
-    return 'opportunity_id';
-  }
-  return $hasId ? 'id' : 'opportunity_id';
-}
-
 // Get opportunity ID
 $opportunityId = $_GET['id'] ?? $_POST['id'] ?? null;
-$opportunityIdColumn = getOpportunityIdColumn();
+$connForIdColumn = get_mysql_connection();
+$opportunityIdColumn = adminOpportunityIdColumn($connForIdColumn);
+$connForIdColumn->close();
 
 if (!$opportunityId) {
     header('Location: opportunities_list.php?error=' . urlencode('No opportunity ID provided'));
@@ -82,40 +66,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($_POST['company_id'])) {
           $conn = get_mysql_connection();
           $selectedCompany = trim((string) $_POST['company_id']);
-          $currentContactId = trim((string) ($opportunity['contact_id'] ?? ''));
+          // Relink opportunity to a contact in the selected company.
+          // Do not overwrite contact master data from opportunity edits.
+          $stmtFind = $conn->prepare("SELECT contact_id FROM contacts WHERE company = ? ORDER BY contact_id ASC LIMIT 1");
+          $matchedContactId = null;
+          if ($stmtFind) {
+            $stmtFind->bind_param('s', $selectedCompany);
+            $stmtFind->execute();
+            $stmtFind->bind_result($matchedContactId);
+            $stmtFind->fetch();
+            $stmtFind->close();
+          }
 
-          if ($currentContactId !== '') {
-            // Opportunity is linked to a contact: update that contact's company.
-            $stmt = $conn->prepare("UPDATE contacts SET company = ? WHERE contact_id = ?");
-            if ($stmt) {
-              $stmt->bind_param('ss', $selectedCompany, $currentContactId);
-              $stmt->execute();
-              $stmt->close();
-            }
+          if ($matchedContactId !== null && $matchedContactId !== '') {
+            $fields['contact_id'] = (string) $matchedContactId;
+            $opportunity['contact_id'] = (string) $matchedContactId;
           } else {
-            // No linked contact: try to link this opportunity to an existing contact in selected company.
-            $stmtFind = $conn->prepare("SELECT contact_id FROM contacts WHERE company = ? ORDER BY contact_id ASC LIMIT 1");
-            $matchedContactId = null;
-            if ($stmtFind) {
-              $stmtFind->bind_param('s', $selectedCompany);
-              $stmtFind->execute();
-              $stmtFind->bind_result($matchedContactId);
-              $stmtFind->fetch();
-              $stmtFind->close();
-            }
-
-            if ($matchedContactId !== null && $matchedContactId !== '') {
-              $stmtLink = $conn->prepare("UPDATE opportunities SET contact_id = ? WHERE {$opportunityIdColumn} = ?");
-              if ($stmtLink) {
-                $matchedContactIdStr = (string) $matchedContactId;
-                $stmtLink->bind_param('ss', $matchedContactIdStr, $opportunityId);
-                $stmtLink->execute();
-                $stmtLink->close();
-                $opportunity['contact_id'] = $matchedContactIdStr;
-              }
-            } else {
-              $errors[] = 'Selected company has no contact record. Create a contact for that company first.';
-            }
+            $errors[] = 'Selected company has no contact record. Create a contact for that company first.';
           }
 
           $conn->close();

@@ -16,6 +16,10 @@ This document captures key lessons, recurring errors, and communication improvem
 
 ## Technical Lessons & Errors
 - Always check for schema alignment between PHP, SQL, and documentation before debugging DB errors.
+- If the same entity can be mutated from multiple pages (e.g., delete from list and detail views), keep one shared transactional mutation pattern (including dependent-table cleanup and stock/accounting side-effects) to avoid page-dependent data drift.
+- For bulk/pooled assignment workflows, never show unconditional success messages; report partial fulfillment and final counts so users can reconcile requested vs applied state.
+- When modules adjust inventory as a side effect (equipment build/delete/update), log those adjustments into the same transaction audit model used by direct inventory tools to preserve traceability.
+- MySQL `SHOW COLUMNS ... LIKE` checks should use escaped literal SQL (not prepared placeholders) to avoid runtime syntax errors in schema-compatibility guards.
 - In cPanel/MySQL environments, seeing a database in phpMyAdmin does not prove an app user has rights to it; always verify grants for the exact user/database pair.
 - Distinguish DB auth failures by stage: `connect` failure means wrong user/password/host; `select_db` failure means missing privileges on that database.
 - cPanel database identities may be prefixed or unprefixed depending on host configuration; production connection code should try both forms safely and log each attempt.
@@ -32,6 +36,24 @@ This document captures key lessons, recurring errors, and communication improvem
 - API key security: never accept sensitive API keys in query parameters (`?api_key=`) because URLs are logged by browsers, reverse proxies, and web servers. Enforce header-only auth (`X-API-Key` or `Authorization: Bearer ...`).
 - Secret hygiene: if any credential appears in `.env` during development (SMTP, AI, API keys), rotate it immediately and clear committed values. Keep `.env` in `.gitignore` and assume exposed values are compromised.
 - POST handler regression pattern: when merging form handlers, do not remove CSRF checks from generic update branches. Every state-changing POST path must validate `verifyCSRFToken()` before touching the database.
+- Include-safe helper pattern: files that are both endpoints and reusable helpers must gate endpoint-side POST/redirect logic behind a direct-execution check; otherwise including them from another handler can trigger unintended redirects and short-circuit the caller flow.
+- Cross-module route contract rule: when list pages link into edit pages, keep query parameter names (`id` vs `opportunity_id`) consistent with the target endpoint parser, or navigation silently breaks while data remains valid.
+- Deletion integrity rule: when deleting parent sales entities (like opportunities), clear or reassign dependent references in related modules (`tasks`, `discussion_log`) inside the same transaction to prevent orphaned links and inconsistent UI histories.
+- Admin observability rule: maintain a dedicated integrity report page for cross-module orphan checks (opportunity/contact, task/opportunity, discussion/opportunity, contract/customer) so data-link drift is visible before it causes workflow breakage.
+- Collation resilience rule: when joining/comparing identifiers across tables that may use mixed collations, use binary-safe comparison (or explicit normalized collations) for fallback string matches to prevent runtime "Illegal mix of collations" failures.
+- Admin repair safety rule: when adding one-click data repair tools, restrict them to idempotent/safe operations (e.g., null orphan foreign references), require CSRF protection + confirmation, and enforce batch size limits to reduce blast radius.
+- Admin repair traceability rule: every automated repair action should write a structured `audit_log` row (action, scope/entity, batch size, row counts, status, error) so operators can review who ran a fix and what it changed.
+- Sensitive repair workflow rule: for higher-impact relationship fixes (e.g., contract customer link nulling), require a preview step plus explicit typed confirmation before apply, and expire preview authorization after a short window.
+- Identifier-normalization rule: when related modules store IDs with different formatting (e.g., `3` vs `00003`), integrity checks and repair logic must compare normalized values (numeric-equivalent fallback) or they will report false orphans.
+- Apply normalization consistently across all integrity joins/checks for a given entity relationship (report queries and repair queries together); partial normalization causes conflicting counts and confusing admin outcomes.
+- For repeatable SQL predicates (like normalized ID matching), centralize predicate generation in one helper and reuse it in both report and repair paths to prevent future logic drift.
+- When multiple admin pages share schema-detection and key-resolution logic (`SHOW COLUMNS`, ID-column selection), move it to a shared helper module and remove per-page duplicates to reduce divergence risk.
+- Apply the same shared ID-column helper to non-admin opportunity mutation/read endpoints as well (delete, inline update, pipeline stage updates, edit forms) so all opportunity paths resolve key columns identically.
+- After helper extraction/refactors, add a fast CLI smoke test under `tests/` and run it in the same pass; this catches predicate drift and identifier-validation regressions early.
+- For repeat-use local validation, wrap smoke tests in a single script command (e.g., PowerShell wrapper that runs lint + test) so checks are consistent and harder to skip.
+- For CI portability, smoke tests with optional DB checks should support explicit skip mode via env flag; CI workflows can run logic-only checks while local wrappers keep full DB-backed validation by default.
+- Best CI pattern for helper smoke tests: keep both jobs — fast logic-only (skip-DB) and DB-backed with disposable MySQL + minimal schema bootstrap — so syntax/predicate checks and real DB behavior are both covered.
+- When refactoring repeated endpoint SQL helpers into a shared module, add a file-level usage smoke test that scans key endpoints for required helper calls and rejects legacy local helper/probe patterns.
 - Avoid duplicate sidebar toggle logic: `js/modern-ui.js` already handles `#menuToggle` + `#sidebarOverlay`; adding a second toggle script in layout files can create conflicting behavior.
 - Mass email recipient IDs in this CRM are string-based (not integer-only). Never cast `contact_id` with `intval` in selection pipelines, or sends can silently skip all intended recipients.
 - Do not nest forms in `mass_email.php` (or any submit workflow page). Nested forms can cause the send button to submit the wrong form or no form in real browsers.

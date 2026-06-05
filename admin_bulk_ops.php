@@ -1,6 +1,7 @@
 <?php
 require_once 'layout_start.php';
 require_once 'admin_helper.php';
+require_once __DIR__ . '/admin_sql_helper.php';
 requireAdmin();
 
 $pageTitle = 'Bulk Operations';
@@ -86,15 +87,46 @@ if ($_POST && isset($_POST['bulk_delete_opps'])) {
             $action_result = 'No opportunities selected';
         } else {
             $ph = implode(',', array_fill(0, count($ids), '?'));
-            $stmt = $conn->prepare("DELETE FROM opportunities WHERE opportunity_id IN ($ph)");
-            if ($stmt) {
-                $stmt->bind_param(str_repeat('i', count($ids)), ...$ids);
-                if ($stmt->execute()) {
-                    $action_result = 'Deleted ' . $stmt->affected_rows . ' opportunity/ies';
-                    logAuditAction('delete', 'opportunity', 'bulk', ['ids' => $ids], 'Bulk deleted ' . count($ids) . ' opportunities');
-                } else { $action_result = 'Delete failed'; }
-                $stmt->close();
+          $oppIdCol = adminOpportunityIdColumn($conn);
+          $conn->begin_transaction();
+          try {
+            if (adminTableHasColumn($conn, 'tasks', 'opportunity_id')) {
+              $stmtTasks = $conn->prepare("UPDATE tasks SET opportunity_id = NULL WHERE opportunity_id IN ($ph)");
+              if ($stmtTasks) {
+                $stmtTasks->bind_param(str_repeat('i', count($ids)), ...$ids);
+                $stmtTasks->execute();
+                $stmtTasks->close();
+              }
             }
+
+            if (adminTableHasColumn($conn, 'discussion_log', 'linked_opportunity_id')) {
+              foreach ($ids as $oppId) {
+                $oppIdStr = (string) $oppId;
+                $stmtDisc = $conn->prepare('UPDATE discussion_log SET linked_opportunity_id = NULL WHERE linked_opportunity_id = ?');
+                if ($stmtDisc) {
+                  $stmtDisc->bind_param('s', $oppIdStr);
+                  $stmtDisc->execute();
+                  $stmtDisc->close();
+                }
+              }
+            }
+
+            $stmtDelete = $conn->prepare("DELETE FROM opportunities WHERE {$oppIdCol} IN ($ph)");
+            if (!$stmtDelete) {
+              throw new RuntimeException('Delete statement prepare failed');
+            }
+            $stmtDelete->bind_param(str_repeat('i', count($ids)), ...$ids);
+            $stmtDelete->execute();
+            $deletedRows = (int) $stmtDelete->affected_rows;
+            $stmtDelete->close();
+
+            $conn->commit();
+            $action_result = 'Deleted ' . $deletedRows . ' opportunity/ies';
+            logAuditAction('delete', 'opportunity', 'bulk', ['ids' => $ids], 'Bulk deleted ' . $deletedRows . ' opportunities');
+          } catch (Throwable $e) {
+            $conn->rollback();
+            $action_result = 'Delete failed';
+          }
         }
     }
 }
@@ -111,7 +143,8 @@ if ($_POST && isset($_POST['bulk_update_opps'])) {
             $action_result = 'Invalid parameters';
         } else {
             $ph = implode(',', array_fill(0, count($ids), '?'));
-            $stmt = $conn->prepare("UPDATE opportunities SET `$field` = ? WHERE opportunity_id IN ($ph)");
+            $oppIdCol = adminOpportunityIdColumn($conn);
+            $stmt = $conn->prepare("UPDATE opportunities SET `$field` = ? WHERE {$oppIdCol} IN ($ph)");
             if ($stmt) {
                 $stmt->bind_param('s' . str_repeat('i', count($ids)), $value, ...$ids);
                 if ($stmt->execute()) { $action_result = 'Updated ' . $stmt->affected_rows . ' opportunity/ies'; }
@@ -215,11 +248,11 @@ $conn->close();
     <p>Select contacts to delete. <strong>This action cannot be undone!</strong></p>
     
     <form method="POST">
-      <?php echo renderCSRFInput(); ?>
+      <?php renderCSRFInput(); ?>
       
       <div class="select-all">
         <label>
-          <input type="checkbox" id="select-all-delete" onchange="document.querySelectorAll('input[name=\"delete_ids[]\"]').forEach(el => el.checked = this.checked)">
+          <input type="checkbox" id="select-all-delete" onchange='document.querySelectorAll("input[name=" + "\"delete_ids[]\"" + "]").forEach(el => el.checked = this.checked)'>
           <strong>Select All Visible</strong>
         </label>
       </div>
@@ -261,7 +294,7 @@ $conn->close();
     <p>Update a specific field for selected contacts.</p>
     
     <form method="POST">
-      <?php echo renderCSRFInput(); ?>
+      <?php renderCSRFInput(); ?>
       
       <div style="margin-bottom: 15px;">
         <label>Field to Update:</label>
@@ -282,7 +315,7 @@ $conn->close();
 
       <div class="select-all">
         <label>
-          <input type="checkbox" id="select-all-tag" onchange="document.querySelectorAll('input[name=\"tag_ids[]\"]').forEach(el => el.checked = this.checked)">
+          <input type="checkbox" id="select-all-tag" onchange='document.querySelectorAll("input[name=" + "\"tag_ids[]\"" + "]").forEach(el => el.checked = this.checked)'>
           <strong>Select All Visible</strong>
         </label>
       </div>
@@ -320,7 +353,7 @@ $conn->close();
   <div class="bulk-section">
     <h3>💼 Bulk Delete Opportunities</h3>
     <form method="POST">
-      <?= renderCSRFInput() ?>
+      <?php renderCSRFInput(); ?>
       <label><input type="checkbox" onchange="this.closest('form').querySelectorAll('input[name=\'opp_ids[]\']').forEach(el=>el.checked=this.checked)"> <strong>Select All</strong></label>
       <table class="contact-select-table" style="margin-top:10px;">
         <thead><tr><th style="width:30px;"></th><th>Name</th><th>Stage</th><th>Value</th><th>Probability</th></tr></thead>
@@ -328,7 +361,7 @@ $conn->close();
           <?php foreach ($opportunities as $o): ?>
           <tr>
             <td><input type="checkbox" name="opp_ids[]" value="<?= (int)$o['opportunity_id'] ?>"></td>
-            <td><a href="opportunity_form.php?id=<?= (int)$o['opportunity_id'] ?>" style="color:#0099A8;"><?= htmlspecialchars($o['name'] ?? '') ?></a></td>
+            <td><a href="edit_opportunity.php?id=<?= (int)$o['opportunity_id'] ?>" style="color:#0099A8;"><?= htmlspecialchars($o['name'] ?? '') ?></a></td>
             <td><?= htmlspecialchars($o['stage'] ?? '') ?></td>
             <td>$<?= number_format((float)($o['value'] ?? 0), 2) ?></td>
             <td><?= (int)($o['probability'] ?? 0) ?>%</td>
@@ -345,7 +378,7 @@ $conn->close();
   <div class="bulk-section">
     <h3>💼 Bulk Update Opportunities</h3>
     <form method="POST">
-      <?= renderCSRFInput() ?>
+      <?php renderCSRFInput(); ?>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
         <div>
           <label>Field:</label>
@@ -382,7 +415,7 @@ $conn->close();
   <div class="bulk-section">
     <h3>🗂️ Bulk Delete Tasks</h3>
     <form method="POST">
-      <?= renderCSRFInput() ?>
+      <?php renderCSRFInput(); ?>
       <label><input type="checkbox" onchange="this.closest('form').querySelectorAll('input[name=\'task_ids[]\']').forEach(el=>el.checked=this.checked)"> <strong>Select All</strong></label>
       <table class="contact-select-table" style="margin-top:10px;">
         <thead><tr><th style="width:30px;"></th><th>Title</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Due</th></tr></thead>
@@ -408,7 +441,7 @@ $conn->close();
   <div class="bulk-section">
     <h3>🗂️ Bulk Update Tasks</h3>
     <form method="POST">
-      <?= renderCSRFInput() ?>
+      <?php renderCSRFInput(); ?>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
         <div>
           <label>Field:</label>

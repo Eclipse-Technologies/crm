@@ -2,6 +2,7 @@
 require_once 'db_mysql.php';
 require_once 'sanitize_helper.php';
 require_once __DIR__ . '/request_guard.php';
+require_once __DIR__ . '/admin_sql_helper.php';
 
 header('Content-Type: application/json');
 
@@ -22,27 +23,8 @@ if (!in_array($field, $allowedFields)) {
   exit;
 }
 
-
-function getOpportunityIdColumn(mysqli $conn): string {
-  $hasOpportunityId = false;
-  $hasId = false;
-  if ($result = $conn->query("SHOW COLUMNS FROM opportunities LIKE 'opportunity_id'")) {
-    $hasOpportunityId = $result->num_rows > 0;
-    $result->free();
-  }
-  if ($result = $conn->query("SHOW COLUMNS FROM opportunities LIKE 'id'")) {
-    $hasId = $result->num_rows > 0;
-    $result->free();
-  }
-  if ($hasOpportunityId) {
-    return 'opportunity_id';
-  }
-  return $hasId ? 'id' : 'opportunity_id';
-}
-
-
 $conn = get_mysql_connection();
-$idColumn = getOpportunityIdColumn($conn);
+$idColumn = adminOpportunityIdColumn($conn);
 $safeField = str_replace('`', '', $field);
 
 $old_stmt = $conn->prepare("SELECT `{$safeField}` FROM opportunities WHERE {$idColumn} = ?");

@@ -3,23 +3,7 @@
 require_once 'db_mysql.php';
 require_once 'csrf_helper.php';
 require_once 'simple_auth/middleware.php';
-
-function getOpportunityIdColumn(mysqli $conn): string {
-    $hasOpportunityId = false;
-    $hasId = false;
-    if ($result = $conn->query("SHOW COLUMNS FROM opportunities LIKE 'opportunity_id'")) {
-        $hasOpportunityId = $result->num_rows > 0;
-        $result->free();
-    }
-    if ($result = $conn->query("SHOW COLUMNS FROM opportunities LIKE 'id'")) {
-        $hasId = $result->num_rows > 0;
-        $result->free();
-    }
-    if ($hasOpportunityId) {
-        return 'opportunity_id';
-    }
-    return $hasId ? 'id' : 'opportunity_id';
-}
+require_once __DIR__ . '/admin_sql_helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: opportunities_list.php?error=' . urlencode('Invalid request method'));
@@ -45,29 +29,50 @@ if (!$conn) {
     exit;
 }
 
-$idColumn = getOpportunityIdColumn($conn);
+$idColumn = adminOpportunityIdColumn($conn);
+$conn->begin_transaction();
+try {
+    if (adminTableHasColumn($conn, 'tasks', 'opportunity_id')) {
+        $stmtTasks = $conn->prepare('UPDATE tasks SET opportunity_id = NULL WHERE opportunity_id = ?');
+        if ($stmtTasks) {
+            $oppIdInt = (int) $idToDelete;
+            $stmtTasks->bind_param('i', $oppIdInt);
+            $stmtTasks->execute();
+            $stmtTasks->close();
+        }
+    }
 
-$stmt = $conn->prepare("DELETE FROM opportunities WHERE {$idColumn} = ?");
-if (!$stmt) {
-    header('Location: opportunities_list.php?error=' . urlencode('Failed to prepare statement'));
+    if (adminTableHasColumn($conn, 'discussion_log', 'linked_opportunity_id')) {
+        $stmtDisc = $conn->prepare('UPDATE discussion_log SET linked_opportunity_id = NULL WHERE linked_opportunity_id = ?');
+        if ($stmtDisc) {
+            $stmtDisc->bind_param('s', $idToDelete);
+            $stmtDisc->execute();
+            $stmtDisc->close();
+        }
+    }
+
+    $stmtDelete = $conn->prepare("DELETE FROM opportunities WHERE {$idColumn} = ?");
+    if (!$stmtDelete) {
+        throw new RuntimeException('Failed to prepare delete statement');
+    }
+
+    $stmtDelete->bind_param('s', $idToDelete);
+    $stmtDelete->execute();
+    $affected = $stmtDelete->affected_rows;
+    $stmtDelete->close();
+
+    $conn->commit();
     $conn->close();
-    exit;
-}
-$stmt->bind_param('s', $idToDelete);
-if ($stmt->execute()) {
-    if ($stmt->affected_rows > 0) {
-        $stmt->close();
-        $conn->close();
+
+    if ($affected > 0) {
         header('Location: opportunities_list.php?success=3');
         exit;
-    } else {
-        $stmt->close();
-        $conn->close();
-        header('Location: opportunities_list.php?error=' . urlencode('Opportunity not found'));
-        exit;
     }
-} else {
-    $stmt->close();
+
+    header('Location: opportunities_list.php?error=' . urlencode('Opportunity not found'));
+    exit;
+} catch (Throwable $e) {
+    $conn->rollback();
     $conn->close();
     header('Location: opportunities_list.php?error=' . urlencode('Failed to delete opportunity'));
     exit;

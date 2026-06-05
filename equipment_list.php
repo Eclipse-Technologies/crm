@@ -1,6 +1,7 @@
 <?php
 require_once 'db_mysql.php';
 require_once __DIR__ . '/request_guard.php';
+require_once __DIR__ . '/inventory_tx_helper.php';
 
 $pageTitle = 'Tank Inventory';
 $equipmentSchema = require __DIR__ . '/equipment_schema.php';
@@ -192,6 +193,24 @@ function normalize_location_value($value)
     return $compact;
 }
 
+function normalize_ownership_value($value)
+{
+    $raw = strtolower(trim((string) $value));
+    if ($raw === '') {
+        return null;
+    }
+
+    if (in_array($raw, ['purchased', 'customer owned', 'customer-owned'], true)) {
+        return 'customer-owned';
+    }
+
+    if (in_array($raw, ['rental', 'lease', 'leased', 'evoqua rental', 'evoqua lease'], true)) {
+        return $raw;
+    }
+
+    return $raw;
+}
+
 function is_resin_pool_product(array $product)
 {
     $haystack = strtolower(trim(implode(' ', array_filter([
@@ -209,6 +228,7 @@ if ($requestMethod === 'POST') {
     require_post_with_csrf();
     $conn = get_mysql_connection();
     ensure_equipment_components_table($conn);
+    ensure_inventory_transactions_table($conn);
 
     if (isset($_POST['delete_id'])) {
         $deleteId = $_POST['delete_id'];
@@ -217,10 +237,14 @@ if ($requestMethod === 'POST') {
             try {
                 $existingRows = fetch_component_rows($conn, $deleteId);
                 foreach (aggregate_component_qty($existingRows) as $itemId => $qtyToReturn) {
-                    $stmtStock = $conn->prepare('UPDATE inventory SET quantity_in_stock = COALESCE(quantity_in_stock, 0) + ? WHERE item_id = ?');
-                    $stmtStock->bind_param('ds', $qtyToReturn, $itemId);
-                    $stmtStock->execute();
-                    $stmtStock->close();
+                    inventory_tx_apply_delta_with_audit($conn, $itemId, (float) $qtyToReturn, [
+                        'entity_type' => 'equipment',
+                        'entity_id' => $deleteId,
+                        'source_type' => 'equipment',
+                        'source_ref' => $deleteId,
+                        'reason_code' => 'equipment_component_change',
+                        'reason_text' => 'equipment_list delete return components',
+                    ]);
                 }
 
                 $stmtCompDelete = $conn->prepare('DELETE FROM equipment_components WHERE equipment_id = ?');
@@ -335,10 +359,14 @@ if ($requestMethod === 'POST') {
                 $stmtInsert->close();
 
                 foreach ($requiredTotals as $itemId => $qtyRequired) {
-                    $stmtStock = $conn->prepare('UPDATE inventory SET quantity_in_stock = COALESCE(quantity_in_stock, 0) - ? WHERE item_id = ?');
-                    $stmtStock->bind_param('ds', $qtyRequired, $itemId);
-                    $stmtStock->execute();
-                    $stmtStock->close();
+                    inventory_tx_apply_delta_with_audit($conn, $itemId, -1.0 * (float) $qtyRequired, [
+                        'entity_type' => 'equipment',
+                        'entity_id' => $newEquipmentId,
+                        'source_type' => 'equipment',
+                        'source_ref' => $newEquipmentId,
+                        'reason_code' => 'equipment_component_change',
+                        'reason_text' => 'equipment_list duplicate build consume components',
+                    ]);
                 }
 
                 foreach ($newRows as $row) {
@@ -391,6 +419,11 @@ if ($requestMethod === 'POST') {
                         continue;
                     }
 
+                    if ($field === 'ownership') {
+                        $values[] = normalize_ownership_value($val);
+                        continue;
+                    }
+
                     if (in_array($field, ['install_date', 'purchase_date', 'last_service_date', 'next_service_date', 'warranty_expiry'], true)) {
                         $values[] = ($val !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)) ? $val : null;
                     } else {
@@ -439,10 +472,14 @@ if ($requestMethod === 'POST') {
                         continue;
                     }
 
-                    $stmtStock = $conn->prepare('UPDATE inventory SET quantity_in_stock = COALESCE(quantity_in_stock, 0) - ? WHERE item_id = ?');
-                    $stmtStock->bind_param('ds', $delta, $itemId);
-                    $stmtStock->execute();
-                    $stmtStock->close();
+                    inventory_tx_apply_delta_with_audit($conn, $itemId, -1.0 * $delta, [
+                        'entity_type' => 'equipment',
+                        'entity_id' => $equipmentId,
+                        'source_type' => 'equipment',
+                        'source_ref' => $equipmentId,
+                        'reason_code' => 'equipment_component_change',
+                        'reason_text' => 'equipment_list update component delta',
+                    ]);
                 }
 
                 $stmtDel = $conn->prepare('DELETE FROM equipment_components WHERE equipment_id = ?');
@@ -485,7 +522,7 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 20;
 $offset = ($page - 1) * $perPage;
 
-$countResult = $conn->query("SELECT COUNT(*) AS total FROM equipment WHERE LOWER(COALESCE(ownership, '')) NOT IN ('customer-owned', 'customer owned')");
+$countResult = $conn->query("SELECT COUNT(*) AS total FROM equipment WHERE LOWER(TRIM(COALESCE(ownership, ''))) NOT IN ('customer-owned', 'customer owned', 'purchased')");
 $countRow = $countResult ? $countResult->fetch_assoc() : null;
 $totalEquipment = (int) ($countRow['total'] ?? 0);
 if ($countResult) {
@@ -497,7 +534,7 @@ if ($page > $totalPages) {
     $offset = ($page - 1) * $perPage;
 }
 
-$stmtEquipment = $conn->prepare("SELECT * FROM equipment WHERE LOWER(COALESCE(ownership, '')) NOT IN ('customer-owned', 'customer owned') ORDER BY tank_size DESC, equipment_id ASC LIMIT ? OFFSET ?");
+$stmtEquipment = $conn->prepare("SELECT * FROM equipment WHERE LOWER(TRIM(COALESCE(ownership, ''))) NOT IN ('customer-owned', 'customer owned', 'purchased') ORDER BY tank_size DESC, equipment_id ASC LIMIT ? OFFSET ?");
 $stmtEquipment->bind_param('ii', $perPage, $offset);
 $stmtEquipment->execute();
 $result = $stmtEquipment->get_result();
@@ -1075,7 +1112,7 @@ require_once 'layout_start.php';
         <select id="ownershipFilter" onchange="filterEquipment()">
             <option value="">All Ownership</option>
             <option value="rental">Rental</option>
-            <option value="purchased">Purchased</option>
+            <option value="customer-owned">Customer Owned</option>
         </select>
 
         <select id="statusFilter" onchange="filterEquipment()">
@@ -1225,7 +1262,7 @@ require_once 'layout_start.php';
                                         <select name="ownership">
                                             <option value="">Select</option>
                                             <option value="rental" <?= $ownership === 'rental' ? 'selected' : '' ?>>Rental</option>
-                                            <option value="purchased" <?= $ownership === 'purchased' ? 'selected' : '' ?>>Purchased</option>
+                                            <option value="customer-owned" <?= in_array($ownership, ['customer-owned', 'customer owned', 'purchased'], true) ? 'selected' : '' ?>>Customer Owned</option>
                                         </select>
                                     </div>
                                 </div>

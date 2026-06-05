@@ -1,11 +1,15 @@
 <?php
 
-include_once(__DIR__ . '/layout_start.php');
-require_once 'db_pgsql.php';
+require_once 'db_mysql.php';
 require_once __DIR__ . '/request_guard.php';
 
 $inventorySchema = require __DIR__ . '/inventory_schema.php';
 $customerSchema = require __DIR__ . '/customer_schema.php';
+
+// Legacy parameter placeholders retained so existing call sites remain stable.
+$ledgerFile = null;
+$serialsFile = null;
+$statusFile = null;
 
 function fetch_mysql($table, $schema) {
   $conn = get_mysql_connection();
@@ -23,9 +27,94 @@ function fetch_mysql($table, $schema) {
   return $rows;
 }
 
+function ensure_inventory_ledger_entries_table(mysqli $conn): void {
+  $conn->query("CREATE TABLE IF NOT EXISTS inventory_ledger_entries (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    item_id VARCHAR(100) NULL,
+    item_name VARCHAR(255) NULL,
+    quantity DECIMAL(18,4) NOT NULL DEFAULT 0,
+    status VARCHAR(100) NULL,
+    action VARCHAR(100) NULL,
+    client_id VARCHAR(100) NULL,
+    client_name VARCHAR(255) NULL,
+    serial_number VARCHAR(255) NULL,
+    note VARCHAR(500) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_item_time (item_id, created_at),
+    INDEX idx_serial_time (serial_number, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  $columns = [
+    'item_id' => 'VARCHAR(100) NULL',
+    'item_name' => 'VARCHAR(255) NULL',
+    'quantity' => 'DECIMAL(18,4) NOT NULL DEFAULT 0',
+    'status' => 'VARCHAR(100) NULL',
+    'action' => 'VARCHAR(100) NULL',
+    'client_id' => 'VARCHAR(100) NULL',
+    'client_name' => 'VARCHAR(255) NULL',
+    'serial_number' => 'VARCHAR(255) NULL',
+    'note' => 'VARCHAR(500) NULL',
+    'created_at' => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
+  ];
+  foreach ($columns as $name => $def) {
+    $safeName = $conn->real_escape_string($name);
+    $res = $conn->query("SHOW COLUMNS FROM inventory_ledger_entries LIKE '" . $safeName . "'");
+    $exists = $res && $res->num_rows > 0;
+    if ($res) {
+      $res->free();
+    }
+    if (!$exists) {
+      $conn->query("ALTER TABLE inventory_ledger_entries ADD COLUMN `" . $name . "` " . $def);
+    }
+  }
+}
+
+function ensure_inventory_serials_table(mysqli $conn): void {
+  $conn->query("CREATE TABLE IF NOT EXISTS inventory_serials (
+    serial_number VARCHAR(255) PRIMARY KEY,
+    item_id VARCHAR(100) NULL,
+    item_name VARCHAR(255) NULL,
+    status VARCHAR(100) NULL,
+    client_id VARCHAR(100) NULL,
+    client_name VARCHAR(255) NULL,
+    assigned_at DATETIME NULL,
+    note VARCHAR(500) NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_item (item_id),
+    INDEX idx_status (status)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  $columns = [
+    'item_id' => 'VARCHAR(100) NULL',
+    'item_name' => 'VARCHAR(255) NULL',
+    'status' => 'VARCHAR(100) NULL',
+    'client_id' => 'VARCHAR(100) NULL',
+    'client_name' => 'VARCHAR(255) NULL',
+    'assigned_at' => 'DATETIME NULL',
+    'note' => 'VARCHAR(500) NULL',
+    'updated_at' => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+  ];
+  foreach ($columns as $name => $def) {
+    $safeName = $conn->real_escape_string($name);
+    $res = $conn->query("SHOW COLUMNS FROM inventory_serials LIKE '" . $safeName . "'");
+    $exists = $res && $res->num_rows > 0;
+    if ($res) {
+      $res->free();
+    }
+    if (!$exists) {
+      $conn->query("ALTER TABLE inventory_serials ADD COLUMN `" . $name . "` " . $def);
+    }
+  }
+}
+
 
 $inventory = fetch_mysql('inventory', $inventorySchema);
 $customers = fetch_mysql('customers', $customerSchema);
+
+$connInit = get_mysql_connection();
+ensure_inventory_ledger_entries_table($connInit);
+ensure_inventory_serials_table($connInit);
+$connInit->close();
 
 // If you have a ledger table in PostgreSQL, fetch it here:
 $ledger = [];
@@ -33,99 +122,175 @@ if (function_exists('fetch_pgsql')) {
   // Example: $ledger = fetch_pgsql('inventory_ledger', $ledgerSchema);
 }
 
-function read_status_options($filename) {
-  if (!file_exists($filename)) {
-    return [];
-  }
+function read_status_options($unused = null) {
+  $conn = get_mysql_connection();
+  ensure_inventory_ledger_entries_table($conn);
+  ensure_inventory_serials_table($conn);
+
   $options = [];
-  if (($handle = fopen($filename, 'r')) !== false) {
-    $headers = fgetcsv($handle);
-    while (($row = fgetcsv($handle)) !== false) {
-      $value = trim($row[0] ?? '');
-      if ($value !== '') {
-        $options[] = $value;
-      }
-    }
-    fclose($handle);
+  $resLedger = $conn->query('SELECT DISTINCT status FROM inventory_ledger_entries WHERE status IS NOT NULL AND status <> ""');
+  while ($row = $resLedger ? $resLedger->fetch_assoc() : null) {
+    $options[] = trim((string) ($row['status'] ?? ''));
   }
-  return array_values(array_unique($options));
+  if ($resLedger) {
+    $resLedger->free();
+  }
+
+  $resSerial = $conn->query('SELECT DISTINCT status FROM inventory_serials WHERE status IS NOT NULL AND status <> ""');
+  while ($row = $resSerial ? $resSerial->fetch_assoc() : null) {
+    $options[] = trim((string) ($row['status'] ?? ''));
+  }
+  if ($resSerial) {
+    $resSerial->free();
+  }
+  $conn->close();
+
+  $options = array_values(array_filter(array_unique($options), static function ($v) {
+    return $v !== '';
+  }));
+  sort($options);
+  return $options;
 }
 
-function read_ledger($filename) {
-  if (!file_exists($filename)) {
-    return [];
-  }
+function read_ledger($unused = null) {
+  $conn = get_mysql_connection();
+  ensure_inventory_ledger_entries_table($conn);
   $rows = [];
-  if (($handle = fopen($filename, 'r')) !== false) {
-    $headers = fgetcsv($handle);
-    if ($headers === false) {
-      return [];
-    }
-    while (($data = fgetcsv($handle)) !== false) {
-      if (count($data) !== count($headers)) {
-        continue;
-      }
-      $rows[] = array_combine($headers, $data);
-    }
-    fclose($handle);
+  $sql = 'SELECT * FROM inventory_ledger_entries ORDER BY id ASC';
+  $result = $conn->query($sql);
+  while ($row = $result ? $result->fetch_assoc() : null) {
+    $rows[] = [
+      'item_id' => $row['item_id'] ?? '',
+      'item_name' => $row['item_name'] ?? '',
+      'quantity' => $row['quantity'] ?? '',
+      'status' => $row['status'] ?? '',
+      'action' => $row['action'] ?? '',
+      'client_id' => $row['client_id'] ?? '',
+      'client_name' => $row['client_name'] ?? '',
+      'serial_number' => $row['serial_number'] ?? '',
+      'note' => $row['note'] ?? '',
+      'created_at' => $row['created_at'] ?? '',
+      'source' => 'manual',
+    ];
   }
+  if ($result) {
+    $result->free();
+  }
+  $conn->close();
   return $rows;
 }
 
-function write_ledger_row($filename, $row) {
-  $headers = ['item_id','item_name','quantity','status','action','client_id','client_name','serial_number','note','created_at'];
-  $fileExists = file_exists($filename);
-  $file = fopen($filename, 'a');
-  if ($file === false) {
-    return;
-  }
-  if (!$fileExists) {
-    fputcsv($file, $headers);
-  }
-  $line = [];
-  foreach ($headers as $header) {
-    $line[] = $row[$header] ?? '';
-  }
-  fputcsv($file, $line);
-  fclose($file);
-}
-
-function read_serials($filename) {
-  if (!file_exists($filename)) {
-    return [];
-  }
+function read_inventory_transaction_ledger_rows(array $inventoryById): array {
+  $conn = get_mysql_connection();
   $rows = [];
-  if (($handle = fopen($filename, 'r')) !== false) {
-    $headers = fgetcsv($handle);
-    if ($headers === false) {
-      return [];
-    }
-    while (($data = fgetcsv($handle)) !== false) {
-      if (count($data) !== count($headers)) {
-        continue;
-      }
-      $rows[] = array_combine($headers, $data);
-    }
-    fclose($handle);
+  $sql = "SELECT t.item_id, t.quantity_delta, t.transaction_type, t.validation_status, t.source_ref, t.reason_text, t.recorded_at
+          FROM inventory_transactions t
+          ORDER BY t.transaction_id DESC
+          LIMIT 500";
+  $result = $conn->query($sql);
+  while ($row = $result ? $result->fetch_assoc() : null) {
+    $itemId = (string) ($row['item_id'] ?? '');
+    $rows[] = [
+      'item_id' => $itemId,
+      'item_name' => $inventoryById[$itemId]['item_name'] ?? '',
+      'quantity' => $row['quantity_delta'] ?? '',
+      'status' => $row['validation_status'] ?? '',
+      'action' => $row['transaction_type'] ?? '',
+      'client_id' => '',
+      'client_name' => '',
+      'serial_number' => $row['source_ref'] ?? '',
+      'note' => $row['reason_text'] ?? '',
+      'created_at' => $row['recorded_at'] ?? '',
+      'source' => 'transaction',
+    ];
   }
+  if ($result) {
+    $result->free();
+  }
+  $conn->close();
   return $rows;
 }
 
-function write_serials($filename, $rows) {
-  $headers = ['serial_number','item_id','item_name','status','client_id','client_name','assigned_at','note'];
-  $file = fopen($filename, 'w');
-  if ($file === false) {
-    return;
+function write_ledger_row($unused, $row) {
+  $conn = get_mysql_connection();
+  ensure_inventory_ledger_entries_table($conn);
+
+  $itemId = trim((string) ($row['item_id'] ?? ''));
+  $itemName = trim((string) ($row['item_name'] ?? ''));
+  $quantity = is_numeric($row['quantity'] ?? null) ? (float) $row['quantity'] : 0.0;
+  $status = trim((string) ($row['status'] ?? ''));
+  $action = trim((string) ($row['action'] ?? ''));
+  $clientId = trim((string) ($row['client_id'] ?? ''));
+  $clientName = trim((string) ($row['client_name'] ?? ''));
+  $serialNumber = trim((string) ($row['serial_number'] ?? ''));
+  $note = trim((string) ($row['note'] ?? ''));
+
+  $stmt = $conn->prepare('INSERT INTO inventory_ledger_entries (item_id, item_name, quantity, status, action, client_id, client_name, serial_number, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())');
+  if ($stmt) {
+    $stmt->bind_param('ssdssssss', $itemId, $itemName, $quantity, $status, $action, $clientId, $clientName, $serialNumber, $note);
+    $stmt->execute();
+    $stmt->close();
   }
-  fputcsv($file, $headers);
-  foreach ($rows as $row) {
-    $line = [];
-    foreach ($headers as $header) {
-      $line[] = $row[$header] ?? '';
+  $conn->close();
+}
+
+function read_serials($unused = null) {
+  $conn = get_mysql_connection();
+  ensure_inventory_serials_table($conn);
+  $rows = [];
+  $result = $conn->query('SELECT * FROM inventory_serials ORDER BY serial_number ASC');
+  while ($row = $result ? $result->fetch_assoc() : null) {
+    $rows[] = [
+      'serial_number' => $row['serial_number'] ?? '',
+      'item_id' => $row['item_id'] ?? '',
+      'item_name' => $row['item_name'] ?? '',
+      'status' => $row['status'] ?? '',
+      'client_id' => $row['client_id'] ?? '',
+      'client_name' => $row['client_name'] ?? '',
+      'assigned_at' => $row['assigned_at'] ?? '',
+      'note' => $row['note'] ?? '',
+    ];
+  }
+  if ($result) {
+    $result->free();
+  }
+  $conn->close();
+  return $rows;
+}
+
+function write_serials($unused, $rows) {
+  $conn = get_mysql_connection();
+  ensure_inventory_serials_table($conn);
+  $conn->begin_transaction();
+  try {
+    $conn->query('DELETE FROM inventory_serials');
+
+    $stmt = $conn->prepare('INSERT INTO inventory_serials (serial_number, item_id, item_name, status, client_id, client_name, assigned_at, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    if ($stmt) {
+      foreach ($rows as $row) {
+        $serialNumber = trim((string) ($row['serial_number'] ?? ''));
+        if ($serialNumber === '') {
+          continue;
+        }
+        $itemId = trim((string) ($row['item_id'] ?? ''));
+        $itemName = trim((string) ($row['item_name'] ?? ''));
+        $status = trim((string) ($row['status'] ?? ''));
+        $clientId = trim((string) ($row['client_id'] ?? ''));
+        $clientName = trim((string) ($row['client_name'] ?? ''));
+        $assignedAt = trim((string) ($row['assigned_at'] ?? ''));
+        $assignedAt = $assignedAt === '' ? null : $assignedAt;
+        $note = trim((string) ($row['note'] ?? ''));
+        $stmt->bind_param('ssssssss', $serialNumber, $itemId, $itemName, $status, $clientId, $clientName, $assignedAt, $note);
+        $stmt->execute();
+      }
+      $stmt->close();
     }
-    fputcsv($file, $line);
+
+    $conn->commit();
+  } catch (Throwable $e) {
+    $conn->rollback();
   }
-  fclose($file);
+  $conn->close();
 }
 
 function write_serial_ledger_entry($ledgerFile, $serialNumber, $itemId, $itemName, $status, $clientId, $clientName, $note, $action) {
@@ -405,21 +570,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rfid_scan'])) {
   }
 }
 
-$ledgerRows = read_ledger($ledgerFile);
+$inventoryById = [];
+foreach ($inventory as $invRow) {
+  $id = trim((string) ($invRow['item_id'] ?? ''));
+  if ($id !== '') {
+    $inventoryById[$id] = $invRow;
+  }
+}
+
+$ledgerRows = array_merge(read_ledger($ledgerFile), read_inventory_transaction_ledger_rows($inventoryById));
+$ledgerRows = array_values($ledgerRows);
+usort($ledgerRows, static function($a, $b) {
+  $at = strtotime((string) ($a['created_at'] ?? '')) ?: 0;
+  $bt = strtotime((string) ($b['created_at'] ?? '')) ?: 0;
+  return $bt <=> $at;
+});
 $serialRows = read_serials($serialsFile);
 
 $ledgerItemFilter = trim($_GET['ledger_item'] ?? '');
 $ledgerStatusFilter = trim($_GET['ledger_status'] ?? '');
 $ledgerClientFilter = trim($_GET['ledger_client'] ?? '');
 $ledgerSerialFilter = trim($_GET['ledger_serial'] ?? '');
+$ledgerSourceFilter = trim($_GET['ledger_source'] ?? '');
+$ledgerFromFilter = trim($_GET['ledger_from'] ?? '');
+$ledgerToFilter = trim($_GET['ledger_to'] ?? '');
 
-$ledgerFiltered = array_filter($ledgerRows, function($row) use ($ledgerItemFilter, $ledgerStatusFilter, $ledgerClientFilter, $ledgerSerialFilter) {
+$ledgerFiltered = array_filter($ledgerRows, function($row) use ($ledgerItemFilter, $ledgerStatusFilter, $ledgerClientFilter, $ledgerSerialFilter, $ledgerSourceFilter, $ledgerFromFilter, $ledgerToFilter) {
   $itemOk = $ledgerItemFilter === '' || stripos($row['item_id'] ?? '', $ledgerItemFilter) !== false || stripos($row['item_name'] ?? '', $ledgerItemFilter) !== false;
   $statusOk = $ledgerStatusFilter === '' || stripos($row['status'] ?? '', $ledgerStatusFilter) !== false;
   $clientValue = trim(($row['client_name'] ?? '') . ' ' . ($row['client_id'] ?? ''));
   $clientOk = $ledgerClientFilter === '' || stripos($clientValue, $ledgerClientFilter) !== false;
   $serialOk = $ledgerSerialFilter === '' || stripos($row['serial_number'] ?? '', $ledgerSerialFilter) !== false;
-  return $itemOk && $statusOk && $clientOk && $serialOk;
+  $source = (string) ($row['source'] ?? 'manual');
+  $sourceOk = $ledgerSourceFilter === '' || $source === $ledgerSourceFilter;
+
+  $createdTs = strtotime((string) ($row['created_at'] ?? '')) ?: 0;
+  $fromTs = $ledgerFromFilter !== '' ? (strtotime($ledgerFromFilter . ' 00:00:00') ?: 0) : 0;
+  $toTs = $ledgerToFilter !== '' ? (strtotime($ledgerToFilter . ' 23:59:59') ?: 0) : 0;
+  $fromOk = $fromTs === 0 || ($createdTs !== 0 && $createdTs >= $fromTs);
+  $toOk = $toTs === 0 || ($createdTs !== 0 && $createdTs <= $toTs);
+
+  return $itemOk && $statusOk && $clientOk && $serialOk && $sourceOk && $fromOk && $toOk;
 });
 
 $statusOptions = ['Stock', 'Production', 'On The Way', 'Backorder', 'Assigned'];
@@ -431,6 +622,8 @@ foreach ($serialRows as $row) {
   }
 }
 sort($statusOptions);
+
+include_once(__DIR__ . '/layout_start.php');
 ?>
 <div class="container">
   <h2>Inventory Ledger</h2>
@@ -617,13 +810,31 @@ sort($statusOptions);
 
   <div style="margin-top:22px;">
     <div style="font-weight:700; margin-bottom:10px;">Ledger Entries</div>
-    <?php if (empty($ledgerRows)): ?>
+    <form method="get" style="display:grid; grid-template-columns:repeat(4,minmax(160px,1fr)); gap:8px 10px; margin-bottom:10px; background:#fafbfc; border:1px solid #e6e6e6; border-radius:8px; padding:10px;">
+      <input type="text" name="ledger_item" placeholder="Item ID or name" value="<?= htmlspecialchars($ledgerItemFilter) ?>" style="padding:6px 8px;">
+      <input type="text" name="ledger_status" placeholder="Status" value="<?= htmlspecialchars($ledgerStatusFilter) ?>" style="padding:6px 8px;">
+      <input type="text" name="ledger_client" placeholder="Client" value="<?= htmlspecialchars($ledgerClientFilter) ?>" style="padding:6px 8px;">
+      <input type="text" name="ledger_serial" placeholder="Serial/Ref" value="<?= htmlspecialchars($ledgerSerialFilter) ?>" style="padding:6px 8px;">
+      <select name="ledger_source" style="padding:6px 8px;">
+        <option value="" <?= $ledgerSourceFilter === '' ? 'selected' : '' ?>>All Sources</option>
+        <option value="manual" <?= $ledgerSourceFilter === 'manual' ? 'selected' : '' ?>>Manual</option>
+        <option value="transaction" <?= $ledgerSourceFilter === 'transaction' ? 'selected' : '' ?>>Transaction</option>
+      </select>
+      <input type="date" name="ledger_from" value="<?= htmlspecialchars($ledgerFromFilter) ?>" style="padding:6px 8px;">
+      <input type="date" name="ledger_to" value="<?= htmlspecialchars($ledgerToFilter) ?>" style="padding:6px 8px;">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button type="submit" class="btn-outline" style="padding:6px 10px;">Filter</button>
+        <a href="inventory_ledger.php" class="btn-outline" style="padding:6px 10px; text-decoration:none;">Reset</a>
+      </div>
+    </form>
+    <?php if (empty($ledgerFiltered)): ?>
       <div style="color:#777;">No ledger entries yet.</div>
     <?php else: ?>
       <div style="overflow:auto; border:1px solid #e6e6e6; border-radius:6px; background:#fff;">
         <table style="width:100%; border-collapse:collapse;">
           <thead>
             <tr style="background:#f5f5f5;">
+              <th style="padding:8px; text-align:left;">Source</th>
               <th style="padding:8px; text-align:left;">Item ID</th>
               <th style="padding:8px; text-align:left;">Item Name</th>
               <th style="padding:8px; text-align:left;">Qty</th>
@@ -636,8 +847,9 @@ sort($statusOptions);
             </tr>
           </thead>
           <tbody>
-            <?php foreach (array_reverse($ledgerRows) as $row): ?>
+            <?php foreach ($ledgerFiltered as $row): ?>
               <tr>
+                <td style="padding:8px;"><?= htmlspecialchars(($row['source'] ?? 'manual') === 'transaction' ? 'Transaction' : 'Manual') ?></td>
                 <td style="padding:8px;"><?= htmlspecialchars($row['item_id'] ?? '') ?></td>
                 <td style="padding:8px;"><?= htmlspecialchars($row['item_name'] ?? '') ?></td>
                 <td style="padding:8px;"><?= htmlspecialchars($row['quantity'] ?? '') ?></td>

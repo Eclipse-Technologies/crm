@@ -44,8 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <input type="text" name="title" value="<?= htmlspecialchars($taskToEdit['title']) ?>" required>
   <input type="date" name="due_date" value="<?= htmlspecialchars($taskToEdit['due_date']) ?>" required>
   <select name="status" required>
-    <option value="pending" <?= $taskToEdit['status'] === 'pending' ? 'selected' : '' ?>>Pending</option>
+    <option value="not_started" <?= $taskToEdit['status'] === 'not_started' ? 'selected' : '' ?>>Not Started</option>
+    <option value="in_progress" <?= $taskToEdit['status'] === 'in_progress' ? 'selected' : '' ?>>In Progress</option>
+    <option value="waiting" <?= $taskToEdit['status'] === 'waiting' ? 'selected' : '' ?>>Waiting/Blocked</option>
+    <option value="review" <?= $taskToEdit['status'] === 'review' ? 'selected' : '' ?>>Review</option>
     <option value="completed" <?= $taskToEdit['status'] === 'completed' ? 'selected' : '' ?>>Completed</option>
+    <option value="archived" <?= $taskToEdit['status'] === 'archived' ? 'selected' : '' ?>>Archived</option>
   </select>
   <button type="submit">Update Task</button>
 </form>

@@ -819,6 +819,8 @@ function setOwnershipUI(ownership) {
     }
     calculateAnnualValue();
 }
+
+function calculateAnnualValue() {
     const monthlyFee = parseFloat(document.getElementById('monthly_fee').value) || 0;
     const annualValue = monthlyFee * 12;
     document.getElementById('annual_value_display').textContent = '$' + annualValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
