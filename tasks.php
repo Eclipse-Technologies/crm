@@ -2115,6 +2115,7 @@ function status_badge($status) {
           }
           if (!policyManualHintDismissed) {
             setKeyStatus('Restore button -> Manual hint already shown');
+            showToast('Manual policy-copy hint is already shown.', false);
             return;
           }
           policyManualHintDismissed = false;

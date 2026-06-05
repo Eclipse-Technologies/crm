@@ -3,6 +3,32 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 108)
+
+### Scope (Restore No-Op Feedback Parity)
+
+- Provide explicit toast feedback when the restore button is used while the manual hint is already visible.
+
+### Key Changes (Restore No-Op Feedback Parity)
+
+- Updated restore button handler in tasks.php.
+- In the already-shown no-op branch:
+  - preserved key status update,
+  - added toast feedback: `Manual policy-copy hint is already shown.`
+
+### Important Files (Restore No-Op Feedback Parity)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Restore No-Op Feedback Parity)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed no-op restore click emits both:
+  - key status `Restore button -> Manual hint already shown`,
+  - toast `Manual policy-copy hint is already shown.`
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 107)
 
 ### Scope (Dual-Path Restore Guidance Copy)
