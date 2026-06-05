@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 11)
+
+### Scope (Per-Task View Reset Control)
+
+- Add a lightweight per-row reset control to clear a task's saved history chip mode and return that row to default view behavior.
+
+### Key Changes (Per-Task View Reset Control)
+
+- Updated `tasks.php` history panel UI (server + async renderer) to add a `Reset view` control beside filter chips.
+- Added `clearStoredAuditFilter(...)` helper in `tasks.php` to remove task-specific session preference keys safely.
+- Refactored history chip activation flow in `tasks.php` to centralize filter switching and persistence behavior.
+- Wired reset action in `tasks.php` to:
+  - clear saved filter for that task,
+  - switch the panel back to `All Events`,
+  - keep default mode active across close/reopen and reload unless user selects a new mode.
+
+### Important Files (Per-Task View Reset Control)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Per-Task View Reset Control)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime validation on `tasks.php` confirms reset sets `All Events` active and keeps that default active after panel reopen and page reload.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 10)
 
 ### Scope (Session-Persisted History View Mode)

@@ -280,6 +280,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<div class="task-audit-history-filters" style="display:flex;gap:6px;margin:0 0 8px 0;">'
     . '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>'
     . '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>'
+    . '<button type="button" class="js-audit-history-reset" style="margin-left:auto;border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
     . '</div>'
     . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
     . '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>'
@@ -648,6 +649,19 @@ function status_badge($status) {
     }
   }
 
+  function clearStoredAuditFilter(taskId) {
+    const safeTaskId = String(taskId || '').trim();
+    if (!safeTaskId || typeof window.sessionStorage === 'undefined') {
+      return;
+    }
+
+    try {
+      window.sessionStorage.removeItem(auditFilterStoragePrefix + safeTaskId);
+    } catch (error) {
+      // Ignore storage failures (private mode/quota) and continue gracefully.
+    }
+  }
+
   function showToast(message, isError) {
     if (!toast) {
       return;
@@ -789,6 +803,7 @@ function status_badge($status) {
       '<div class="task-audit-history-filters" style="display:flex;gap:6px;margin:0 0 8px 0;">' +
         '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>' +
         '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>' +
+        '<button type="button" class="js-audit-history-reset" style="margin-left:auto;border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
       '</div>' +
       '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
       '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>' +
@@ -804,6 +819,7 @@ function status_badge($status) {
 
       const taskId = getTaskIdForHistoryShell(shell);
       const chips = shell.querySelectorAll('.js-audit-history-chip');
+      const resetButton = shell.querySelector('.js-audit-history-reset');
       const rows = shell.querySelectorAll('.task-audit-history-list li');
       const emptyNote = shell.querySelector('.task-audit-history-empty');
 
@@ -833,22 +849,36 @@ function status_badge($status) {
         }
       }
 
+      function activateFilter(filter, persist) {
+        const selectedFilter = (filter === 'status_changes') ? 'status_changes' : 'all';
+        const activeChip = shell.querySelector('.js-audit-history-chip[data-filter="' + selectedFilter + '"]')
+          || shell.querySelector('.js-audit-history-chip[data-filter="all"]')
+          || chips[0];
+        if (activeChip) {
+          setChipStyles(activeChip);
+        }
+        applyFilter(selectedFilter);
+        if (persist) {
+          setStoredAuditFilter(taskId, selectedFilter);
+        }
+      }
+
       chips.forEach(function (chip) {
         chip.addEventListener('click', function () {
           const filter = String(chip.getAttribute('data-filter') || 'all');
-          setChipStyles(chip);
-          applyFilter(filter);
-          setStoredAuditFilter(taskId, filter);
+          activateFilter(filter, true);
         });
       });
 
-      const storedFilter = getStoredAuditFilter(taskId);
-      const preferredChip = shell.querySelector('.js-audit-history-chip[data-filter="' + storedFilter + '"]');
-      const defaultChip = preferredChip || shell.querySelector('.js-audit-history-chip[data-filter="all"]') || chips[0];
-      if (defaultChip) {
-        setChipStyles(defaultChip);
+      if (resetButton) {
+        resetButton.addEventListener('click', function () {
+          clearStoredAuditFilter(taskId);
+          activateFilter('all', false);
+        });
       }
-      applyFilter(storedFilter);
+
+      const storedFilter = getStoredAuditFilter(taskId);
+      activateFilter(storedFilter, false);
       shell.setAttribute('data-filters-bound', '1');
     });
   }
