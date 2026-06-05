@@ -1126,6 +1126,9 @@ function status_badge($status) {
           event.preventDefault();
           const show = !shortcutHelp || shortcutHelp.style.display === 'none';
           setShortcutHelpVisible(show);
+        } else if (key === 'escape') {
+          event.preventDefault();
+          closeHistoryRow(taskId, true);
         }
       });
 
@@ -1345,6 +1348,63 @@ function status_badge($status) {
     return false;
   }
 
+  function findHistoryToggleButton(taskId) {
+    const safeTaskId = String(taskId || '').trim();
+    if (!safeTaskId) {
+      return null;
+    }
+
+    return document.querySelector('.js-audit-history-toggle[data-task-id="' + CSS.escape(safeTaskId) + '"]');
+  }
+
+  function openHistoryRow(taskId, triggerButton) {
+    const safeTaskId = String(taskId || '').trim();
+    if (!safeTaskId) {
+      return;
+    }
+
+    const historyRow = document.querySelector('.task-audit-history-row[data-task-id="' + CSS.escape(safeTaskId) + '"]');
+    if (!historyRow) {
+      return;
+    }
+
+    historyRow.removeAttribute('hidden');
+    if (triggerButton) {
+      triggerButton.textContent = 'Hide history';
+    }
+
+    const primaryToggle = findHistoryToggleButton(safeTaskId);
+    if (primaryToggle) {
+      primaryToggle.textContent = 'Hide history';
+    }
+
+    const shell = historyRow.querySelector('.task-audit-history-shell');
+    if (shell && typeof shell.focus === 'function') {
+      shell.focus();
+    }
+  }
+
+  function closeHistoryRow(taskId, returnFocusToToggle) {
+    const safeTaskId = String(taskId || '').trim();
+    if (!safeTaskId) {
+      return;
+    }
+
+    const historyRow = document.querySelector('.task-audit-history-row[data-task-id="' + CSS.escape(safeTaskId) + '"]');
+    if (!historyRow) {
+      return;
+    }
+
+    historyRow.setAttribute('hidden', 'hidden');
+    const primaryToggle = findHistoryToggleButton(safeTaskId);
+    if (primaryToggle) {
+      primaryToggle.textContent = 'View last 3 events';
+      if (returnFocusToToggle && typeof primaryToggle.focus === 'function') {
+        primaryToggle.focus();
+      }
+    }
+  }
+
   document.querySelectorAll('.js-audit-history-toggle').forEach(function (button) {
     button.addEventListener('click', function () {
       const taskId = String(button.getAttribute('data-task-id') || '').trim();
@@ -1359,15 +1419,9 @@ function status_badge($status) {
 
       const currentlyHidden = historyRow.hasAttribute('hidden');
       if (currentlyHidden) {
-        historyRow.removeAttribute('hidden');
-        button.textContent = 'Hide history';
-        const shell = historyRow.querySelector('.task-audit-history-shell');
-        if (shell && typeof shell.focus === 'function') {
-          shell.focus();
-        }
+        openHistoryRow(taskId, button);
       } else {
-        historyRow.setAttribute('hidden', 'hidden');
-        button.textContent = 'View last 3 events';
+        closeHistoryRow(taskId, false);
       }
     });
   });
@@ -1434,15 +1488,9 @@ function status_badge($status) {
               }
               const currentlyHidden = historyRow.hasAttribute('hidden');
               if (currentlyHidden) {
-                historyRow.removeAttribute('hidden');
-                replacementToggle.textContent = 'Hide history';
-                const shell = historyRow.querySelector('.task-audit-history-shell');
-                if (shell && typeof shell.focus === 'function') {
-                  shell.focus();
-                }
+                openHistoryRow(taskId, replacementToggle);
               } else {
-                historyRow.setAttribute('hidden', 'hidden');
-                replacementToggle.textContent = 'View last 3 events';
+                closeHistoryRow(taskId, false);
               }
             });
           }

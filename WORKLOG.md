@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 23)
+
+### Scope (Escape to Close Panel)
+
+- Add `Escape` handling for focused audit-history panels so users can close the panel quickly and return to row context.
+
+### Key Changes (Escape to Close Panel)
+
+- Added shared history-panel helpers in `tasks.php`:
+  - open panel by task id,
+  - close panel by task id with optional focus return to toggle button.
+- Refactored existing click toggle paths (standard toggle and replacement toggle after inline updates) to use shared open/close helpers.
+- Extended focused-shell keyboard handler in `tasks.php`:
+  - `Escape` closes current panel,
+  - focus returns to the row’s `View last 3 events` toggle button.
+- Ensured closed-state text remains consistent (`View last 3 events`) after keyboard close.
+
+### Important Files (Escape to Close Panel)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Escape to Close Panel)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - panel opens and is visible,
+  - pressing `Escape` while panel is focused closes the panel,
+  - focus returns to the matching toggle button,
+  - toggle label is `View last 3 events` after close.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 22)
 
 ### Scope (Question-Mark Help Toggle)
