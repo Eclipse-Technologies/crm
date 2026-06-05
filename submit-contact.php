@@ -5,9 +5,17 @@ require_once 'csrf_helper.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require 'PHPMailer.php';
-require 'SMTP.php';
-require 'Exception.php';
+// Prefer Composer autoload when available; otherwise fallback to bundled vendor paths.
+$autoloadPath = __DIR__ . '/vendor/autoload.php';
+if (file_exists($autoloadPath)) {
+    require_once $autoloadPath;
+}
+
+if (!class_exists(PHPMailer::class)) {
+    require_once __DIR__ . '/vendor/phpmailer/phpmailer/src/PHPMailer.php';
+    require_once __DIR__ . '/vendor/phpmailer/phpmailer/src/SMTP.php';
+    require_once __DIR__ . '/vendor/phpmailer/phpmailer/src/Exception.php';
+}
 
 $schema = require __DIR__ . '/contact_schema.php';
 $mail = new PHPMailer(true);
