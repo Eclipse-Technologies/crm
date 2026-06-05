@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 97)
+
+### Scope (Inline Manual-Selection Hint)
+
+- Add an inline fallback hint beneath policy readout that appears only when policy-copy failures escalate to unavailable-context mode.
+
+### Key Changes (Inline Manual-Selection Hint)
+
+- Added `.js-audit-policy-manual-hint` under policy readout in both render paths in tasks.php.
+- Wired hint node in `wireAuditHistoryFilters`.
+- Updated `refreshPolicyReadoutTone()` to toggle hint visibility only when escalated unavailable mode is active (`policyCopyFailureStreak >= 2` with failed state).
+- Preserved existing default and first-failure visuals with no extra hint noise.
+
+### Important Files (Inline Manual-Selection Hint)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Inline Manual-Selection Hint)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - hint hidden by default,
+  - still hidden after first forced Shift+K failure,
+  - visible after second forced Shift+K failure with expected manual-selection copy guidance text.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 96)
 
 ### Scope (Policy Copy Failure Live Escalation)
