@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 26)
+
+### Scope (G Shortcut for Global Mode)
+
+- Add `G` keyboard shortcut in focused audit-history panels to toggle `Remember for all rows` global mode.
+
+### Key Changes (G Shortcut for Global Mode)
+
+- Updated `tasks.php` shortcut hint/help text (server-rendered and JS-rendered) to include global shortcut usage:
+  - `G = Global mode`
+- Extended focused-shell keyboard handler in `tasks.php`:
+  - `G` toggles remember checkbox state,
+  - dispatches checkbox `change` event to reuse existing global-state logic,
+  - updates key status line (`G -> Global mode On/Off`),
+  - shows user feedback toast (`Global mode enabled/disabled`).
+- Preserved existing sync behavior so global badge and shared checkbox state update consistently through existing handlers.
+
+### Important Files (G Shortcut for Global Mode)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (G Shortcut for Global Mode)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - shortcut hint text includes `G = Global mode`,
+  - pressing `G` toggles global badge Off -> On -> Off,
+  - key status line updates to On/Off messages,
+  - toast feedback matches enabled/disabled state.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 25)
 
 ### Scope (R Shortcut for Reset View)

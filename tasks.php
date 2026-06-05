@@ -291,8 +291,8 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>'
     . '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
     . '</div>'
-    . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes, R = Reset view</div>'
-    . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, ? = Toggle this help.</div>'
+    . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes, R = Reset view, G = Global mode</div>'
+    . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, G = Toggle global mode, ? = Toggle this help.</div>'
     . '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>'
     . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
     . '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>'
@@ -894,8 +894,8 @@ function status_badge($status) {
         '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>' +
         '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
       '</div>' +
-      '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes, R = Reset view</div>' +
-      '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, ? = Toggle this help.</div>' +
+      '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes, R = Reset view, G = Global mode</div>' +
+      '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, G = Toggle global mode, ? = Toggle this help.</div>' +
       '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>' +
       '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
       '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>' +
@@ -1153,6 +1153,14 @@ function status_badge($status) {
           applyResetViewShortcut();
           setKeyStatus('R -> Reset view');
           showToast('History view reset.', false);
+        } else if (key === 'g') {
+          event.preventDefault();
+          if (rememberGlobalCheckbox) {
+            rememberGlobalCheckbox.checked = !rememberGlobalCheckbox.checked;
+            rememberGlobalCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+            setKeyStatus('G -> Global mode ' + (rememberGlobalCheckbox.checked ? 'On' : 'Off'));
+            showToast('Global mode ' + (rememberGlobalCheckbox.checked ? 'enabled.' : 'disabled.'), false);
+          }
         } else if (key === 'escape') {
           event.preventDefault();
           setKeyStatus('Escape -> Close panel');
