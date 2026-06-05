@@ -84,6 +84,103 @@ function formatAuditPreviewTime(string $timestamp): string {
   return date('Y-m-d H:i', $parsed);
 }
 
+function fetchTaskAuditHistories(array $taskIds, int $limitPerTask = 3): array {
+  $taskIds = array_values(array_unique(array_filter(array_map(static function ($id) {
+    return trim((string) $id);
+  }, $taskIds), static function ($id) {
+    return $id !== '';
+  })));
+
+  if (empty($taskIds) || $limitPerTask < 1 || !function_exists('get_mysql_connection')) {
+    return [];
+  }
+
+  try {
+    $conn = get_mysql_connection();
+    $placeholders = implode(',', array_fill(0, count($taskIds), '?'));
+    $sql = "SELECT entity_id, timestamp, user_id, summary, action, status FROM audit_log WHERE entity_type = 'task' AND entity_id IN ($placeholders) ORDER BY timestamp DESC";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+      $conn->close();
+      return [];
+    }
+
+    $types = str_repeat('s', count($taskIds));
+    $stmt->bind_param($types, ...$taskIds);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $historyMap = [];
+    if ($result) {
+      while ($row = $result->fetch_assoc()) {
+        $entityId = trim((string) ($row['entity_id'] ?? ''));
+        if ($entityId === '') {
+          continue;
+        }
+
+        if (!isset($historyMap[$entityId])) {
+          $historyMap[$entityId] = [];
+        }
+        if (count($historyMap[$entityId]) >= $limitPerTask) {
+          continue;
+        }
+
+        $historyMap[$entityId][] = [
+          'summary' => trim((string) ($row['summary'] ?? '')),
+          'timestamp' => trim((string) ($row['timestamp'] ?? '')),
+          'user_id' => trim((string) ($row['user_id'] ?? '')),
+          'action' => trim((string) ($row['action'] ?? '')),
+          'status' => trim((string) ($row['status'] ?? '')),
+        ];
+      }
+      $result->free();
+    }
+
+    $stmt->close();
+    $conn->close();
+    return $historyMap;
+  } catch (Throwable $e) {
+    return [];
+  }
+}
+
+function renderTaskAuditHistoryHtml(array $entries): string {
+  if (empty($entries)) {
+    return '<div style="font-size:12px;color:#6b7280;">No audit history available for this task.</div>';
+  }
+
+  $items = '';
+  foreach ($entries as $entry) {
+    $summary = trim((string) ($entry['summary'] ?? ''));
+    $summary = $summary !== '' ? $summary : 'Task activity logged';
+    $timestamp = formatAuditPreviewTime(trim((string) ($entry['timestamp'] ?? '')));
+    $userId = trim((string) ($entry['user_id'] ?? ''));
+    $action = trim((string) ($entry['action'] ?? ''));
+    $status = trim((string) ($entry['status'] ?? ''));
+
+    $metaParts = [];
+    if ($timestamp !== '') {
+      $metaParts[] = $timestamp;
+    }
+    if ($userId !== '') {
+      $metaParts[] = 'by ' . $userId;
+    }
+    if ($action !== '') {
+      $metaParts[] = strtoupper($action);
+    }
+    if ($status !== '') {
+      $metaParts[] = $status;
+    }
+
+    $items .= '<li style="margin:0 0 8px 0;">'
+      . '<div style="font-size:12px;font-weight:600;color:#111827;">' . htmlspecialchars($summary) . '</div>'
+      . '<div style="font-size:11px;color:#6b7280;">' . htmlspecialchars(implode(' | ', $metaParts)) . '</div>'
+      . '</li>';
+  }
+
+  return '<ul style="margin:0;padding-left:18px;">' . $items . '</ul>';
+}
+
 // Fetch tasks from DB
 $tasks = fetch_tasks_mysql();
 
@@ -189,6 +286,9 @@ $returnQuery = http_build_query($returnQueryParams);
 $taskAuditPreviews = fetchRecentTaskAuditPreviews(array_map(static function ($task) {
   return $task['id'] ?? '';
 }, $filteredTasks));
+$taskAuditHistories = fetchTaskAuditHistories(array_map(static function ($task) {
+  return $task['id'] ?? '';
+}, $filteredTasks), 3);
 
 // Status badge colors
 $statusColors = [
@@ -318,7 +418,9 @@ function status_badge($status) {
           </td>
           <td class="task-audit-cell" style="min-width:220px;">
             <?php
+              $taskId = (string) ($task['id'] ?? '');
               $auditPreview = $taskAuditPreviews[(string) ($task['id'] ?? '')] ?? null;
+              $auditHistory = $taskAuditHistories[$taskId] ?? [];
               if (is_array($auditPreview)):
                 $auditSummary = trim((string) ($auditPreview['summary'] ?? ''));
                 $auditTime = formatAuditPreviewTime(trim((string) ($auditPreview['timestamp'] ?? '')));
@@ -331,6 +433,11 @@ function status_badge($status) {
             <?php else: ?>
               <span style="font-size:11px;color:#9ca3af;">No recent task audit</span>
             <?php endif; ?>
+            <div style="margin-top:6px;">
+              <button type="button" class="js-audit-history-toggle" data-task-id="<?= htmlspecialchars($taskId) ?>" style="border:none;background:transparent;color:#0f766e;font-size:11px;font-weight:600;padding:0;cursor:pointer;">
+                View last 3 events
+              </button>
+            </div>
           </td>
           <td>
             <form method="POST" action="update_task_status.php" class="js-inline-status-form" style="display:inline-flex;align-items:center;gap:6px;margin-right:8px;">
@@ -353,6 +460,11 @@ function status_badge($status) {
               <input type="hidden" name="id" value="<?= htmlspecialchars($task['id']) ?>">
               <button type="submit" style="background:none;border:none;color:#c00;font-weight:600;cursor:pointer;padding:0;">Delete</button>
             </form>
+          </td>
+        </tr>
+        <tr class="task-audit-history-row" data-task-id="<?= htmlspecialchars($taskId) ?>" hidden>
+          <td colspan="14" style="background:#f8fafc;padding:10px 12px;border-top:1px solid #e5e7eb;">
+            <div class="task-audit-history-content"><?= renderTaskAuditHistoryHtml($auditHistory) ?></div>
           </td>
         </tr>
       <?php endforeach; ?>
@@ -437,6 +549,41 @@ function status_badge($status) {
       '<div style="font-size:11px;color:#6b7280;line-height:1.3;">' + escapeHtml(meta) + '</div>';
   }
 
+  function renderAuditHistory(entries) {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return '<div style="font-size:12px;color:#6b7280;">No audit history available for this task.</div>';
+    }
+
+    const items = entries.map(function (entry) {
+      const summary = String(entry && entry.summary ? entry.summary : '').trim() || 'Task activity logged';
+      const timestamp = String(entry && entry.timestamp ? entry.timestamp : '').trim();
+      const user = String(entry && entry.user_id ? entry.user_id : '').trim();
+      const action = String(entry && entry.action ? entry.action : '').trim();
+      const status = String(entry && entry.status ? entry.status : '').trim();
+      const metaParts = [];
+
+      if (timestamp) {
+        metaParts.push(timestamp);
+      }
+      if (user) {
+        metaParts.push('by ' + user);
+      }
+      if (action) {
+        metaParts.push(action.toUpperCase());
+      }
+      if (status) {
+        metaParts.push(status);
+      }
+
+      return '<li style="margin:0 0 8px 0;">' +
+        '<div style="font-size:12px;font-weight:600;color:#111827;">' + escapeHtml(summary) + '</div>' +
+        '<div style="font-size:11px;color:#6b7280;">' + escapeHtml(metaParts.join(' | ')) + '</div>' +
+      '</li>';
+    }).join('');
+
+    return '<ul style="margin:0;padding-left:18px;">' + items + '</ul>';
+  }
+
   function shouldRemoveRowAfterUpdate(status) {
     if (activeStatusFilter && activeStatusFilter !== 'all' && status !== activeStatusFilter) {
       return true;
@@ -449,6 +596,29 @@ function status_badge($status) {
     return false;
   }
 
+  document.querySelectorAll('.js-audit-history-toggle').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const taskId = String(button.getAttribute('data-task-id') || '').trim();
+      if (!taskId) {
+        return;
+      }
+
+      const historyRow = document.querySelector('.task-audit-history-row[data-task-id="' + CSS.escape(taskId) + '"]');
+      if (!historyRow) {
+        return;
+      }
+
+      const currentlyHidden = historyRow.hasAttribute('hidden');
+      if (currentlyHidden) {
+        historyRow.removeAttribute('hidden');
+        button.textContent = 'Hide history';
+      } else {
+        historyRow.setAttribute('hidden', 'hidden');
+        button.textContent = 'View last 3 events';
+      }
+    });
+  });
+
   document.querySelectorAll('form.js-inline-status-form').forEach(function (form) {
     form.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -456,6 +626,9 @@ function status_badge($status) {
       const saveButton = form.querySelector('.js-inline-status-save');
       const select = form.querySelector('.js-inline-status-select');
       const row = form.closest('tr');
+      const taskId = row ? String(row.getAttribute('data-task-id') || '').trim() : '';
+      const historyRow = taskId ? document.querySelector('.task-audit-history-row[data-task-id="' + CSS.escape(taskId) + '"]') : null;
+      const historyContent = historyRow ? historyRow.querySelector('.task-audit-history-content') : null;
       const statusCell = row ? row.querySelector('.task-status-cell') : null;
       const auditCell = row ? row.querySelector('.task-audit-cell') : null;
       if (!saveButton || !select) {
@@ -497,9 +670,33 @@ function status_badge($status) {
 
         if (auditCell && payload.audit_preview) {
           auditCell.innerHTML = renderAuditPreview(payload.audit_preview);
+          auditCell.innerHTML += '<div style="margin-top:6px;"><button type="button" class="js-audit-history-toggle" data-task-id="' + escapeHtml(taskId) + '" style="border:none;background:transparent;color:#0f766e;font-size:11px;font-weight:600;padding:0;cursor:pointer;">' + (historyRow && !historyRow.hasAttribute('hidden') ? 'Hide history' : 'View last 3 events') + '</button></div>';
+          const replacementToggle = auditCell.querySelector('.js-audit-history-toggle');
+          if (replacementToggle) {
+            replacementToggle.addEventListener('click', function () {
+              if (!historyRow) {
+                return;
+              }
+              const currentlyHidden = historyRow.hasAttribute('hidden');
+              if (currentlyHidden) {
+                historyRow.removeAttribute('hidden');
+                replacementToggle.textContent = 'Hide history';
+              } else {
+                historyRow.setAttribute('hidden', 'hidden');
+                replacementToggle.textContent = 'View last 3 events';
+              }
+            });
+          }
+        }
+
+        if (historyContent && Array.isArray(payload.audit_history)) {
+          historyContent.innerHTML = renderAuditHistory(payload.audit_history);
         }
 
         if (shouldRemoveRowAfterUpdate(nextStatus) && row) {
+          if (historyRow) {
+            historyRow.remove();
+          }
           row.remove();
         }
 

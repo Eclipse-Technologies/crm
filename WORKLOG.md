@@ -3,6 +3,44 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 6)
+
+### Scope (Expandable Task Audit Timeline)
+
+- Add in-row expandable task audit history so users can inspect recent task events without leaving the task list.
+
+### Key Changes (Expandable Task Audit Timeline)
+
+- Updated `tasks.php` to preload and group the latest three `audit_log` events per visible task.
+- Added `View last 3 events` toggle under each task's `Recent Audit` preview.
+- Added hidden expandable history rows (`task-audit-history-row`) beneath each task row that show:
+  - audit summary,
+  - timestamp,
+  - actor (`user_id`),
+  - action,
+  - audit status.
+- Extended async status-update JS in `tasks.php` to:
+  - keep toggle state behavior (`View`/`Hide history`),
+  - refresh expanded history content in place after inline status updates,
+  - remove paired history rows when filtered-out task rows are removed.
+- Updated `update_task_status.php` AJAX response to include `audit_history` (top 3 events) alongside `audit_preview` for in-place UI refresh.
+
+### Important Files (Expandable Task Audit Timeline)
+
+- tasks.php
+- update_task_status.php
+- WORKLOG.md
+
+### Validation (Expandable Task Audit Timeline)
+
+- `php -l tasks.php` passed.
+- `php -l update_task_status.php` passed.
+- VS Code diagnostics report no errors in both files.
+- Runtime validation on `tasks.php` confirms:
+  - history toggle expands/collapses the per-task audit row,
+  - inline status save updates status badge, recent audit preview, and expanded history list without page reload,
+  - toast confirms save action.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 5)
 
 ### Scope (Per-Task Audit Visibility)

@@ -74,6 +74,46 @@ function fetchLatestTaskAuditPreview(string $taskId): ?array {
     }
 }
 
+function fetchTaskAuditHistory(string $taskId, int $limit = 3): array {
+    if ($taskId === '' || $limit < 1 || !function_exists('get_mysql_connection')) {
+        return [];
+    }
+
+    try {
+        $conn = get_mysql_connection();
+        $sql = "SELECT timestamp, user_id, summary, action, status FROM audit_log WHERE entity_type = 'task' AND entity_id = ? ORDER BY timestamp DESC LIMIT ?";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            $conn->close();
+            return [];
+        }
+
+        $stmt->bind_param('si', $taskId, $limit);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $entries = [];
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $entries[] = [
+                    'summary' => trim((string) ($row['summary'] ?? '')),
+                    'timestamp' => trim((string) ($row['timestamp'] ?? '')),
+                    'user_id' => trim((string) ($row['user_id'] ?? '')),
+                    'action' => trim((string) ($row['action'] ?? '')),
+                    'status' => trim((string) ($row['status'] ?? '')),
+                ];
+            }
+            $result->free();
+        }
+
+        $stmt->close();
+        $conn->close();
+        return $entries;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
 function redirectTaskStatus(string $status = 'updated', string $returnQuery = ''): void {
     $target = 'tasks.php';
     $params = [];
@@ -146,6 +186,7 @@ $oldStatus = trim((string) ($task['status'] ?? ''));
 if ($oldStatus === $newStatus) {
     if ($isAjax) {
         $auditPreview = fetchLatestTaskAuditPreview($taskId);
+        $auditHistory = fetchTaskAuditHistory($taskId, 3);
         sendTaskStatusJson([
             'ok' => true,
             'task_id' => $taskId,
@@ -153,6 +194,7 @@ if ($oldStatus === $newStatus) {
             'status_label' => statusLabel($newStatus),
             'changed' => false,
             'audit_preview' => $auditPreview,
+            'audit_history' => $auditHistory,
         ]);
     }
     redirectTaskStatus('updated', $returnQuery);
@@ -188,6 +230,7 @@ logAuditAction(
 
 if ($isAjax) {
     $auditPreview = fetchLatestTaskAuditPreview($taskId);
+    $auditHistory = fetchTaskAuditHistory($taskId, 3);
     sendTaskStatusJson([
         'ok' => true,
         'task_id' => $taskId,
@@ -195,6 +238,7 @@ if ($isAjax) {
         'status_label' => statusLabel($newStatus),
         'changed' => true,
         'audit_preview' => $auditPreview,
+        'audit_history' => $auditHistory,
     ]);
 }
 
