@@ -3,6 +3,34 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 105)
+
+### Scope (Restore-Cue Live Cooldown)
+
+- Reduce rapid-toggle aria-live noise by adding a cooldown gate for the manual-hint restore cue announcement.
+
+### Key Changes (Restore-Cue Live Cooldown)
+
+- Added restore-cue live tracking state in tasks.php:
+  - `lastPolicyManualHintRestoreCueLiveText`,
+  - `lastPolicyManualHintRestoreCueLiveAt`.
+- Updated `announcePolicyManualHintRestoreCue(...)` to suppress repeated identical restore-cue announcements inside `originFailureLiveCooldownMs`.
+- Preserved existing one-per-hidden-cycle guard (`policyManualHintRestoreCueAnnounced`) and existing reset behavior when hint becomes visible or escalation clears.
+
+### Important Files (Restore-Cue Live Cooldown)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Restore-Cue Live Cooldown)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - first hide emits restore cue,
+  - rapid show->hide cycle suppresses repeated restore cue,
+  - hide after cooldown emits restore cue again.
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 104)
 
 ### Scope (Shown-State Live Symmetry)

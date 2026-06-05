@@ -1127,6 +1127,8 @@ function status_badge($status) {
       let lastPolicyManualHintLiveText = '';
       let lastPolicyManualHintLiveAt = 0;
       let policyManualHintRestoreCueAnnounced = false;
+      let lastPolicyManualHintRestoreCueLiveText = '';
+      let lastPolicyManualHintRestoreCueLiveAt = 0;
       function policyReadoutText(policy, fallbackFields) {
         let text = 'Policy: Toast ' + policy.originToastCooldownMs + 'ms | Success ' + policy.originSuccessLiveCooldownMs + 'ms | Failure ' + policy.originFailureLiveCooldownMs + 'ms | Recovery ' + policy.originRecoveryWindowMs + 'ms';
         if (Array.isArray(fallbackFields) && fallbackFields.length > 0) {
@@ -1806,7 +1808,13 @@ function status_badge($status) {
           return;
         }
         const message = 'Manual hint hidden. Trigger: ' + String(triggerLabel || 'manual dismiss') + '. Press Shift+J to show it again.';
+        const nowMs = Date.now();
+        if (message === lastPolicyManualHintRestoreCueLiveText && (nowMs - lastPolicyManualHintRestoreCueLiveAt) < copyAnnouncementPolicy.originFailureLiveCooldownMs) {
+          return;
+        }
         policyManualHintRestoreCueAnnounced = true;
+        lastPolicyManualHintRestoreCueLiveText = message;
+        lastPolicyManualHintRestoreCueLiveAt = nowMs;
         if (hintLiveTimer) {
           window.clearTimeout(hintLiveTimer);
         }
