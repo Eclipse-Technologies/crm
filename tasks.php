@@ -292,6 +292,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
     . '</div>'
     . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes</div>'
+    . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, ? = Toggle this help.</div>'
     . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
     . '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>'
     . '</div>';
@@ -893,6 +894,7 @@ function status_badge($status) {
         '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
       '</div>' +
       '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes</div>' +
+      '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, ? = Toggle this help.</div>' +
       '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
       '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>' +
     '</div>';
@@ -971,8 +973,16 @@ function status_badge($status) {
       const rememberGlobalCheckbox = shell.querySelector('.js-audit-history-remember-global');
       const sourceIndicator = shell.querySelector('.js-audit-history-source');
       const shortcutHint = shell.querySelector('.js-audit-shortcut-hint');
+      const shortcutHelp = shell.querySelector('.js-audit-shortcut-help');
       const rows = shell.querySelectorAll('.task-audit-history-list li');
       const emptyNote = shell.querySelector('.task-audit-history-empty');
+
+      function setShortcutHelpVisible(visible) {
+        if (!shortcutHelp) {
+          return;
+        }
+        shortcutHelp.style.display = visible ? '' : 'none';
+      }
 
       function applySourceIndicator(source, filter) {
         if (!sourceIndicator) {
@@ -1112,6 +1122,10 @@ function status_badge($status) {
           event.preventDefault();
           applyShortcutFilter('status_changes');
           showToast('History view: Status Changes.', false);
+        } else if (key === '?' || (key === '/' && event.shiftKey)) {
+          event.preventDefault();
+          const show = !shortcutHelp || shortcutHelp.style.display === 'none';
+          setShortcutHelpVisible(show);
         }
       });
 
@@ -1125,6 +1139,7 @@ function status_badge($status) {
           window.setTimeout(function () {
             if (!shell.contains(document.activeElement)) {
               shortcutHint.style.display = 'none';
+              setShortcutHelpVisible(false);
             }
           }, 0);
         });

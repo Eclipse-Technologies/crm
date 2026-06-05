@@ -3,6 +3,40 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 22)
+
+### Scope (Question-Mark Help Toggle)
+
+- Add a focused-panel `?` keyboard shortcut that toggles an inline mini-help popover for audit-history controls.
+
+### Key Changes (Question-Mark Help Toggle)
+
+- Updated `tasks.php` history markup (server-rendered and JS-rendered) to include a hidden shortcut help popover block.
+- Added focused-shell helper toggle logic in `tasks.php`:
+  - `?` (or `Shift+/`) toggles help visibility,
+  - popover content summarizes available keyboard controls:
+    - `A` = All Events
+    - `S` = Status Changes
+    - `?` = Toggle help
+- Integrated with existing focus lifecycle:
+  - help auto-hides when focus leaves the history shell,
+  - behavior remains scoped to focused panel only.
+
+### Important Files (Question-Mark Help Toggle)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Question-Mark Help Toggle)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - help starts hidden,
+  - `Shift+/` toggles help to visible,
+  - subsequent `Shift+/` toggles back to hidden,
+  - help auto-hides when panel loses focus.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 21)
 
 ### Scope (Focus-Only Shortcut Hint)
