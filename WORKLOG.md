@@ -3,6 +3,32 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 111)
+
+### Scope (Help Text Discoverability Parity)
+
+- Update shortcut help copy to reflect current restore UX and keyboard activation support.
+
+### Key Changes (Help Text Discoverability Parity)
+
+- Updated shortcut help text in both tasks.php render paths.
+- Added explicit guidance line:
+  - `Show manual hint button = Restore hidden manual hint (Enter/Space supported)`.
+- Preserved existing `Shift+J` help wording.
+
+### Important Files (Help Text Discoverability Parity)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Help Text Discoverability Parity)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed shortcut help includes:
+  - `Shift+J = Toggle manual hint (escalated mode)`,
+  - `Show manual hint button = Restore hidden manual hint (Enter/Space supported)`.
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 110)
 
 ### Scope (Restore Control Keyboard Activation)
