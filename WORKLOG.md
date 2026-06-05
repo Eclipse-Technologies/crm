@@ -3,6 +3,40 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 13)
+
+### Scope (Filter Source Visibility)
+
+- Add a compact per-row indicator in task audit history panels to show whether current chip mode is sourced from row override, global remember mode, or default.
+
+### Key Changes (Filter Source Visibility)
+
+- Updated `tasks.php` history filter toolbar markup (server-rendered and JS-rendered) to include a small source indicator label.
+- Added source-indicator update logic in `tasks.php` filter binding with consistent states:
+  - `Source: Row (...)` after chip clicks (row override),
+  - `Source: Global (...)` when global remember mode drives fallback,
+  - `Source: Default (...)` when no row/global preference applies.
+- Wired source updates across all key interactions:
+  - initial panel bind,
+  - chip click,
+  - remember-toggle changes (when no row override exists),
+  - reset-view fallback logic.
+
+### Important Files (Filter Source Visibility)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Filter Source Visibility)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms expected transitions:
+  - first row shows `Source: Row (Status Changes)` after explicit row selection,
+  - second row shows `Source: Global (Status Changes)` when inheriting global mode,
+  - second row shows `Source: Row (All Events)` after row-level override,
+  - reset view restores fallback and shows `Source: Global (All Events)`.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 12)
 
 ### Scope (Optional Global History Mode)
