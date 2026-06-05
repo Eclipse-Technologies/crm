@@ -348,6 +348,7 @@ if ($viewFilter === 'my_open' && $currentUserIdentity === '') {
   $viewFilter = 'all';
 }
 
+$autoFallbackFromMyOpen = false;
 $filteredTasks = [];
 foreach ($tasks as $task) {
   $status = (string) ($task['status'] ?? '');
@@ -369,6 +370,26 @@ foreach ($tasks as $task) {
   }
 
   $filteredTasks[] = $task;
+}
+
+if (!$hasExplicitFilterInput && $viewFilter === 'my_open' && count($filteredTasks) === 0 && count($tasks) > 0) {
+  $viewFilter = 'all';
+  $_SESSION['tasks_filter_view'] = 'all';
+  $autoFallbackFromMyOpen = true;
+  $filteredTasks = [];
+  foreach ($tasks as $task) {
+    $status = (string) ($task['status'] ?? '');
+
+    if ($statusFilter !== 'all' && $statusFilter !== '' && $status !== $statusFilter) {
+      continue;
+    }
+
+    if ($assigneeFilter !== '' && normalizeTaskValue($task['assigned_to'] ?? '') !== normalizeTaskValue($assigneeFilter)) {
+      continue;
+    }
+
+    $filteredTasks[] = $task;
+  }
 }
 
 $today = date('Y-m-d');
@@ -460,6 +481,12 @@ function status_badge($status) {
       <div style="font-size:24px;font-weight:700;color:#b91c1c;"><?= (int) $summary['overdue'] ?></div>
     </div>
   </div>
+
+  <?php if ($autoFallbackFromMyOpen): ?>
+    <div style="margin:0 0 14px 0;padding:10px 12px;border:1px solid #fde68a;background:#fffbeb;color:#92400e;border-radius:8px;font-size:13px;">
+      Switched to <strong>All Tasks</strong> because your saved <strong>My Open Tasks</strong> filter returned no rows.
+    </div>
+  <?php endif; ?>
 
   <form method="GET" action="tasks.php" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;">
     <select name="view" style="padding:8px 10px;border-radius:6px;border:1px solid #d1d5db;">

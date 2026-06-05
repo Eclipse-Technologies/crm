@@ -3,6 +3,32 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Tasks Auto-Fallback Notice
+
+### Scope
+
+- Add user-facing feedback when the saved `My Open Tasks` filter auto-falls back to `All Tasks`.
+
+### Key Changes
+
+- Added `autoFallbackFromMyOpen` state in tasks.php.
+- Set fallback flag when session-level `my_open` returns zero rows while tasks exist and auto-switches to `all`.
+- Added inline notice above filters explaining the automatic switch.
+
+### Important Files
+
+- tasks.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Browser verification confirmed fallback state shows:
+  - view selector = `all`,
+  - tasks rendered,
+  - notice displayed (`Switched to All Tasks ...`).
+
 ## 2026-06-05 - Tasks Default View Visibility Fix
 
 ### Scope
