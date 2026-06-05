@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 28)
+
+### Scope (Compact Focus Cheat Line)
+
+- Add a compact, focus-scoped keyboard cheat line to audit-history panels for faster shortcut discovery.
+
+### Key Changes (Compact Focus Cheat Line)
+
+- Updated `tasks.php` history markup (server-rendered and JS-rendered) to add a compact pill-style line:
+  - `Keys: A S R C G ? Esc`
+- Extended focus lifecycle handling in `tasks.php` so the compact cheat line:
+  - appears when panel focus enters,
+  - hides when focus leaves.
+- Kept existing detailed shortcut hint/help behavior unchanged and compatible with the new compact line.
+
+### Important Files (Compact Focus Cheat Line)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Compact Focus Cheat Line)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - compact cheat line text renders correctly,
+  - line hides on blur and reappears on refocus,
+  - existing shortcut hint/help remains functional.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 27)
 
 ### Scope (C Shortcut for Clear Overrides)

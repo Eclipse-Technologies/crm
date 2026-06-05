@@ -291,6 +291,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>'
     . '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
     . '</div>'
+    . '<div class="js-audit-cheatline" style="display:none;font-size:10px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;margin:0 0 6px 0;width:max-content;">Keys: A S R C G ? Esc</div>'
     . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Global mode</div>'
     . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, ? = Toggle this help.</div>'
     . '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>'
@@ -894,6 +895,7 @@ function status_badge($status) {
         '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>' +
         '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
       '</div>' +
+      '<div class="js-audit-cheatline" style="display:none;font-size:10px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;margin:0 0 6px 0;width:max-content;">Keys: A S R C G ? Esc</div>' +
       '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Global mode</div>' +
       '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, ? = Toggle this help.</div>' +
       '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>' +
@@ -974,6 +976,7 @@ function status_badge($status) {
       const resetButton = shell.querySelector('.js-audit-history-reset');
       const rememberGlobalCheckbox = shell.querySelector('.js-audit-history-remember-global');
       const sourceIndicator = shell.querySelector('.js-audit-history-source');
+      const cheatLine = shell.querySelector('.js-audit-cheatline');
       const shortcutHint = shell.querySelector('.js-audit-shortcut-hint');
       const shortcutHelp = shell.querySelector('.js-audit-shortcut-help');
       const keyStatus = shell.querySelector('.js-audit-key-status');
@@ -1238,6 +1241,9 @@ function status_badge($status) {
 
       if (shortcutHint) {
         shell.addEventListener('focusin', function () {
+          if (cheatLine) {
+            cheatLine.style.display = '';
+          }
           shortcutHint.style.display = '';
         });
 
@@ -1245,6 +1251,9 @@ function status_badge($status) {
           // Defer so document.activeElement is updated before containment check.
           window.setTimeout(function () {
             if (!shell.contains(document.activeElement)) {
+              if (cheatLine) {
+                cheatLine.style.display = 'none';
+              }
               shortcutHint.style.display = 'none';
               setShortcutHelpVisible(false);
             }
