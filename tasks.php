@@ -295,7 +295,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M Shift+M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>'
     . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, Shift+H = Reset hint compact, M = Toggle hint toasts mute, Shift+M = Unmute hint toasts, Reset hint button = Compact, ? = Toggle this help.</div>'
     . '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>'
-    . '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 4px 0;"><span class="js-audit-shortcut-state-prefix">Shortcut state: Hint Compact | Toasts On | Source </span><span class="js-audit-shortcut-state-glyph" title="Session source marker" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:14px;padding:0 3px;margin-right:4px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-size:9px;font-weight:700;line-height:1;">[S]</span><span class="js-audit-shortcut-state-source" title="Session: restored from saved row/session preferences." style="display:inline-block;transition:transform .18s ease, background-color .25s ease, color .25s ease;transform:scale(1);border-radius:6px;padding:0 2px;">Session</span><span class="js-audit-source-freshness" style="display:none;color:#64748b;opacity:1;transition:opacity .8s ease;margin-left:2px;">| just now</span></div>'
+    . '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 4px 0;"><span class="js-audit-shortcut-state-prefix">Shortcut state: Hint Compact | Toasts On | Source </span><button type="button" class="js-audit-shortcut-state-glyph" title="Session source marker (click to copy)" aria-label="Copy source label" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:14px;padding:0 3px;margin-right:4px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-size:9px;font-weight:700;line-height:1;cursor:pointer;">[S]</button><span class="js-audit-shortcut-state-source" title="Session: restored from saved row/session preferences." style="display:inline-block;transition:transform .18s ease, background-color .25s ease, color .25s ease;transform:scale(1);border-radius:6px;padding:0 2px;">Session</span><span class="js-audit-source-freshness" style="display:none;color:#64748b;opacity:1;transition:opacity .8s ease;margin-left:2px;">| just now</span></div>'
     . '<div class="js-audit-source-legend" style="display:block;font-size:10px;color:#64748b;margin:0 0 4px 0;">Legend: <span style="display:inline-flex;align-items:center;gap:3px;"><span style="width:7px;height:7px;border-radius:999px;background:#0f766e;display:inline-block;"></span>Keyboard</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#1d4ed8;display:inline-block;"></span>Button</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#7c3aed;display:inline-block;"></span>Session</span></div>'
     . '<div class="js-audit-source-meaning" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;padding:1px 6px;border-radius:6px;transition:background-color .3s ease,color .3s ease,font-weight .25s ease;">Current source meaning: Session restored your saved row/session preference.</div>'
     . '<div class="js-audit-hint-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Hint mode: Compact</div>'
@@ -964,7 +964,7 @@ function status_badge($status) {
       '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M Shift+M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>' +
       '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, Shift+H = Reset hint compact, M = Toggle hint toasts mute, Shift+M = Unmute hint toasts, Reset hint button = Compact, ? = Toggle this help.</div>' +
       '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>' +
-      '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 4px 0;"><span class="js-audit-shortcut-state-prefix">Shortcut state: Hint Compact | Toasts On | Source </span><span class="js-audit-shortcut-state-glyph" title="Session source marker" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:14px;padding:0 3px;margin-right:4px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-size:9px;font-weight:700;line-height:1;">[S]</span><span class="js-audit-shortcut-state-source" title="Session: restored from saved row/session preferences." style="display:inline-block;transition:transform .18s ease, background-color .25s ease, color .25s ease;transform:scale(1);border-radius:6px;padding:0 2px;">Session</span><span class="js-audit-source-freshness" style="display:none;color:#64748b;opacity:1;transition:opacity .8s ease;margin-left:2px;">| just now</span></div>' +
+      '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 4px 0;"><span class="js-audit-shortcut-state-prefix">Shortcut state: Hint Compact | Toasts On | Source </span><button type="button" class="js-audit-shortcut-state-glyph" title="Session source marker (click to copy)" aria-label="Copy source label" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:14px;padding:0 3px;margin-right:4px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-size:9px;font-weight:700;line-height:1;cursor:pointer;">[S]</button><span class="js-audit-shortcut-state-source" title="Session: restored from saved row/session preferences." style="display:inline-block;transition:transform .18s ease, background-color .25s ease, color .25s ease;transform:scale(1);border-radius:6px;padding:0 2px;">Session</span><span class="js-audit-source-freshness" style="display:none;color:#64748b;opacity:1;transition:opacity .8s ease;margin-left:2px;">| just now</span></div>' +
       '<div class="js-audit-source-legend" style="display:block;font-size:10px;color:#64748b;margin:0 0 4px 0;">Legend: <span style="display:inline-flex;align-items:center;gap:3px;"><span style="width:7px;height:7px;border-radius:999px;background:#0f766e;display:inline-block;"></span>Keyboard</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#1d4ed8;display:inline-block;"></span>Button</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#7c3aed;display:inline-block;"></span>Session</span></div>' +
       '<div class="js-audit-source-meaning" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;padding:1px 6px;border-radius:6px;transition:background-color .3s ease,color .3s ease,font-weight .25s ease;">Current source meaning: Session restored your saved row/session preference.</div>' +
       '<div class="js-audit-hint-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Hint mode: Compact</div>' +
@@ -1122,6 +1122,70 @@ function status_badge($status) {
           return 'Current source meaning: Button control click changed this state in-panel.';
         }
         return 'Current source meaning: Session restored your saved row/session preference.';
+      }
+
+      function copyTextToClipboard(text) {
+        const safeText = String(text || '');
+        if (!safeText) {
+          return Promise.resolve(false);
+        }
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          return navigator.clipboard.writeText(safeText)
+            .then(function () { return true; })
+            .catch(function () {
+              const tempInput = document.createElement('textarea');
+              tempInput.value = safeText;
+              tempInput.setAttribute('readonly', 'readonly');
+              tempInput.style.position = 'fixed';
+              tempInput.style.left = '-9999px';
+              document.body.appendChild(tempInput);
+              tempInput.focus();
+              tempInput.select();
+              let copied = false;
+              try {
+                copied = document.execCommand('copy');
+              } catch (copyError) {
+                copied = false;
+              }
+              document.body.removeChild(tempInput);
+              return copied;
+            });
+        }
+
+        const fallbackInput = document.createElement('textarea');
+        fallbackInput.value = safeText;
+        fallbackInput.setAttribute('readonly', 'readonly');
+        fallbackInput.style.position = 'fixed';
+        fallbackInput.style.left = '-9999px';
+        document.body.appendChild(fallbackInput);
+        fallbackInput.focus();
+        fallbackInput.select();
+        let fallbackCopied = false;
+        try {
+          fallbackCopied = document.execCommand('copy');
+        } catch (copyError) {
+          fallbackCopied = false;
+        }
+        document.body.removeChild(fallbackInput);
+        return Promise.resolve(fallbackCopied);
+      }
+
+      function copyCurrentSourceLabel() {
+        const sourceLabel = String(lastSettingSource || '').trim();
+        if (!sourceLabel) {
+          setKeyStatus('Glyph copy -> unavailable');
+          showToast('Source copy unavailable.', false);
+          return;
+        }
+        copyTextToClipboard(sourceLabel).then(function (copied) {
+          if (copied) {
+            setKeyStatus('Glyph copy -> ' + sourceLabel);
+            showToast('Source copied: ' + sourceLabel + '.', false);
+          } else {
+            setKeyStatus('Glyph copy failed');
+            showToast('Could not copy source label.', true);
+          }
+        });
       }
 
       function pulseShortcutSource(sourceLabel) {
@@ -1285,7 +1349,8 @@ function status_badge($status) {
         if (shortcutStateGlyph) {
           const accent = sourcePulseAccent(lastSettingSource);
           shortcutStateGlyph.textContent = sourceGlyphText(lastSettingSource);
-          shortcutStateGlyph.setAttribute('title', lastSettingSource + ' source marker');
+          shortcutStateGlyph.setAttribute('title', lastSettingSource + ' source marker (click to copy)');
+          shortcutStateGlyph.setAttribute('aria-label', 'Copy source label (' + lastSettingSource + ')');
           shortcutStateGlyph.style.color = accent.color;
           shortcutStateGlyph.style.borderColor = accent.color;
           shortcutStateGlyph.style.backgroundColor = accent.backgroundColor;
@@ -1442,6 +1507,13 @@ function status_badge($status) {
         shortcutHintToastToggle.addEventListener('click', function (event) {
           event.preventDefault();
           applyHintToastMuteToggle('Hint toasts');
+        });
+      }
+
+      if (shortcutStateGlyph) {
+        shortcutStateGlyph.addEventListener('click', function (event) {
+          event.preventDefault();
+          copyCurrentSourceLabel();
         });
       }
 

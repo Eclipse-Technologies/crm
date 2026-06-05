@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 58)
+
+### Scope (Glyph Copy Action)
+
+- Make the source glyph clickable to copy the current source label and provide immediate feedback.
+
+### Key Changes (Glyph Copy Action)
+
+- Updated source glyph markup in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`) from passive span to interactive button (`.js-audit-shortcut-state-glyph`).
+- Added clipboard helper logic in `tasks.php` client behavior:
+  - `copyTextToClipboard(text)` with `navigator.clipboard.writeText` and `execCommand('copy')` fallback
+  - `copyCurrentSourceLabel()` wrapper for source-specific copy action
+- Wired glyph click handler to run copy action and report result via existing feedback channels:
+  - key status line update
+  - toast message
+- Updated dynamic glyph accessibility text to reflect current source (`aria-label`) and copy affordance (`title`).
+
+### Important Files (Glyph Copy Action)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Glyph Copy Action)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - glyph renders as `BUTTON` element,
+  - glyph click triggers copy flow,
+  - key status updates to `Glyph copy -> <Source>`.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 57)
 
 ### Scope (Meaning-Line Highlight Pulse)
