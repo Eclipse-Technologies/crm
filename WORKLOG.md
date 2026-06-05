@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 36)
+
+### Scope (Reliable Live Destination Announcements)
+
+- Refine hint-mode aria-live announcements so they consistently report the destination mode (`Detailed` or `Compact`) with concise trigger wording.
+
+### Key Changes (Reliable Live Destination Announcements)
+
+- Updated live-region message format in `tasks.php` to concise output:
+  - `Hint mode: <Mode>. Trigger: <Action>.`
+- Fixed `H` toggle path in `tasks.php` to compute target mode before mutating state:
+  - prevents ambiguous/stale mode labeling,
+  - keeps key status, toast text, and stored mode aligned with the same destination mode.
+- Kept `Shift+H` and reset-button announcement triggers explicit and consistent.
+
+### Important Files (Reliable Live Destination Announcements)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Reliable Live Destination Announcements)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - first `H` from compact announces `Hint mode: Detailed. Trigger: keyboard H.`,
+  - second `H` announces `Hint mode: Compact. Trigger: keyboard H.`,
+  - `Shift+H` announces `Hint mode: Compact. Trigger: keyboard Shift+H.`.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 35)
 
 ### Scope (Aria-Live Hint Announcements)

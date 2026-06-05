@@ -1038,7 +1038,7 @@ function status_badge($status) {
         }
         hintLiveRegion.textContent = '';
         window.setTimeout(function () {
-          hintLiveRegion.textContent = 'Hint mode ' + modeLabel + '. Changed via ' + triggerLabel + '.';
+          hintLiveRegion.textContent = 'Hint mode: ' + modeLabel + '. Trigger: ' + triggerLabel + '.';
         }, 0);
       }
 
@@ -1330,14 +1330,15 @@ function status_badge($status) {
           }
         } else if (key === 'h' && event.shiftKey) {
           event.preventDefault();
-          resetHintToCompact('Shift+H -> Hint compact', 'keyboard shift+h');
+          resetHintToCompact('Shift+H -> Hint compact', 'keyboard Shift+H');
         } else if (key === 'h') {
           event.preventDefault();
-          setShortcutHintDetailed(!isShortcutHintDetailed);
-          setStoredAuditHintMode(taskId, isShortcutHintDetailed ? 'detailed' : 'compact');
-          announceHintMode(isShortcutHintDetailed ? 'Detailed' : 'Compact', 'keyboard h');
-          setKeyStatus('H -> Hint ' + (isShortcutHintDetailed ? 'detailed' : 'compact'));
-          showToast('Shortcut hint: ' + (isShortcutHintDetailed ? 'detailed' : 'compact') + '.', false);
+          const nextDetailed = !isShortcutHintDetailed;
+          setShortcutHintDetailed(nextDetailed);
+          setStoredAuditHintMode(taskId, nextDetailed ? 'detailed' : 'compact');
+          announceHintMode(nextDetailed ? 'Detailed' : 'Compact', 'keyboard H');
+          setKeyStatus('H -> Hint ' + (nextDetailed ? 'detailed' : 'compact'));
+          showToast('Shortcut hint: ' + (nextDetailed ? 'detailed' : 'compact') + '.', false);
         } else if (key === 'escape') {
           event.preventDefault();
           setKeyStatus('Escape -> Close panel');
