@@ -1327,6 +1327,7 @@ function status_badge($status) {
             showToast('Origin copied: ' + originLabel + '.', false);
             flashShortcutCopyBadge('origin');
             pulseOriginChip('Copied');
+            announceOriginCopy(originLabel, prefix);
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy origin label.', true);
@@ -1393,12 +1394,14 @@ function status_badge($status) {
       function copyOriginContextSnapshot(statusPrefix) {
         const prefix = String(statusPrefix || 'Origin context copy');
         const originContext = buildOriginContextSnapshot();
+        const originLabel = currentOriginLabel();
         copyTextToClipboard(originContext).then(function (copied) {
           if (copied) {
-            setKeyStatus(prefix + ' -> ' + currentOriginLabel());
+            setKeyStatus(prefix + ' -> ' + originLabel);
             showToast(originContextPreviewToastText(originContext), false);
             flashShortcutCopyBadge('origin-context');
             pulseOriginChip('Context Copied');
+            announceOriginCopy(originLabel + ' context', prefix);
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy origin context.', true);
@@ -1470,6 +1473,20 @@ function status_badge($status) {
           return;
         }
         const message = 'Hint toasts: ' + (muted ? 'Muted' : 'Unmuted') + '. Trigger: ' + triggerLabel + '.';
+        if (hintLiveTimer) {
+          window.clearTimeout(hintLiveTimer);
+        }
+        hintLiveTimer = window.setTimeout(function () {
+          hintLiveRegion.textContent = message;
+          hintLiveTimer = null;
+        }, hintLiveDebounceMs);
+      }
+
+      function announceOriginCopy(copyLabel, triggerLabel) {
+        if (!hintLiveRegion) {
+          return;
+        }
+        const message = 'Origin copy: ' + String(copyLabel || '').trim() + '. Trigger: ' + String(triggerLabel || 'copy action') + '.';
         if (hintLiveTimer) {
           window.clearTimeout(hintLiveTimer);
         }

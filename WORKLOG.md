@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 79)
+
+### Scope (Origin Copy Aria-Live Announcements)
+
+- Add explicit screen-reader live announcements for origin-copy actions to improve non-visual feedback precision.
+
+### Key Changes (Origin Copy Aria-Live Announcements)
+
+- Added `announceOriginCopy(copyLabel, triggerLabel)` helper in `tasks.php` using existing live region and debounce path.
+- Wired origin-copy success flows to announce operation-specific live messages:
+  - `copyCurrentOriginLabel(...)` announces origin copy with trigger context,
+  - `copyOriginContextSnapshot(...)` announces origin-context copy with trigger context.
+- Kept visual toasts/badges/key-status behavior unchanged.
+- Minor consistency update in context-copy handler to reuse a stable `originLabel` per copy action.
+
+### Important Files (Origin Copy Aria-Live Announcements)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Origin Copy Aria-Live Announcements)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - `O` updates live region with `Origin copy: <label>. Trigger: O -> Copy origin.`,
+  - `Shift+O` updates live region with `Origin copy: <label> context. Trigger: Shift+O -> Copy origin context.`,
+  - key status remains correct.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 78)
 
 ### Scope (Reduced-Motion Shift+O Text Swap Parity)
