@@ -3,6 +3,34 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 81)
+
+### Scope (Origin Copy Failure Aria-Live Parity)
+
+- Add explicit live-region failure announcements for origin-copy flows so accessibility feedback parity matches success paths.
+
+### Key Changes (Origin Copy Failure Aria-Live Parity)
+
+- Added `announceOriginCopyFailure(triggerLabel)` in `tasks.php` using existing live-region debounce channel.
+- Wired failure branches to announce copy failures:
+  - `copyCurrentOriginLabel(...)`
+  - `copyOriginContextSnapshot(...)`
+- Kept existing visual failure toasts and key-status updates unchanged.
+
+### Important Files (Origin Copy Failure Aria-Live Parity)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Origin Copy Failure Aria-Live Parity)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` (forced clipboard failure) confirmed:
+  - live region announces `Origin copy failed. Trigger: O -> Copy origin.`,
+  - live region announces `Origin copy failed. Trigger: Shift+O -> Copy origin context.`,
+  - key status reflects failure for both actions.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 80)
 
 ### Scope (Origin Toast Cooldown)

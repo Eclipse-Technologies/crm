@@ -1334,6 +1334,7 @@ function status_badge($status) {
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy origin label.', true);
+            announceOriginCopyFailure(prefix);
           }
         });
       }
@@ -1408,6 +1409,7 @@ function status_badge($status) {
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy origin context.', true);
+            announceOriginCopyFailure(prefix);
           }
         });
       }
@@ -1504,6 +1506,20 @@ function status_badge($status) {
           return;
         }
         const message = 'Origin copy: ' + String(copyLabel || '').trim() + '. Trigger: ' + String(triggerLabel || 'copy action') + '.';
+        if (hintLiveTimer) {
+          window.clearTimeout(hintLiveTimer);
+        }
+        hintLiveTimer = window.setTimeout(function () {
+          hintLiveRegion.textContent = message;
+          hintLiveTimer = null;
+        }, hintLiveDebounceMs);
+      }
+
+      function announceOriginCopyFailure(triggerLabel) {
+        if (!hintLiveRegion) {
+          return;
+        }
+        const message = 'Origin copy failed. Trigger: ' + String(triggerLabel || 'copy action') + '.';
         if (hintLiveTimer) {
           window.clearTimeout(hintLiveTimer);
         }
