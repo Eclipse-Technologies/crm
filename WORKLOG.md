@@ -3,6 +3,31 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Tasks Default View Visibility Fix
+
+### Scope
+
+- Prevent empty-first task screens by defaulting the filter view to `All Tasks` instead of `My Open Tasks`.
+
+### Key Changes
+
+- Updated default filter initialization in tasks.php:
+  - from user-dependent `my_open` default,
+  - to unconditional `all` default.
+
+### Important Files
+
+- tasks.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Browser verification with `?reset_filters=1` shows:
+  - selected view = `all`,
+  - task rows render.
+
 ## 2026-06-05 - Tasks Route Compatibility Fix
 
 ### Scope

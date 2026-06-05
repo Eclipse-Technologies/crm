@@ -311,7 +311,7 @@ $tasks = fetch_tasks_mysql();
 $currentUserIdentity = normalizeTaskValue($_SESSION['username'] ?? ($_SESSION['user_id'] ?? ''));
 $allowedViews = ['all', 'open', 'my_open'];
 $allowedStatuses = ['all', 'not_started', 'in_progress', 'waiting', 'review', 'completed', 'archived'];
-$defaultView = $currentUserIdentity !== '' ? 'my_open' : 'all';
+$defaultView = 'all';
 
 if (isset($_GET['reset_filters']) && $_GET['reset_filters'] === '1') {
   unset($_SESSION['tasks_filter_view'], $_SESSION['tasks_filter_status'], $_SESSION['tasks_filter_assignee']);
