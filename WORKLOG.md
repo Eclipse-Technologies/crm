@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 76)
+
+### Scope (Origin Context Help Note)
+
+- Add a compact shortcut-help legend that explicitly defines origin context payload composition.
+
+### Key Changes (Origin Context Help Note)
+
+- Updated shortcut help text in both render paths in [tasks.php](tasks.php):
+  - PHP renderer `renderTaskAuditHistoryHtml(...)`
+  - JS renderer `renderAuditHistory(...)`
+- Added note to help block:
+  - `Ctx note: Origin Context = Origin + Source + Filter.`
+- Kept all existing shortcut mappings/behavior unchanged.
+
+### Important Files (Origin Context Help Note)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Origin Context Help Note)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - pressing `?` shows shortcut help,
+  - help text contains the new Ctx note,
+  - key status remains accurate.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 75)
 
 ### Scope (Reduced-Motion Origin Pulse Fallback)
