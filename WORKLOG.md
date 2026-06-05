@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 2)
+
+### Scope (Task View Defaults + Persistence)
+
+- Improve daily usability by making task view filters persist across navigation and defaulting signed-in users to a personal work queue.
+
+### Key Changes (Task View Defaults + Persistence)
+
+- Updated `tasks.php` to persist selected task filters in session (`view`, `status`, `assignee`).
+- Added My Open default behavior for authenticated users when no explicit filter is provided.
+- Added filter reset behavior (`tasks.php?reset_filters=1`) that clears stored filter preferences and returns to defaults.
+- Added filter input sanitization against allowed view/status sets before use and persistence.
+
+### Important Files (Task View Defaults + Persistence)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Task View Defaults + Persistence)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - default view is `My Open Tasks` for signed-in user,
+  - reset link clears saved filters,
+  - summary cards and filtered table stay consistent with selected filters.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 1)
 
 ### Scope (Task Module UX + Reporting Quick Wins)

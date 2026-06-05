@@ -24,9 +24,44 @@ function isTaskAssignedToUser(array $task, string $identity): bool {
 $tasks = fetch_tasks_mysql();
 
 $currentUserIdentity = normalizeTaskValue($_SESSION['username'] ?? ($_SESSION['user_id'] ?? ''));
-$statusFilter = trim((string) ($_GET['status'] ?? 'all'));
-$viewFilter = trim((string) ($_GET['view'] ?? 'all'));
-$assigneeFilter = trim((string) ($_GET['assignee'] ?? ''));
+$allowedViews = ['all', 'open', 'my_open'];
+$allowedStatuses = ['all', 'not_started', 'in_progress', 'waiting', 'review', 'completed', 'archived'];
+$defaultView = $currentUserIdentity !== '' ? 'my_open' : 'all';
+
+if (isset($_GET['reset_filters']) && $_GET['reset_filters'] === '1') {
+  unset($_SESSION['tasks_filter_view'], $_SESSION['tasks_filter_status'], $_SESSION['tasks_filter_assignee']);
+}
+
+$hasExplicitFilterInput = isset($_GET['view']) || isset($_GET['status']) || isset($_GET['assignee']);
+
+if ($hasExplicitFilterInput) {
+  $requestedView = trim((string) ($_GET['view'] ?? $defaultView));
+  $requestedStatus = trim((string) ($_GET['status'] ?? 'all'));
+  $requestedAssignee = trim((string) ($_GET['assignee'] ?? ''));
+
+  $viewFilter = in_array($requestedView, $allowedViews, true) ? $requestedView : $defaultView;
+  $statusFilter = in_array($requestedStatus, $allowedStatuses, true) ? $requestedStatus : 'all';
+  $assigneeFilter = $requestedAssignee;
+
+  $_SESSION['tasks_filter_view'] = $viewFilter;
+  $_SESSION['tasks_filter_status'] = $statusFilter;
+  $_SESSION['tasks_filter_assignee'] = $assigneeFilter;
+} else {
+  $viewFilter = (string) ($_SESSION['tasks_filter_view'] ?? $defaultView);
+  $statusFilter = (string) ($_SESSION['tasks_filter_status'] ?? 'all');
+  $assigneeFilter = (string) ($_SESSION['tasks_filter_assignee'] ?? '');
+
+  if (!in_array($viewFilter, $allowedViews, true)) {
+    $viewFilter = $defaultView;
+  }
+  if (!in_array($statusFilter, $allowedStatuses, true)) {
+    $statusFilter = 'all';
+  }
+}
+
+if ($viewFilter === 'my_open' && $currentUserIdentity === '') {
+  $viewFilter = 'all';
+}
 
 $filteredTasks = [];
 foreach ($tasks as $task) {
@@ -143,7 +178,7 @@ function status_badge($status) {
     <input type="text" name="assignee" value="<?= htmlspecialchars($assigneeFilter) ?>" placeholder="Filter assignee" style="padding:8px 10px;border-radius:6px;border:1px solid #d1d5db;min-width:180px;">
 
     <button type="submit" style="padding:8px 14px;border:none;border-radius:6px;background:#111827;color:#fff;font-weight:600;">Apply</button>
-    <a href="tasks.php" style="padding:8px 14px;border-radius:6px;background:#f3f4f6;color:#111827;text-decoration:none;font-weight:600;">Reset</a>
+    <a href="tasks.php?reset_filters=1" style="padding:8px 14px;border-radius:6px;background:#f3f4f6;color:#111827;text-decoration:none;font-weight:600;">Reset</a>
   </form>
 
   <div style="margin-bottom:24px;">
