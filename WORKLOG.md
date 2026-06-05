@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 88)
+
+### Scope (Data-Attribute Policy Tuning)
+
+- Make copy-announcement timing policy externally tunable per audit shell via data attributes while preserving current defaults.
+
+### Key Changes (Data-Attribute Policy Tuning)
+
+- Added default policy data attributes to audit shell markup in both render paths in tasks.php:
+  - data-origin-toast-cooldown-ms
+  - data-origin-success-live-cooldown-ms
+  - data-origin-failure-live-cooldown-ms
+  - data-origin-recovery-window-ms
+- Updated JS wiring to read policy values from shell attributes with fallback defaults:
+  - introduced readPolicyMs(...) guard parser,
+  - kept existing policy behavior as fallback when attributes are missing/invalid.
+- No changes to visible copy semantics by default values.
+
+### Important Files (Data-Attribute Policy Tuning)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Data-Attribute Policy Tuning)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - shell exposes default policy data attributes,
+  - origin copy live/status behavior remains correct with default policy values.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 87)
 
 ### Scope (Policy Intent Comment)

@@ -276,7 +276,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
       . '</li>';
   }
 
-  return '<div class="task-audit-history-shell" tabindex="0" aria-label="Task audit history panel">'
+  return '<div class="task-audit-history-shell" tabindex="0" aria-label="Task audit history panel" data-origin-toast-cooldown-ms="550" data-origin-success-live-cooldown-ms="650" data-origin-failure-live-cooldown-ms="700" data-origin-recovery-window-ms="2400">'
     . '<div class="task-audit-history-filters" style="display:flex;gap:6px;margin:0 0 8px 0;">'
     . '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>'
     . '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>'
@@ -946,7 +946,7 @@ function status_badge($status) {
       '</li>';
     }).join('');
 
-    return '<div class="task-audit-history-shell" tabindex="0" aria-label="Task audit history panel">' +
+    return '<div class="task-audit-history-shell" tabindex="0" aria-label="Task audit history panel" data-origin-toast-cooldown-ms="550" data-origin-success-live-cooldown-ms="650" data-origin-failure-live-cooldown-ms="700" data-origin-recovery-window-ms="2400">' +
       '<div class="task-audit-history-filters" style="display:flex;gap:6px;margin:0 0 8px 0;">' +
         '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>' +
         '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>' +
@@ -1082,11 +1082,24 @@ function status_badge($status) {
       let originChipPulseResetTimer = null;
       let originChipTextResetTimer = null;
       // Keep copy-feedback timing in one place so UX tuning does not require hunting through handlers.
-      const copyAnnouncementPolicy = {
+      const copyAnnouncementPolicyDefaults = {
         originToastCooldownMs: 550,
         originSuccessLiveCooldownMs: 650,
         originFailureLiveCooldownMs: 700,
         originRecoveryWindowMs: 2400
+      };
+      function readPolicyMs(attributeName, fallback) {
+        const raw = Number.parseInt(String(shell.getAttribute(attributeName) || ''), 10);
+        if (Number.isFinite(raw) && raw >= 0) {
+          return raw;
+        }
+        return fallback;
+      }
+      const copyAnnouncementPolicy = {
+        originToastCooldownMs: readPolicyMs('data-origin-toast-cooldown-ms', copyAnnouncementPolicyDefaults.originToastCooldownMs),
+        originSuccessLiveCooldownMs: readPolicyMs('data-origin-success-live-cooldown-ms', copyAnnouncementPolicyDefaults.originSuccessLiveCooldownMs),
+        originFailureLiveCooldownMs: readPolicyMs('data-origin-failure-live-cooldown-ms', copyAnnouncementPolicyDefaults.originFailureLiveCooldownMs),
+        originRecoveryWindowMs: readPolicyMs('data-origin-recovery-window-ms', copyAnnouncementPolicyDefaults.originRecoveryWindowMs)
       };
       let lastOriginToastText = '';
       let lastOriginToastAt = 0;
