@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 14)
+
+### Scope (Bulk View Apply)
+
+- Add a one-click control in task audit history panels to apply the current chip mode to all visible task rows.
+
+### Key Changes (Bulk View Apply)
+
+- Updated `tasks.php` history filter toolbar markup (server-rendered and JS-rendered) to include `Apply this view to visible rows`.
+- Implemented bulk apply behavior in `tasks.php`:
+  - uses the current active chip (`All Events` or `Status Changes`),
+  - writes row-level filter preference for each listed task row,
+  - refreshes bound history shells immediately (including hidden rows already initialized),
+  - preserves compatibility with global remember mode by syncing global filter when remember is enabled,
+  - shows confirmation toast with affected row count.
+- Fixed a stale UI edge case discovered during validation where pre-bound hidden shells did not reflect bulk changes until manually reset.
+
+### Important Files (Bulk View Apply)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Bulk View Apply)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - clicking `Apply this view to visible rows` from one row updates other visible rows,
+  - target rows show `Source: Row (Status Changes)` with the status-changes chip active,
+  - toast confirms affected row count (`Applied to 2 visible rows.` in current dataset).
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 13)
 
 ### Scope (Filter Source Visibility)

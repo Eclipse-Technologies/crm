@@ -284,7 +284,8 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<label style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:11px;color:#64748b;cursor:pointer;">'
     . '<input type="checkbox" class="js-audit-history-remember-global" style="margin:0;">Remember for all rows'
     . '</label>'
-    . '<button type="button" class="js-audit-history-reset" style="margin-left:auto;border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
+    . '<button type="button" class="js-audit-history-apply-visible" style="margin-left:auto;border:none;background:transparent;color:#0f766e;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Apply this view to visible rows</button>'
+    . '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
     . '</div>'
     . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
     . '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>'
@@ -849,7 +850,8 @@ function status_badge($status) {
         '<label style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:11px;color:#64748b;cursor:pointer;">' +
           '<input type="checkbox" class="js-audit-history-remember-global" style="margin:0;">Remember for all rows' +
         '</label>' +
-        '<button type="button" class="js-audit-history-reset" style="margin-left:auto;border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
+        '<button type="button" class="js-audit-history-apply-visible" style="margin-left:auto;border:none;background:transparent;color:#0f766e;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Apply this view to visible rows</button>' +
+        '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
       '</div>' +
       '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
       '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>' +
@@ -865,6 +867,7 @@ function status_badge($status) {
 
       const taskId = getTaskIdForHistoryShell(shell);
       const chips = shell.querySelectorAll('.js-audit-history-chip');
+      const applyVisibleButton = shell.querySelector('.js-audit-history-apply-visible');
       const resetButton = shell.querySelector('.js-audit-history-reset');
       const rememberGlobalCheckbox = shell.querySelector('.js-audit-history-remember-global');
       const sourceIndicator = shell.querySelector('.js-audit-history-source');
@@ -931,6 +934,42 @@ function status_badge($status) {
         return value === 'status_changes' ? 'status_changes' : 'all';
       }
 
+      function refreshShellVisualState(targetShell, selectedFilter, source) {
+        const targetChips = targetShell.querySelectorAll('.js-audit-history-chip');
+        const targetRows = targetShell.querySelectorAll('.task-audit-history-list li');
+        const targetEmpty = targetShell.querySelector('.task-audit-history-empty');
+        const targetSource = targetShell.querySelector('.js-audit-history-source');
+
+        targetChips.forEach(function (chip) {
+          const chipFilter = String(chip.getAttribute('data-filter') || 'all');
+          const isActive = chipFilter === selectedFilter;
+          chip.classList.toggle('is-active', isActive);
+          chip.style.border = isActive ? '1px solid #0f766e' : '1px solid #cbd5e1';
+          chip.style.background = isActive ? '#ecfeff' : '#fff';
+          chip.style.color = isActive ? '#0f766e' : '#475569';
+        });
+
+        let visibleCount = 0;
+        targetRows.forEach(function (row) {
+          const hasDiff = row.getAttribute('data-has-diff') === '1';
+          const show = (selectedFilter === 'all') || (selectedFilter === 'status_changes' && hasDiff);
+          row.style.display = show ? '' : 'none';
+          if (show) {
+            visibleCount++;
+          }
+        });
+
+        if (targetEmpty) {
+          targetEmpty.style.display = visibleCount === 0 ? '' : 'none';
+        }
+
+        if (targetSource) {
+          const sourceLabel = source === 'global' ? 'Global' : (source === 'row' ? 'Row' : 'Default');
+          const modeLabel = selectedFilter === 'status_changes' ? 'Status Changes' : 'All Events';
+          targetSource.textContent = 'Source: ' + sourceLabel + ' (' + modeLabel + ')';
+        }
+      }
+
       chips.forEach(function (chip) {
         chip.addEventListener('click', function () {
           const filter = String(chip.getAttribute('data-filter') || 'all');
@@ -962,6 +1001,39 @@ function status_badge($status) {
           const globalState = getGlobalAuditFilterState();
           const fallbackFilter = globalState.enabled ? globalState.filter : 'all';
           activateFilter(fallbackFilter, false, globalState.enabled ? 'global' : 'default');
+        });
+      }
+
+      if (applyVisibleButton) {
+        applyVisibleButton.addEventListener('click', function () {
+          const selectedFilter = currentActiveFilter();
+          let updatedCount = 0;
+
+          document.querySelectorAll('tr[data-task-id]:not(.task-audit-history-row)').forEach(function (taskRow) {
+            const visibleTaskId = String(taskRow.getAttribute('data-task-id') || '').trim();
+            if (!visibleTaskId) {
+              return;
+            }
+
+            setStoredAuditFilter(visibleTaskId, selectedFilter);
+            updatedCount++;
+
+            const historyRow = document.querySelector('.task-audit-history-row[data-task-id="' + CSS.escape(visibleTaskId) + '"]');
+            if (!historyRow) {
+              return;
+            }
+
+            const visibleShell = historyRow.querySelector('.task-audit-history-shell');
+            if (visibleShell) {
+              refreshShellVisualState(visibleShell, selectedFilter, 'row');
+            }
+          });
+
+          if (rememberGlobalCheckbox && rememberGlobalCheckbox.checked) {
+            setGlobalAuditFilterState(true, selectedFilter);
+          }
+
+          showToast('Applied to ' + updatedCount + ' visible row' + (updatedCount === 1 ? '' : 's') + '.', false);
         });
       }
 
