@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 74)
+
+### Scope (Origin Chip Pulse Confirmation)
+
+- Add short visual pulse on the Origin chip after successful origin copy actions to provide immediate in-panel confirmation.
+
+### Key Changes (Origin Chip Pulse Confirmation)
+
+- Added `pulseOriginChip()` in `tasks.php` audit-panel logic:
+  - temporary scale-up pulse,
+  - brief accent ring,
+  - automatic reset.
+- Added pulse timer guard (`originChipPulseResetTimer`) to avoid overlapping pulse artifacts.
+- Wired pulse into successful copy paths:
+  - `copyCurrentOriginLabel(...)` (`O` and chip-click flow),
+  - `copyOriginContextSnapshot(...)` (`Shift+O` flow).
+- Added `copyOriginContextSnapshot(statusPrefix)` helper so `Shift+O` uses a dedicated context-copy success/failure path while preserving existing toast/badge semantics.
+
+### Important Files (Origin Chip Pulse Confirmation)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Origin Chip Pulse Confirmation)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - `O` triggers Origin chip pulse and reset,
+  - `Shift+O` triggers Origin chip pulse,
+  - `Shift+O` key status/toast/badge remain correct.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 73)
 
 ### Scope (Adaptive Origin Context Badge Label)

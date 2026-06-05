@@ -1079,6 +1079,7 @@ function status_badge($status) {
       let sourcePulseResetTimer = null;
       let sourceMeaningPulseResetTimer = null;
       let shortcutCopyBadgeTimer = null;
+      let originChipPulseResetTimer = null;
 
       function sourcePulseAccent(sourceLabel) {
         if (sourceLabel === 'Keyboard') {
@@ -1324,6 +1325,7 @@ function status_badge($status) {
             setKeyStatus(prefix + ' -> ' + originLabel);
             showToast('Origin copied: ' + originLabel + '.', false);
             flashShortcutCopyBadge('origin');
+            pulseOriginChip();
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy origin label.', true);
@@ -1347,6 +1349,38 @@ function status_badge($status) {
         const maxLen = 72;
         const safePreview = text.length > maxLen ? (text.slice(0, maxLen - 3) + '...') : text;
         return 'Origin context copied: ' + safePreview + ' (' + text.length + ' chars)';
+      }
+
+      function pulseOriginChip() {
+        if (!originChip) {
+          return;
+        }
+        if (originChipPulseResetTimer) {
+          window.clearTimeout(originChipPulseResetTimer);
+        }
+        originChip.style.transform = 'scale(1.06)';
+        originChip.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.2)';
+        originChipPulseResetTimer = window.setTimeout(function () {
+          originChip.style.transform = 'scale(1)';
+          originChip.style.boxShadow = 'none';
+          originChipPulseResetTimer = null;
+        }, 240);
+      }
+
+      function copyOriginContextSnapshot(statusPrefix) {
+        const prefix = String(statusPrefix || 'Origin context copy');
+        const originContext = buildOriginContextSnapshot();
+        copyTextToClipboard(originContext).then(function (copied) {
+          if (copied) {
+            setKeyStatus(prefix + ' -> ' + currentOriginLabel());
+            showToast(originContextPreviewToastText(originContext), false);
+            flashShortcutCopyBadge('origin-context');
+            pulseOriginChip();
+          } else {
+            setKeyStatus(prefix + ' failed');
+            showToast('Could not copy origin context.', true);
+          }
+        });
       }
 
       function pulseShortcutSource(sourceLabel) {
@@ -2018,8 +2052,7 @@ function status_badge($status) {
           copyCurrentSourceLabel('Shift+Y -> Copy snapshot', snapshot, snapshotPreviewToastText(snapshot), 'snapshot');
         } else if (key === 'o' && event.shiftKey) {
           event.preventDefault();
-          const originContext = buildOriginContextSnapshot();
-          copyCurrentSourceLabel('Shift+O -> Copy origin context', originContext, originContextPreviewToastText(originContext), 'origin-context');
+          copyOriginContextSnapshot('Shift+O -> Copy origin context');
         } else if (key === 'o') {
           event.preventDefault();
           copyCurrentOriginLabel('O -> Copy origin');
