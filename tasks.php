@@ -282,6 +282,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>'
     . '<span class="js-audit-history-source" style="display:inline-flex;align-items:center;margin-left:2px;font-size:10px;color:#64748b;white-space:nowrap;">Source: Default</span>'
     . '<span class="js-audit-history-summary" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#64748b;white-space:nowrap;">Rows overridden: 0</span>'
+    . '<span class="js-audit-global-badge" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#1f2937;background:#e5e7eb;border-radius:999px;padding:1px 6px;white-space:nowrap;">Global mode: Off</span>'
     . '<label style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:11px;color:#64748b;cursor:pointer;">'
     . '<input type="checkbox" class="js-audit-history-remember-global" style="margin:0;">Remember for all rows'
     . '</label>'
@@ -880,6 +881,7 @@ function status_badge($status) {
         '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>' +
         '<span class="js-audit-history-source" style="display:inline-flex;align-items:center;margin-left:2px;font-size:10px;color:#64748b;white-space:nowrap;">Source: Default</span>' +
         '<span class="js-audit-history-summary" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#64748b;white-space:nowrap;">Rows overridden: 0</span>' +
+        '<span class="js-audit-global-badge" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#1f2937;background:#e5e7eb;border-radius:999px;padding:1px 6px;white-space:nowrap;">Global mode: Off</span>' +
         '<label style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:11px;color:#64748b;cursor:pointer;">' +
           '<input type="checkbox" class="js-audit-history-remember-global" style="margin:0;">Remember for all rows' +
         '</label>' +
@@ -928,6 +930,26 @@ function status_badge($status) {
     function refreshAllOverrideSummaries() {
       document.querySelectorAll('.task-audit-history-shell').forEach(function (targetShell) {
         refreshOverrideSummary(targetShell);
+      });
+    }
+
+    function refreshGlobalModeBadge(targetShell) {
+      if (!targetShell) {
+        return;
+      }
+      const badgeNode = targetShell.querySelector('.js-audit-global-badge');
+      if (!badgeNode) {
+        return;
+      }
+      const globalState = getGlobalAuditFilterState();
+      badgeNode.textContent = globalState.enabled ? 'Global mode: On' : 'Global mode: Off';
+      badgeNode.style.background = globalState.enabled ? '#dcfce7' : '#e5e7eb';
+      badgeNode.style.color = globalState.enabled ? '#166534' : '#1f2937';
+    }
+
+    function refreshAllGlobalModeBadges() {
+      document.querySelectorAll('.task-audit-history-shell').forEach(function (targetShell) {
+        refreshGlobalModeBadge(targetShell);
       });
     }
 
@@ -1064,6 +1086,7 @@ function status_badge($status) {
           const filter = currentActiveFilter();
           setGlobalAuditFilterState(enabled, filter);
           syncRememberGlobalCheckboxes(enabled);
+          refreshAllGlobalModeBadges();
           const hasRowOverride = getStoredAuditFilter(taskId) === 'status_changes' || getStoredAuditFilter(taskId) === 'all';
           if (!hasRowOverride) {
             applySourceIndicator(enabled ? 'global' : 'default', filter);
@@ -1118,6 +1141,7 @@ function status_badge($status) {
 
           if (shouldWriteGlobal) {
             setGlobalAuditFilterState(true, selectedFilter);
+            refreshAllGlobalModeBadges();
           }
 
           showToast('Applied to ' + updatedCount + ' visible row' + (updatedCount === 1 ? '' : 's') + '.', false, {
@@ -1134,6 +1158,7 @@ function status_badge($status) {
               if (shouldWriteGlobal) {
                 setGlobalAuditFilterState(previousGlobalState.enabled, previousGlobalState.filter);
                 syncRememberGlobalCheckboxes(previousGlobalState.enabled);
+                refreshAllGlobalModeBadges();
               }
 
               const restoredGlobalState = getGlobalAuditFilterState();
@@ -1236,6 +1261,7 @@ function status_badge($status) {
         rememberGlobalCheckbox.checked = globalState.enabled;
       }
       refreshOverrideSummary(shell);
+      refreshGlobalModeBadge(shell);
       shell.setAttribute('data-filters-bound', '1');
     });
   }

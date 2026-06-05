@@ -3,6 +3,42 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 18)
+
+### Scope (Global Mode Badge)
+
+- Add a compact Global mode status badge in task audit-history toolbars to make remember-mode state immediately visible.
+
+### Key Changes (Global Mode Badge)
+
+- Updated `tasks.php` history toolbar markup (server-rendered and JS-rendered) to include a `Global mode: On/Off` badge beside the summary chip.
+- Added centralized badge refresh helpers in `tasks.php`:
+  - refresh single shell badge,
+  - refresh all shell badges.
+- Wired badge refreshes to state transitions that can affect global remember mode:
+  - remember checkbox toggle,
+  - apply-visible when global mode write is active,
+  - bulk-apply undo when global mode is restored,
+  - initial shell bind.
+- Added visual state styling for quick scanning:
+  - Off: neutral gray badge,
+  - On: green-highlight badge.
+
+### Important Files (Global Mode Badge)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Global Mode Badge)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms expected badge transitions:
+  - initial: `Global mode: Off`,
+  - remember checked: `Global mode: On`,
+  - after apply-visible and undo: remains `Global mode: On` when restored state is enabled,
+  - remember unchecked: `Global mode: Off`.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 17)
 
 ### Scope (Override Summary Chip)
