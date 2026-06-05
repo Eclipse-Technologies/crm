@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 32)
+
+### Scope (Shift+H Compact Reset)
+
+- Add a direct keyboard reset path for hint mode so users can force compact mode without cycling.
+
+### Key Changes (Shift+H Compact Reset)
+
+- Updated `tasks.php` keyboard handling:
+  - `Shift+H` now resets hint mode to compact immediately,
+  - `H` continues to toggle compact/detailed mode.
+- Persisted reset behavior in `tasks.php` via existing per-row hint mode storage:
+  - `Shift+H` writes `compact` to session storage for the active row.
+- Updated shortcut help text (server-rendered and JS-rendered) to include:
+  - `Shift+H = Reset hint compact`
+- Updated detailed hint copy to document the compact reset shortcut.
+
+### Important Files (Shift+H Compact Reset)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Shift+H Compact Reset)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - `H` toggles to detailed mode,
+  - `Shift+H` resets to compact mode,
+  - key status updates to `Shift+H -> Hint compact`,
+  - reopening the row restores compact mode and matching badge.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 31)
 
 ### Scope (Inline Hint Mode Badge)
