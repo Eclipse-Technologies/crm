@@ -1210,7 +1210,7 @@ function status_badge($status) {
         }
         const maxLen = 72;
         const safePreview = text.length > maxLen ? (text.slice(0, maxLen - 3) + '...') : text;
-        return 'Snapshot copied: ' + safePreview;
+        return 'Snapshot copied: ' + safePreview + ' (' + text.length + ' chars)';
       }
 
       function copyCurrentSourceLabel(statusPrefix, explicitPayload, successToastText, badgeMode) {

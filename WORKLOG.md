@@ -3,6 +3,32 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 64)
+
+### Scope (Snapshot Toast Length Suffix)
+
+- Add snapshot length metadata to Shift+Y toast preview output.
+
+### Key Changes (Snapshot Toast Length Suffix)
+
+- Updated `snapshotPreviewToastText(snapshotText)` in `tasks.php` to append character count suffix.
+- Shift+Y success toast now follows format:
+  - `Snapshot copied: <preview> (<n> chars)`
+- Kept existing truncation behavior and source-only (`Y`) toast behavior unchanged.
+
+### Important Files (Snapshot Toast Length Suffix)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Snapshot Toast Length Suffix)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - `Shift+Y` toast includes snapshot preview plus `(<n> chars)` suffix,
+  - key status remains accurate for snapshot copy action.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 63)
 
 ### Scope (Snapshot Toast Preview)
