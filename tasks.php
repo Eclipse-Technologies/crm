@@ -281,7 +281,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>'
     . '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>'
     . '<span class="js-audit-history-source" style="display:inline-flex;align-items:center;margin-left:2px;font-size:10px;color:#64748b;white-space:nowrap;">Source: Default</span>'
-    . '<span class="js-audit-origin-chip" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:999px;padding:1px 6px;white-space:nowrap;">Origin: Default</span>'
+    . '<button type="button" class="js-audit-origin-chip" title="Copy origin label" aria-label="Copy origin label" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:999px;padding:1px 6px;white-space:nowrap;cursor:pointer;">Origin: Default</button>'
     . '<span class="js-audit-history-summary" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#64748b;white-space:nowrap;">Rows overridden: 0</span>'
     . '<span class="js-audit-global-badge" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#1f2937;background:#e5e7eb;border-radius:999px;padding:1px 6px;white-space:nowrap;">Global mode: Off</span>'
     . '<span class="js-audit-precedence-hint" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#6b7280;white-space:nowrap;" title="Filter priority order">Priority: Row > Global > Default</span>'
@@ -951,7 +951,7 @@ function status_badge($status) {
         '<button type="button" class="js-audit-history-chip is-active" data-filter="all" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">All Events</button>' +
         '<button type="button" class="js-audit-history-chip" data-filter="status_changes" style="border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">Status Changes</button>' +
         '<span class="js-audit-history-source" style="display:inline-flex;align-items:center;margin-left:2px;font-size:10px;color:#64748b;white-space:nowrap;">Source: Default</span>' +
-        '<span class="js-audit-origin-chip" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:999px;padding:1px 6px;white-space:nowrap;">Origin: Default</span>' +
+        '<button type="button" class="js-audit-origin-chip" title="Copy origin label" aria-label="Copy origin label" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:999px;padding:1px 6px;white-space:nowrap;cursor:pointer;">Origin: Default</button>' +
         '<span class="js-audit-history-summary" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#64748b;white-space:nowrap;">Rows overridden: 0</span>' +
         '<span class="js-audit-global-badge" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#1f2937;background:#e5e7eb;border-radius:999px;padding:1px 6px;white-space:nowrap;">Global mode: Off</span>' +
         '<span class="js-audit-precedence-hint" style="display:inline-flex;align-items:center;margin-left:6px;font-size:10px;color:#6b7280;white-space:nowrap;" title="Filter priority order">Priority: Row > Global > Default</span>' +
@@ -1187,6 +1187,10 @@ function status_badge($status) {
           shortcutCopyBadge.textContent = 'Snapshot';
           shortcutCopyBadge.style.background = '#dbeafe';
           shortcutCopyBadge.style.color = '#1e3a8a';
+        } else if (badgeMode === 'origin') {
+          shortcutCopyBadge.textContent = 'Origin';
+          shortcutCopyBadge.style.background = '#e0e7ff';
+          shortcutCopyBadge.style.color = '#3730a3';
         } else if (badgeMode === 'filter') {
           shortcutCopyBadge.textContent = 'Filter';
           shortcutCopyBadge.style.background = '#fef3c7';
@@ -1240,6 +1244,39 @@ function status_badge($status) {
         const maxLen = 72;
         const safePreview = text.length > maxLen ? (text.slice(0, maxLen - 3) + '...') : text;
         return 'Source/filter copied: ' + safePreview + ' (' + text.length + ' chars)';
+      }
+
+      function currentOriginLabel() {
+        if (originChip) {
+          const chipText = String(originChip.textContent || '');
+          const chipMatch = chipText.match(/Origin:\s*(Row|Global|Default)/i);
+          if (chipMatch && chipMatch[1]) {
+            const candidate = String(chipMatch[1]).toLowerCase();
+            if (candidate === 'row') {
+              return 'Row';
+            }
+            if (candidate === 'global') {
+              return 'Global';
+            }
+            return 'Default';
+          }
+        }
+
+        if (sourceIndicator) {
+          const sourceText = String(sourceIndicator.textContent || '');
+          const sourceMatch = sourceText.match(/Source:\s*(Row|Global|Default)/i);
+          if (sourceMatch && sourceMatch[1]) {
+            const candidate = String(sourceMatch[1]).toLowerCase();
+            if (candidate === 'row') {
+              return 'Row';
+            }
+            if (candidate === 'global') {
+              return 'Global';
+            }
+          }
+        }
+
+        return 'Default';
       }
 
       function snapshotPreviewToastText(snapshotText) {
@@ -1603,6 +1640,23 @@ function status_badge($status) {
         });
       }
 
+      if (originChip) {
+        originChip.addEventListener('click', function (event) {
+          event.preventDefault();
+          const originLabel = currentOriginLabel();
+          copyTextToClipboard(originLabel).then(function (copied) {
+            if (copied) {
+              setKeyStatus('Origin chip copy -> ' + originLabel);
+              showToast('Origin copied: ' + originLabel + '.', false);
+              flashShortcutCopyBadge('origin');
+            } else {
+              setKeyStatus('Origin chip copy failed');
+              showToast('Could not copy origin label.', true);
+            }
+          });
+        });
+      }
+
       function applyHintToastMuteToggle(statusPrefix) {
         const triggerLabel = statusPrefix === 'M -> Hint toasts' ? 'keyboard M' : 'toggle button';
         const muted = !isHintToastMuted(taskId);
@@ -1644,6 +1698,8 @@ function status_badge($status) {
         }
 
         originChip.textContent = 'Origin: ' + sourceLabel;
+        originChip.setAttribute('title', 'Copy origin label (' + sourceLabel + ')');
+        originChip.setAttribute('aria-label', 'Copy origin label (' + sourceLabel + ')');
         if (safeSource === 'row') {
           originChip.style.background = '#ecfeff';
           originChip.style.borderColor = '#99f6e4';

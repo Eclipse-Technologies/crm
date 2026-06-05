@@ -3,6 +3,41 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 70)
+
+### Scope (Origin Chip Copy Action)
+
+- Make the Origin chip interactive so users can copy current origin (`Row`/`Global`/`Default`) directly from the audit panel.
+
+### Key Changes (Origin Chip Copy Action)
+
+- Converted Origin chip element to a clickable button in both render paths in `tasks.php`:
+  - PHP `renderTaskAuditHistoryHtml(...)`
+  - JS `renderAuditHistory(...)`
+- Added `currentOriginLabel()` helper in panel wiring to derive origin from chip/source text safely.
+- Added Origin chip click handler:
+  - copies origin label to clipboard,
+  - updates key status line,
+  - shows `Origin copied: ...` toast,
+  - triggers new `Origin` shortcut badge variant.
+- Extended `flashShortcutCopyBadge(mode)` with `origin` mode styling.
+- Kept Origin chip title/ARIA label synchronized with live source updates in `applySourceIndicator(...)`.
+
+### Important Files (Origin Chip Copy Action)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Origin Chip Copy Action)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - Origin chip is clickable,
+  - clicking chip shows toast `Origin copied: <label>.`,
+  - key status updates to `Origin chip copy -> <label>`,
+  - copy badge shows `Origin` variant.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 69)
 
 ### Scope (Origin Chip Visibility)
