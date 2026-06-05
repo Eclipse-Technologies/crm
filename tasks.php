@@ -1829,6 +1829,26 @@ function status_badge($status) {
         }, hintLiveDebounceMs);
       }
 
+      function announcePolicyManualRestoreAction(triggerLabel, stateLabel) {
+        if (!hintLiveRegion) {
+          return;
+        }
+        const state = String(stateLabel || 'restored');
+        let message = 'Manual hint restored. Trigger: ' + String(triggerLabel || 'restore button') + '.';
+        if (state === 'unavailable') {
+          message = 'Manual hint restore unavailable. Trigger: ' + String(triggerLabel || 'restore button') + '. Escalated mode is required.';
+        } else if (state === 'already_shown') {
+          message = 'Manual hint already shown. Trigger: ' + String(triggerLabel || 'restore button') + '.';
+        }
+        if (hintLiveTimer) {
+          window.clearTimeout(hintLiveTimer);
+        }
+        hintLiveTimer = window.setTimeout(function () {
+          hintLiveRegion.textContent = message;
+          hintLiveTimer = null;
+        }, hintLiveDebounceMs);
+      }
+
       function getHintActionMessages(nextDetailed, triggerKey) {
         const modeLower = nextDetailed ? 'detailed' : 'compact';
         const modeTitle = nextDetailed ? 'Detailed' : 'Compact';
@@ -2111,11 +2131,13 @@ function status_badge($status) {
           if (!isEscalated) {
             setKeyStatus('Restore button -> Manual hint unavailable');
             showToast('Manual hint restore is only available in escalated policy-copy mode.', false);
+            announcePolicyManualRestoreAction('restore button', 'unavailable');
             return;
           }
           if (!policyManualHintDismissed) {
             setKeyStatus('Restore button -> Manual hint already shown');
             showToast('Manual policy-copy hint is already shown.', false);
+            announcePolicyManualRestoreAction('restore button', 'already_shown');
             return;
           }
           policyManualHintDismissed = false;

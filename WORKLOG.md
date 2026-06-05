@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 109)
+
+### Scope (Restore Action Live Parity)
+
+- Add aria-live parity for restore button edge branches (unavailable and already-shown).
+
+### Key Changes (Restore Action Live Parity)
+
+- Added `announcePolicyManualRestoreAction(...)` helper in tasks.php.
+- Wired restore button handler to emit aria-live feedback in no-op paths:
+  - unavailable outside escalated mode,
+  - already shown when no restore is needed.
+- Kept existing key-status and toast behavior unchanged.
+
+### Important Files (Restore Action Live Parity)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Restore Action Live Parity)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed live-region output for both branches:
+  - unavailable: escalated mode required,
+  - already shown: manual hint already shown.
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 108)
 
 ### Scope (Restore No-Op Feedback Parity)
