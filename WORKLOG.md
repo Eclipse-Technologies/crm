@@ -3,6 +3,32 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 10)
+
+### Scope (Session-Persisted History View Mode)
+
+- Preserve each task row's expanded-history chip preference (`All Events` vs `Status Changes`) for the current browser session.
+
+### Key Changes (Session-Persisted History View Mode)
+
+- Updated `tasks.php` client logic to persist per-task history filter mode in `sessionStorage` using task-ID-scoped keys.
+- Added restore-on-bind behavior so history panels initialize with the saved chip state after:
+  - panel reopen,
+  - async history re-render,
+  - full page reload in the same tab/session.
+- Added safe storage guards/fallbacks so private-mode or quota-related storage failures do not break history rendering.
+
+### Important Files (Session-Persisted History View Mode)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Session-Persisted History View Mode)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime validation on `tasks.php` confirms `Status Changes` selection remains active after panel close/reopen and persists across page reload in the same session.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 9)
 
 ### Scope (History Filter Chips)

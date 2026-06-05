@@ -601,8 +601,52 @@ function status_badge($status) {
 
   const activeStatusFilter = <?= json_encode((string) $statusFilter) ?>;
   const activeViewFilter = <?= json_encode((string) $viewFilter) ?>;
+  const auditFilterStoragePrefix = 'taskAuditFilter:';
   const toast = document.getElementById('task-toast');
   let toastTimer = null;
+
+  function getTaskIdForHistoryShell(shell) {
+    if (!shell || typeof shell.closest !== 'function') {
+      return '';
+    }
+    const row = shell.closest('tr.task-audit-history-row');
+    if (!row) {
+      return '';
+    }
+    return String(row.getAttribute('data-task-id') || '').trim();
+  }
+
+  function getStoredAuditFilter(taskId) {
+    const safeTaskId = String(taskId || '').trim();
+    if (!safeTaskId || typeof window.sessionStorage === 'undefined') {
+      return 'all';
+    }
+
+    try {
+      const stored = window.sessionStorage.getItem(auditFilterStoragePrefix + safeTaskId);
+      if (stored === 'status_changes' || stored === 'all') {
+        return stored;
+      }
+    } catch (error) {
+      return 'all';
+    }
+
+    return 'all';
+  }
+
+  function setStoredAuditFilter(taskId, filter) {
+    const safeTaskId = String(taskId || '').trim();
+    const safeFilter = (filter === 'status_changes') ? 'status_changes' : 'all';
+    if (!safeTaskId || typeof window.sessionStorage === 'undefined') {
+      return;
+    }
+
+    try {
+      window.sessionStorage.setItem(auditFilterStoragePrefix + safeTaskId, safeFilter);
+    } catch (error) {
+      // Ignore storage failures (private mode/quota) and continue gracefully.
+    }
+  }
 
   function showToast(message, isError) {
     if (!toast) {
@@ -758,6 +802,7 @@ function status_badge($status) {
         return;
       }
 
+      const taskId = getTaskIdForHistoryShell(shell);
       const chips = shell.querySelectorAll('.js-audit-history-chip');
       const rows = shell.querySelectorAll('.task-audit-history-list li');
       const emptyNote = shell.querySelector('.task-audit-history-empty');
@@ -793,14 +838,17 @@ function status_badge($status) {
           const filter = String(chip.getAttribute('data-filter') || 'all');
           setChipStyles(chip);
           applyFilter(filter);
+          setStoredAuditFilter(taskId, filter);
         });
       });
 
-      const defaultChip = shell.querySelector('.js-audit-history-chip[data-filter="all"]') || chips[0];
+      const storedFilter = getStoredAuditFilter(taskId);
+      const preferredChip = shell.querySelector('.js-audit-history-chip[data-filter="' + storedFilter + '"]');
+      const defaultChip = preferredChip || shell.querySelector('.js-audit-history-chip[data-filter="all"]') || chips[0];
       if (defaultChip) {
         setChipStyles(defaultChip);
       }
-      applyFilter('all');
+      applyFilter(storedFilter);
       shell.setAttribute('data-filters-bound', '1');
     });
   }
