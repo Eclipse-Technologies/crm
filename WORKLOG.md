@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 75)
+
+### Scope (Reduced-Motion Origin Pulse Fallback)
+
+- Respect reduced-motion user preference for Origin chip copy confirmation while keeping clear success feedback.
+
+### Key Changes (Reduced-Motion Origin Pulse Fallback)
+
+- Updated `pulseOriginChip()` in `tasks.php` to detect:
+  - `prefers-reduced-motion: reduce`
+- Behavior now branches by motion preference:
+  - default motion: short scale pulse + ring,
+  - reduced motion: no scale animation, subtle accent (ring/background) with quick reset.
+- Added transition timing adjustments and reset cleanup for the reduced-motion branch.
+- Kept copy semantics unchanged for `O`, chip click, and `Shift+O` flows.
+
+### Important Files (Reduced-Motion Origin Pulse Fallback)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Reduced-Motion Origin Pulse Fallback)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - default motion branch applies scale pulse,
+  - reduced-motion branch keeps transform at identity (no scale),
+  - reduced-motion branch still shows subtle visual confirmation,
+  - key status/toast remain correct for origin copy.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 74)
 
 ### Scope (Origin Chip Pulse Confirmation)

@@ -1355,16 +1355,25 @@ function status_badge($status) {
         if (!originChip) {
           return;
         }
+        const reduceMotion = typeof window.matchMedia === 'function'
+          && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (originChipPulseResetTimer) {
           window.clearTimeout(originChipPulseResetTimer);
         }
-        originChip.style.transform = 'scale(1.06)';
+        originChip.style.transition = reduceMotion
+          ? 'box-shadow .12s ease, background-color .12s ease'
+          : 'transform .2s ease, box-shadow .2s ease, background-color .2s ease';
+        originChip.style.transform = reduceMotion ? 'scale(1)' : 'scale(1.06)';
+        if (reduceMotion) {
+          originChip.style.backgroundColor = '#eef2ff';
+        }
         originChip.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.2)';
         originChipPulseResetTimer = window.setTimeout(function () {
           originChip.style.transform = 'scale(1)';
+          originChip.style.backgroundColor = '';
           originChip.style.boxShadow = 'none';
           originChipPulseResetTimer = null;
-        }, 240);
+        }, reduceMotion ? 170 : 240);
       }
 
       function copyOriginContextSnapshot(statusPrefix) {
