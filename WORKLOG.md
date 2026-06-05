@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 41)
+
+### Scope (Centralized Hint Message Formatter)
+
+- Centralize hint action messaging so key status, hint toast, and aria-live text stay consistent across all mode-change triggers.
+
+### Key Changes (Centralized Hint Message Formatter)
+
+- Added shared formatter in `tasks.php`:
+  - `getHintActionMessages(nextDetailed, triggerKey)`
+- Updated centralized transition flow in `tasks.php` to consume formatter output for:
+  - key status text,
+  - hint toast text,
+  - aria-live destination mode + trigger label.
+- Simplified reset and keyboard paths to pass trigger keys rather than hand-built text:
+  - `H`, `Shift+H`, and `Reset hint` button now all route through shared message generation.
+- Preserved no-change path behavior (`Shift+H` in compact still reports `(no change)` and does not announce).
+
+### Important Files (Centralized Hint Message Formatter)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Centralized Hint Message Formatter)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - `H` detailed transition text remains correct across live/status/toast,
+  - reset-button compact transition text remains correct across live/status/toast,
+  - compact-state `Shift+H` no-change status remains intact.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 40)
 
 ### Scope (Per-Row Mute Hint Toasts)

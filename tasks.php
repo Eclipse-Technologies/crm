@@ -1076,6 +1076,45 @@ function status_badge($status) {
         }, hintLiveDebounceMs);
       }
 
+      function getHintActionMessages(nextDetailed, triggerKey) {
+        const modeLower = nextDetailed ? 'detailed' : 'compact';
+        const modeTitle = nextDetailed ? 'Detailed' : 'Compact';
+
+        if (triggerKey === 'keyboard H') {
+          return {
+            statusText: 'H -> Hint ' + modeLower,
+            toastText: 'Shortcut hint: ' + modeLower + '.',
+            liveModeLabel: modeTitle,
+            liveTriggerLabel: 'keyboard H'
+          };
+        }
+
+        if (triggerKey === 'keyboard Shift+H') {
+          return {
+            statusText: 'Shift+H -> Hint compact',
+            toastText: 'Shortcut hint reset to compact.',
+            liveModeLabel: 'Compact',
+            liveTriggerLabel: 'keyboard Shift+H'
+          };
+        }
+
+        if (triggerKey === 'reset button') {
+          return {
+            statusText: 'Reset hint button -> Hint compact',
+            toastText: 'Shortcut hint reset to compact.',
+            liveModeLabel: 'Compact',
+            liveTriggerLabel: 'reset button'
+          };
+        }
+
+        return {
+          statusText: 'Hint -> ' + modeLower,
+          toastText: '',
+          liveModeLabel: modeTitle,
+          liveTriggerLabel: 'mode change'
+        };
+      }
+
       function setShortcutHintDetailed(detailed) {
         isShortcutHintDetailed = Boolean(detailed);
         if (!shortcutHint) {
@@ -1123,25 +1162,25 @@ function status_badge($status) {
           return false;
         }
 
+        const messages = getHintActionMessages(targetDetailed, opts.triggerKey || '');
+
         setShortcutHintDetailed(targetDetailed);
         setStoredAuditHintMode(taskId, targetDetailed ? 'detailed' : 'compact');
-        announceHintMode(targetDetailed ? 'Detailed' : 'Compact', opts.triggerLabel || 'mode change');
+        announceHintMode(messages.liveModeLabel, messages.liveTriggerLabel);
 
-        if (opts.statusText) {
-          setKeyStatus(opts.statusText);
+        if (messages.statusText) {
+          setKeyStatus(messages.statusText);
         }
-        if (opts.toastText && !isHintToastMuted(taskId)) {
-          showToast(opts.toastText, false);
+        if (messages.toastText && !isHintToastMuted(taskId)) {
+          showToast(messages.toastText, false);
         }
 
         return true;
       }
 
-      function resetHintToCompact(statusText, triggerLabel) {
+      function resetHintToCompact(triggerKey) {
         return applyHintModeTransition(false, {
-          triggerLabel: triggerLabel || 'reset',
-          statusText: statusText,
-          toastText: 'Shortcut hint reset to compact.'
+          triggerKey: triggerKey || 'keyboard Shift+H'
         });
       }
 
@@ -1160,7 +1199,7 @@ function status_badge($status) {
       if (shortcutHintResetButton) {
         shortcutHintResetButton.addEventListener('click', function (event) {
           event.preventDefault();
-          resetHintToCompact('Reset hint button -> Hint compact', 'reset button');
+          resetHintToCompact('reset button');
         });
       }
 
@@ -1411,7 +1450,7 @@ function status_badge($status) {
           }
         } else if (key === 'h' && event.shiftKey) {
           event.preventDefault();
-          const changed = resetHintToCompact('Shift+H -> Hint compact', 'keyboard Shift+H');
+          const changed = resetHintToCompact('keyboard Shift+H');
           if (!changed) {
             setKeyStatus('Shift+H -> Hint compact (no change)');
           }
@@ -1419,9 +1458,7 @@ function status_badge($status) {
           event.preventDefault();
           const nextDetailed = !isShortcutHintDetailed;
           applyHintModeTransition(nextDetailed, {
-            triggerLabel: 'keyboard H',
-            statusText: 'H -> Hint ' + (nextDetailed ? 'detailed' : 'compact'),
-            toastText: 'Shortcut hint: ' + (nextDetailed ? 'detailed' : 'compact') + '.'
+            triggerKey: 'keyboard H'
           });
         } else if (key === 'escape') {
           event.preventDefault();
