@@ -1089,12 +1089,27 @@ function status_badge($status) {
         originFailureLiveCooldownMs: 700,
         originRecoveryWindowMs: 2400
       };
-      function readPolicyMs(attributeName, fallback) {
-        const raw = Number.parseInt(String(shell.getAttribute(attributeName) || ''), 10);
-        if (Number.isFinite(raw) && raw >= 0) {
-          return raw;
+      function readPolicyMs(attributeName, fallback, label) {
+        const rawText = String(shell.getAttribute(attributeName) || '').trim();
+        if (rawText === '') {
+          return {
+            value: fallback,
+            usedFallback: false,
+            label: label
+          };
         }
-        return fallback;
+        if (/^\d+$/.test(rawText)) {
+          return {
+            value: Number.parseInt(rawText, 10),
+            usedFallback: false,
+            label: label
+          };
+        }
+        return {
+          value: fallback,
+          usedFallback: true,
+          label: label
+        };
       }
       let copyAnnouncementPolicy = {
         originToastCooldownMs: copyAnnouncementPolicyDefaults.originToastCooldownMs,
@@ -1102,23 +1117,35 @@ function status_badge($status) {
         originFailureLiveCooldownMs: copyAnnouncementPolicyDefaults.originFailureLiveCooldownMs,
         originRecoveryWindowMs: copyAnnouncementPolicyDefaults.originRecoveryWindowMs
       };
-      function policyReadoutText(policy) {
-        return 'Policy: Toast ' + policy.originToastCooldownMs + 'ms | Success ' + policy.originSuccessLiveCooldownMs + 'ms | Failure ' + policy.originFailureLiveCooldownMs + 'ms | Recovery ' + policy.originRecoveryWindowMs + 'ms';
+      let lastPolicyFallbackFields = [];
+      function policyReadoutText(policy, fallbackFields) {
+        let text = 'Policy: Toast ' + policy.originToastCooldownMs + 'ms | Success ' + policy.originSuccessLiveCooldownMs + 'ms | Failure ' + policy.originFailureLiveCooldownMs + 'ms | Recovery ' + policy.originRecoveryWindowMs + 'ms';
+        if (Array.isArray(fallbackFields) && fallbackFields.length > 0) {
+          text += ' | Fallback: ' + fallbackFields.join(', ');
+        }
+        return text;
       }
-      function refreshPolicyReadout(policy) {
+      function refreshPolicyReadout(policy, fallbackFields) {
         if (!shortcutPolicyReadout) {
           return;
         }
-        shortcutPolicyReadout.textContent = policyReadoutText(policy);
+        shortcutPolicyReadout.textContent = policyReadoutText(policy, fallbackFields);
       }
       function loadCopyAnnouncementPolicy() {
+        const toastPolicy = readPolicyMs('data-origin-toast-cooldown-ms', copyAnnouncementPolicyDefaults.originToastCooldownMs, 'Toast');
+        const successPolicy = readPolicyMs('data-origin-success-live-cooldown-ms', copyAnnouncementPolicyDefaults.originSuccessLiveCooldownMs, 'Success');
+        const failurePolicy = readPolicyMs('data-origin-failure-live-cooldown-ms', copyAnnouncementPolicyDefaults.originFailureLiveCooldownMs, 'Failure');
+        const recoveryPolicy = readPolicyMs('data-origin-recovery-window-ms', copyAnnouncementPolicyDefaults.originRecoveryWindowMs, 'Recovery');
         copyAnnouncementPolicy = {
-          originToastCooldownMs: readPolicyMs('data-origin-toast-cooldown-ms', copyAnnouncementPolicyDefaults.originToastCooldownMs),
-          originSuccessLiveCooldownMs: readPolicyMs('data-origin-success-live-cooldown-ms', copyAnnouncementPolicyDefaults.originSuccessLiveCooldownMs),
-          originFailureLiveCooldownMs: readPolicyMs('data-origin-failure-live-cooldown-ms', copyAnnouncementPolicyDefaults.originFailureLiveCooldownMs),
-          originRecoveryWindowMs: readPolicyMs('data-origin-recovery-window-ms', copyAnnouncementPolicyDefaults.originRecoveryWindowMs)
+          originToastCooldownMs: toastPolicy.value,
+          originSuccessLiveCooldownMs: successPolicy.value,
+          originFailureLiveCooldownMs: failurePolicy.value,
+          originRecoveryWindowMs: recoveryPolicy.value
         };
-        refreshPolicyReadout(copyAnnouncementPolicy);
+        lastPolicyFallbackFields = [toastPolicy, successPolicy, failurePolicy, recoveryPolicy]
+          .filter(function (entry) { return entry.usedFallback; })
+          .map(function (entry) { return entry.label; });
+        refreshPolicyReadout(copyAnnouncementPolicy, lastPolicyFallbackFields);
         return copyAnnouncementPolicy;
       }
       loadCopyAnnouncementPolicy();
@@ -2186,7 +2213,10 @@ function status_badge($status) {
           event.preventDefault();
           const policy = loadCopyAnnouncementPolicy();
           setKeyStatus('Shift+P -> Reload policy');
-          showToast('Policy reloaded: Toast ' + policy.originToastCooldownMs + 'ms | Success ' + policy.originSuccessLiveCooldownMs + 'ms | Failure ' + policy.originFailureLiveCooldownMs + 'ms | Recovery ' + policy.originRecoveryWindowMs + 'ms.', false);
+          const fallbackNote = lastPolicyFallbackFields.length > 0
+            ? ' Fallback applied: ' + lastPolicyFallbackFields.join(', ') + '.'
+            : '';
+          showToast('Policy reloaded: Toast ' + policy.originToastCooldownMs + 'ms | Success ' + policy.originSuccessLiveCooldownMs + 'ms | Failure ' + policy.originFailureLiveCooldownMs + 'ms | Recovery ' + policy.originRecoveryWindowMs + 'ms.' + fallbackNote, false);
         } else if (key === 'm') {
           event.preventDefault();
           applyHintToastMuteToggle('M -> Hint toasts');

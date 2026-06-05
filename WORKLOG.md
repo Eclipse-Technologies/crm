@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 91)
+
+### Scope (Invalid Policy Attribute Fallback Indicator)
+
+- Make policy tuning safer by surfacing when shell data attributes are invalid and defaults were used as fallback.
+
+### Key Changes (Invalid Policy Attribute Fallback Indicator)
+
+- Extended policy loader parsing in `tasks.php` to return metadata per attribute (value + fallback-used flag + field label).
+- Added fallback tracking list for the active shell policy load.
+- Updated policy readout to append compact fallback detail when invalid attributes are detected:
+  - `Fallback: Toast, Success, ...`
+- Updated `Shift+P` reload toast to include fallback-applied note when defaults were substituted for invalid attributes.
+- Preserved existing behavior for valid numeric values and blank/missing values.
+
+### Important Files (Invalid Policy Attribute Fallback Indicator)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Invalid Policy Attribute Fallback Indicator)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - with invalid attribute values, readout shows fallback marker and field list,
+  - fallbacked fields use default values while valid fields retain provided values,
+  - Shift+P status and toast include fallback-applied feedback.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 90)
 
 ### Scope (In-Help Policy Readout)
