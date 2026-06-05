@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 42)
+
+### Scope (Muted State Chip)
+
+- Add a subtle inline visual indicator so muted hint-toast state is visible at a glance.
+
+### Key Changes (Muted State Chip)
+
+- Updated `tasks.php` shortcut hint markup (server-rendered and JS-rendered) to include:
+  - `.js-audit-hint-toast-muted-chip` (`Muted`).
+- Integrated muted chip into hint rerender lifecycle so it stays attached when hint text redraws.
+- Extended `refreshHintToastToggle()` in `tasks.php`:
+  - toggles chip visibility with mute state,
+  - keeps existing mute/unmute button text + aria-pressed behavior.
+- Preserved per-row session persistence introduced in Slice 40.
+
+### Important Files (Muted State Chip)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Muted State Chip)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - chip hidden by default,
+  - chip appears after muting,
+  - chip remains visible after close/reopen (persisted state),
+  - chip hides again after unmuting.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 41)
 
 ### Scope (Centralized Hint Message Formatter)
