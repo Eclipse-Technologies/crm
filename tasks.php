@@ -1080,6 +1080,7 @@ function status_badge($status) {
       let sourceMeaningPulseResetTimer = null;
       let shortcutCopyBadgeTimer = null;
       let originChipPulseResetTimer = null;
+      let originChipTextResetTimer = null;
 
       function sourcePulseAccent(sourceLabel) {
         if (sourceLabel === 'Keyboard') {
@@ -1360,11 +1361,15 @@ function status_badge($status) {
         if (originChipPulseResetTimer) {
           window.clearTimeout(originChipPulseResetTimer);
         }
+        if (originChipTextResetTimer) {
+          window.clearTimeout(originChipTextResetTimer);
+        }
         originChip.style.transition = reduceMotion
           ? 'box-shadow .12s ease, background-color .12s ease'
           : 'transform .2s ease, box-shadow .2s ease, background-color .2s ease';
         originChip.style.transform = reduceMotion ? 'scale(1)' : 'scale(1.06)';
         if (reduceMotion) {
+          originChip.textContent = 'Origin: Copied';
           originChip.style.backgroundColor = '#eef2ff';
         }
         originChip.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.2)';
@@ -1374,6 +1379,14 @@ function status_badge($status) {
           originChip.style.boxShadow = 'none';
           originChipPulseResetTimer = null;
         }, reduceMotion ? 170 : 240);
+        if (reduceMotion) {
+          originChipTextResetTimer = window.setTimeout(function () {
+            const fallbackOrigin = currentOriginLabel();
+            const currentOrigin = String(originChip.getAttribute('data-origin-label') || fallbackOrigin);
+            originChip.textContent = 'Origin: ' + currentOrigin;
+            originChipTextResetTimer = null;
+          }, 250);
+        }
       }
 
       function copyOriginContextSnapshot(statusPrefix) {
@@ -1769,6 +1782,7 @@ function status_badge($status) {
         }
 
         originChip.textContent = 'Origin: ' + sourceLabel;
+        originChip.setAttribute('data-origin-label', sourceLabel);
         originChip.setAttribute('title', 'Copy origin label (' + sourceLabel + ')');
         originChip.setAttribute('aria-label', 'Copy origin label (' + sourceLabel + ')');
         if (safeSource === 'row') {
@@ -1957,6 +1971,7 @@ function status_badge($status) {
         if (targetOriginChip) {
           const sourceLabel = source === 'global' ? 'Global' : (source === 'row' ? 'Row' : 'Default');
           targetOriginChip.textContent = 'Origin: ' + sourceLabel;
+          targetOriginChip.setAttribute('data-origin-label', sourceLabel);
           if (source === 'row') {
             targetOriginChip.style.background = '#ecfeff';
             targetOriginChip.style.borderColor = '#99f6e4';

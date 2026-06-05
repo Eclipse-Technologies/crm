@@ -3,6 +3,37 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 77)
+
+### Scope (Reduced-Motion Origin Text Swap)
+
+- Add an explicit non-motion micro-confirmation for reduced-motion users: brief Origin chip text swap to `Origin: Copied` after successful origin copy.
+
+### Key Changes (Reduced-Motion Origin Text Swap)
+
+- Updated `pulseOriginChip()` in `tasks.php`:
+  - reduced-motion branch now sets chip text to `Origin: Copied` briefly,
+  - then restores canonical origin label.
+- Added reset timer guard for text swap (`originChipTextResetTimer`) to prevent overlap artifacts during rapid copy actions.
+- Added/maintained origin label cache on chip via `data-origin-label` during source updates:
+  - `applySourceIndicator(...)`
+  - `refreshShellVisualState(...)`
+- Kept default-motion branch unchanged (no temporary text swap).
+
+### Important Files (Reduced-Motion Origin Text Swap)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Reduced-Motion Origin Text Swap)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - reduced-motion: `Origin: Default` -> `Origin: Copied` -> `Origin: Default`,
+  - default motion: no temporary text swap,
+  - key status and origin-copy toast remain correct.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 76)
 
 ### Scope (Origin Context Help Note)
