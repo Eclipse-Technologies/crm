@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 24)
+
+### Scope (Last Key Action Status)
+
+- Add a panel-local status line that records the most recent keyboard shortcut action in audit-history panels.
+
+### Key Changes (Last Key Action Status)
+
+- Updated `tasks.php` history markup (server-rendered and JS-rendered) to include hidden status text:
+  - `Last key action: ...`
+- Added shell-local status update helper in `tasks.php` and wired it to keyboard handlers:
+  - `A` -> `A -> All Events`
+  - `S` -> `S -> Status Changes`
+  - `?` -> `? -> Help shown/hidden`
+  - `Escape` -> `Escape -> Close panel`
+- Kept status panel-local and lightweight (shown only after first key action).
+
+### Important Files (Last Key Action Status)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Last Key Action Status)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - status line starts hidden,
+  - pressing `S` updates status text correctly,
+  - pressing `?` updates status to help toggle state,
+  - pressing `Escape` closes panel,
+  - reopening panel shows latest key-action message.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 23)
 
 ### Scope (Escape to Close Panel)
