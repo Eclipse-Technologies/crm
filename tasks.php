@@ -295,6 +295,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>'
     . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, Shift+H = Reset hint compact, M = Toggle hint toasts mute, Reset hint button = Compact, ? = Toggle this help.</div>'
     . '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>'
+    . '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;">Shortcut state: Hint Compact | Toasts On</div>'
     . '<div class="js-audit-hint-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Hint mode: Compact</div>'
     . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
     . '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>'
@@ -961,6 +962,7 @@ function status_badge($status) {
       '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A S R C G H M ? Esc <span class="js-audit-hint-mode-badge" style="display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:10px;font-weight:600;">Hint: Compact</span> <button type="button" class="js-audit-hint-reset" style="margin-left:6px;border:none;background:transparent;color:#0f766e;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Reset hint</button> <button type="button" class="js-audit-hint-toast-toggle" aria-pressed="false" style="margin-left:6px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;padding:0;cursor:pointer;">Mute hint toasts</button> <span class="js-audit-hint-toast-muted-chip" style="display:none;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;border:1px solid #7c2d12;background:#fef2f2;color:#7c2d12;font-size:10px;font-weight:700;">Muted</span></div>' +
       '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, H = Toggle hint detail, Shift+H = Reset hint compact, M = Toggle hint toasts mute, Reset hint button = Compact, ? = Toggle this help.</div>' +
       '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>' +
+      '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;">Shortcut state: Hint Compact | Toasts On</div>' +
       '<div class="js-audit-hint-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Hint mode: Compact</div>' +
       '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
       '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>' +
@@ -1047,6 +1049,7 @@ function status_badge($status) {
       const shortcutHintToastMutedChip = shell.querySelector('.js-audit-hint-toast-muted-chip');
       const shortcutHelp = shell.querySelector('.js-audit-shortcut-help');
       const keyStatus = shell.querySelector('.js-audit-key-status');
+      const shortcutStateSummary = shell.querySelector('.js-audit-shortcut-state');
       const hintLiveRegion = shell.querySelector('.js-audit-hint-live');
       const rows = shell.querySelectorAll('.task-audit-history-list li');
       const emptyNote = shell.querySelector('.task-audit-history-empty');
@@ -1159,6 +1162,17 @@ function status_badge($status) {
           shortcutHint.appendChild(document.createTextNode(' '));
           shortcutHint.appendChild(shortcutHintToastMutedChip);
         }
+        refreshShortcutStateSummary();
+      }
+
+      function refreshShortcutStateSummary() {
+        if (!shortcutStateSummary) {
+          return;
+        }
+        const hintLabel = isShortcutHintDetailed ? 'Detailed' : 'Compact';
+        const toastMuted = isHintToastMuted(taskId);
+        shortcutStateSummary.textContent = 'Shortcut state: Hint ' + hintLabel + ' | Toasts ' + (toastMuted ? 'Muted' : 'On');
+        shortcutStateSummary.style.color = toastMuted ? '#7c2d12' : '#475569';
       }
 
       function refreshHintToastToggle() {
@@ -1172,6 +1186,7 @@ function status_badge($status) {
         if (shortcutHintToastMutedChip) {
           shortcutHintToastMutedChip.style.display = muted ? 'inline-flex' : 'none';
         }
+        refreshShortcutStateSummary();
       }
 
       function applyHintModeTransition(nextDetailed, options) {

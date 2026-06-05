@@ -3,6 +3,36 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 45)
+
+### Scope (Current Shortcut State Line)
+
+- Add a compact one-line summary in each history panel showing current shortcut state (hint mode + toast mute state).
+
+### Key Changes (Current Shortcut State Line)
+
+- Added shortcut state line to `tasks.php` history markup (server-rendered and JS-rendered):
+  - `.js-audit-shortcut-state`
+  - default: `Shortcut state: Hint Compact | Toasts On`
+- Added state sync helper in `tasks.php`:
+  - `refreshShortcutStateSummary()`
+- Wired summary refresh into existing mode/mute update flows:
+  - hint mode changes (`H` / `Shift+H` / reset button),
+  - mute toggle changes (`M` / mute toggle button).
+- Added subtle tone shift when toasts are muted for quicker scanning.
+
+### Important Files (Current Shortcut State Line)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Current Shortcut State Line)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms summary updates correctly through sequence:
+  - Compact/On -> Detailed/On -> Detailed/Muted -> Compact/Muted.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 44)
 
 ### Scope (Mute Toggle Aria-Live Feedback)
