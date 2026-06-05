@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 101)
+
+### Scope (Shift+J Manual Hint Toggle)
+
+- Add a keyboard path to toggle manual fallback hint visibility while in escalated policy-copy mode.
+
+### Key Changes (Shift+J Manual Hint Toggle)
+
+- Added `Shift+J` shortcut handling in tasks.php.
+- Added `toggleManualPolicyHint(...)` helper with scoped behavior:
+  - outside escalated mode: no-op with clear status/toast guidance,
+  - inside escalated mode: toggles manual hint hidden/shown for the current panel session.
+- Updated shortcut discoverability surfaces for parity:
+  - cheatline,
+  - compact hint text,
+  - detailed help text,
+  - keyboard source tooltip shortcut list.
+- Reused existing live announcers for shown/dismissed hint feedback.
+
+### Important Files (Shift+J Manual Hint Toggle)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Shift+J Manual Hint Toggle)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - hint text includes Shift+J,
+  - Shift+J outside escalated mode reports unavailable guidance,
+  - in escalated mode, Shift+J hides and re-shows the manual hint with expected key status updates.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 100)
 
 ### Scope (Session-Local Manual Hint Dismiss)
