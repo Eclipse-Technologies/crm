@@ -3,6 +3,44 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 17)
+
+### Scope (Override Summary Chip)
+
+- Add a compact live summary indicator in each task audit-history panel showing how many listed rows currently have row-level overrides.
+
+### Key Changes (Override Summary Chip)
+
+- Updated `tasks.php` history toolbar markup (server-rendered and JS-rendered) to include a summary label: `Rows overridden: X / Y`.
+- Added centralized summary helpers in `tasks.php` to:
+  - count listed task rows,
+  - count row overrides from session-backed row preferences,
+  - refresh one shell or all shells consistently.
+- Wired summary refreshes into all relevant actions:
+  - row chip clicks,
+  - reset view,
+  - apply-to-visible,
+  - clear-overrides-visible,
+  - undo flows for both bulk actions,
+  - initial shell bind.
+- Kept summary synchronization consistent for hidden and visible history rows by refreshing all bound shells after bulk mutations.
+
+### Important Files (Override Summary Chip)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Override Summary Chip)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms summary transitions on current dataset:
+  - initial: `Rows overridden: 0 / 2`,
+  - after one row override: `Rows overridden: 1 / 2`,
+  - after apply visible: `Rows overridden: 2 / 2`,
+  - after clear visible: `Rows overridden: 0 / 2`,
+  - after undo clear: `Rows overridden: 2 / 2`.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 16)
 
 ### Scope (Clear Row Overrides)
