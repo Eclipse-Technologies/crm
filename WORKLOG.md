@@ -3,6 +3,34 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 96)
+
+### Scope (Policy Copy Failure Live Escalation)
+
+- Align screen-reader feedback with repeated-failure unavailable-context UX by escalating Shift+K policy-copy aria-live wording after consecutive failures.
+
+### Key Changes (Policy Copy Failure Live Escalation)
+
+- Updated `announcePolicyCopyFailure(...)` in tasks.php to accept an escalation flag.
+- Added escalated live wording for repeated policy-copy failures:
+  - indicates policy copy may be unavailable in the current browser context,
+  - suggests manual selection of policy text.
+- Updated policy-copy failure call sites to pass escalation state derived from failure streak (`policyCopyFailureStreak >= 2`).
+- Preserved cooldown/dedup behavior through existing failure-live timing policy.
+
+### Important Files (Policy Copy Failure Live Escalation)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Policy Copy Failure Live Escalation)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - first forced Shift+K failure announces retry wording,
+  - second forced Shift+K failure announces unavailable-context manual-selection wording.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 95)
 
 ### Scope (Repeated Failure Unavailable Hint)

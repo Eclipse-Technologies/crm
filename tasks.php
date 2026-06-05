@@ -1547,7 +1547,7 @@ function status_badge($status) {
           showToast(policyCopyFailureStreak >= 2
             ? 'Policy copy appears unavailable in this browser context.'
             : 'Policy copy unavailable.', false);
-          announcePolicyCopyFailure(prefix + ' unavailable');
+          announcePolicyCopyFailure(prefix + ' unavailable', policyCopyFailureStreak >= 2);
           return;
         }
         copyTextToClipboard(policyText).then(function (copied) {
@@ -1563,7 +1563,7 @@ function status_badge($status) {
             showToast(policyCopyFailureStreak >= 2
               ? 'Could not copy policy readout. Clipboard may be unavailable in this browser context.'
               : 'Could not copy policy readout.', true);
-            announcePolicyCopyFailure(prefix);
+            announcePolicyCopyFailure(prefix, policyCopyFailureStreak >= 2);
           }
         });
       }
@@ -1717,11 +1717,14 @@ function status_badge($status) {
         }, hintLiveDebounceMs);
       }
 
-      function announcePolicyCopyFailure(triggerLabel) {
+      function announcePolicyCopyFailure(triggerLabel, unavailableHint) {
         if (!hintLiveRegion) {
           return;
         }
-        const message = 'Policy copy failed. Trigger: ' + String(triggerLabel || 'copy action') + '. Try Shift+K again.';
+        const escalated = Boolean(unavailableHint);
+        const message = escalated
+          ? 'Policy copy may be unavailable in this browser context. Trigger: ' + String(triggerLabel || 'copy action') + '. Try manual selection of the policy text.'
+          : 'Policy copy failed. Trigger: ' + String(triggerLabel || 'copy action') + '. Try Shift+K again.';
         const nowMs = Date.now();
         if (message === lastPolicyFailureLiveText && (nowMs - lastPolicyFailureLiveAt) < copyAnnouncementPolicy.originFailureLiveCooldownMs) {
           return;
