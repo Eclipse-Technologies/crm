@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 98)
+
+### Scope (Manual-Hint Visibility Live Cue)
+
+- Add cooldowned screen-reader feedback when inline manual-copy hint becomes visible in escalated Shift+K failure mode.
+
+### Key Changes (Manual-Hint Visibility Live Cue)
+
+- Added manual-hint live-announcement state tracking in tasks.php.
+- Added `announcePolicyManualHintVisible(...)` for explicit manual-copy guidance in aria-live output.
+- Updated escalated policy-copy failure flow to emit manual-hint visibility announcement after failure announcement, ensuring the transition cue is the final live-region message users hear.
+- Kept manual hint visibility strictly tied to escalated unavailable mode.
+
+### Important Files (Manual-Hint Visibility Live Cue)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Manual-Hint Visibility Live Cue)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - first forced Shift+K failure announces retry wording,
+  - second forced Shift+K failure shows manual hint and announces manual-hint visibility guidance in aria-live,
+  - manual hint display is active in escalated state.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 97)
 
 ### Scope (Inline Manual-Selection Hint)

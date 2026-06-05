@@ -1121,6 +1121,9 @@ function status_badge($status) {
       let lastPolicyFallbackFields = [];
       let lastPolicyCopyFailed = false;
       let policyCopyFailureStreak = 0;
+      let policyManualHintVisible = false;
+      let lastPolicyManualHintLiveText = '';
+      let lastPolicyManualHintLiveAt = 0;
       function policyReadoutText(policy, fallbackFields) {
         let text = 'Policy: Toast ' + policy.originToastCooldownMs + 'ms | Success ' + policy.originSuccessLiveCooldownMs + 'ms | Failure ' + policy.originFailureLiveCooldownMs + 'ms | Recovery ' + policy.originRecoveryWindowMs + 'ms';
         if (Array.isArray(fallbackFields) && fallbackFields.length > 0) {
@@ -1142,6 +1145,7 @@ function status_badge($status) {
         const unavailableHint = lastPolicyCopyFailed && policyCopyFailureStreak >= 2;
         if (shortcutPolicyManualHint) {
           shortcutPolicyManualHint.style.display = unavailableHint ? 'block' : 'none';
+          policyManualHintVisible = unavailableHint;
         }
         if (lastPolicyCopyFailed) {
           shortcutPolicyReadout.style.color = unavailableHint ? '#7f1d1d' : '#7c2d12';
@@ -1548,10 +1552,14 @@ function status_badge($status) {
         if (!policyText) {
           setKeyStatus(prefix + ' -> unavailable');
           markPolicyCopyFailure();
+          const escalatedUnavailable = policyCopyFailureStreak >= 2;
           showToast(policyCopyFailureStreak >= 2
             ? 'Policy copy appears unavailable in this browser context.'
             : 'Policy copy unavailable.', false);
-          announcePolicyCopyFailure(prefix + ' unavailable', policyCopyFailureStreak >= 2);
+          announcePolicyCopyFailure(prefix + ' unavailable', escalatedUnavailable);
+          if (escalatedUnavailable) {
+            announcePolicyManualHintVisible('Shift+K escalation');
+          }
           return;
         }
         copyTextToClipboard(policyText).then(function (copied) {
@@ -1564,10 +1572,14 @@ function status_badge($status) {
           } else {
             setKeyStatus(prefix + ' failed');
             markPolicyCopyFailure();
+            const escalatedFailure = policyCopyFailureStreak >= 2;
             showToast(policyCopyFailureStreak >= 2
               ? 'Could not copy policy readout. Clipboard may be unavailable in this browser context.'
               : 'Could not copy policy readout.', true);
-            announcePolicyCopyFailure(prefix, policyCopyFailureStreak >= 2);
+            announcePolicyCopyFailure(prefix, escalatedFailure);
+            if (escalatedFailure) {
+              announcePolicyManualHintVisible('Shift+K escalation');
+            }
           }
         });
       }
@@ -1735,6 +1747,26 @@ function status_badge($status) {
         }
         lastPolicyFailureLiveText = message;
         lastPolicyFailureLiveAt = nowMs;
+        if (hintLiveTimer) {
+          window.clearTimeout(hintLiveTimer);
+        }
+        hintLiveTimer = window.setTimeout(function () {
+          hintLiveRegion.textContent = message;
+          hintLiveTimer = null;
+        }, hintLiveDebounceMs);
+      }
+
+      function announcePolicyManualHintVisible(triggerLabel) {
+        if (!hintLiveRegion) {
+          return;
+        }
+        const message = 'Policy manual copy hint shown. Trigger: ' + String(triggerLabel || 'policy copy escalation') + '. Select policy text, then copy manually.';
+        const nowMs = Date.now();
+        if (message === lastPolicyManualHintLiveText && (nowMs - lastPolicyManualHintLiveAt) < copyAnnouncementPolicy.originFailureLiveCooldownMs) {
+          return;
+        }
+        lastPolicyManualHintLiveText = message;
+        lastPolicyManualHintLiveAt = nowMs;
         if (hintLiveTimer) {
           window.clearTimeout(hintLiveTimer);
         }
