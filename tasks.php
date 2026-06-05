@@ -1084,6 +1084,9 @@ function status_badge($status) {
       let lastOriginToastText = '';
       let lastOriginToastAt = 0;
       const originToastCooldownMs = 550;
+      let lastOriginSuccessLiveText = '';
+      let lastOriginSuccessLiveAt = 0;
+      const originSuccessLiveCooldownMs = 650;
       let lastOriginFailureLiveText = '';
       let lastOriginFailureLiveAt = 0;
       const originFailureLiveCooldownMs = 700;
@@ -1509,6 +1512,12 @@ function status_badge($status) {
           return;
         }
         const message = 'Origin copy: ' + String(copyLabel || '').trim() + '. Trigger: ' + String(triggerLabel || 'copy action') + '.';
+        const nowMs = Date.now();
+        if (message === lastOriginSuccessLiveText && (nowMs - lastOriginSuccessLiveAt) < originSuccessLiveCooldownMs) {
+          return;
+        }
+        lastOriginSuccessLiveText = message;
+        lastOriginSuccessLiveAt = nowMs;
         if (hintLiveTimer) {
           window.clearTimeout(hintLiveTimer);
         }

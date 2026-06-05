@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 84)
+
+### Scope (Success Aria-Live Cooldown)
+
+- Reduce repetitive screen-reader chatter by deduping rapid repeated success announcements for origin copy actions.
+
+### Key Changes (Success Aria-Live Cooldown)
+
+- Added success-live dedup state in tasks.php panel logic:
+  - lastOriginSuccessLiveText
+  - lastOriginSuccessLiveAt
+  - originSuccessLiveCooldownMs
+- Updated announceOriginCopy(copyLabel, triggerLabel) to suppress duplicate rapid success messages within a short cooldown window.
+- Kept success toasts, key status, and visual copy feedback unchanged.
+
+### Important Files (Success Aria-Live Cooldown)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Success Aria-Live Cooldown)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php (rapid repeated O) confirmed:
+  - live region mutationCount: 1 for duplicate rapid success announcements,
+  - success message remained correct,
+  - key status remained correct.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 83)
 
 ### Scope (Failure Live Recovery Hint)
