@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 90)
+
+### Scope (In-Help Policy Readout)
+
+- Surface current copy-announcement policy values directly in shortcut help to make runtime tuning state visible without inspecting attributes.
+
+### Key Changes (In-Help Policy Readout)
+
+- Added `.js-audit-policy-readout` mini readout to shortcut help in both render paths in `tasks.php`.
+- Added policy readout sync helpers in `wireAuditHistoryFilters`:
+  - `policyReadoutText(policy)`
+  - `refreshPolicyReadout(policy)`
+- Wired `loadCopyAnnouncementPolicy()` to refresh the readout whenever policy is loaded/reloaded.
+- `Shift+P` now updates both runtime policy behavior and visible readout values in-place.
+
+### Important Files (In-Help Policy Readout)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (In-Help Policy Readout)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - initial help readout shows default values,
+  - after changing shell policy attributes and pressing Shift+P, readout updates to new values,
+  - key status and reload toast remain correct.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 89)
 
 ### Scope (Runtime Policy Reload Shortcut)
