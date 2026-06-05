@@ -3,6 +3,34 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 54)
+
+### Scope (Always-Visible Source Legend)
+
+- Add an always-visible source legend line under shortcut state for touch and non-hover contexts.
+
+### Key Changes (Always-Visible Source Legend)
+
+- Updated shortcut-state block in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`) to include a new legend row:
+  - `.js-audit-source-legend`
+  - color-dot labels for Keyboard, Button, and Session sources
+- Kept the existing source pulse palette aligned with the same source colors shown in legend dots.
+- Minor spacing adjustment in shortcut-state margin to fit legend line cleanly.
+
+### Important Files (Always-Visible Source Legend)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Always-Visible Source Legend)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - legend line renders in open audit panel,
+  - legend text includes Keyboard, Button, and Session,
+  - summary/source behavior remains unchanged.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 53)
 
 ### Scope (Source Tooltip Guidance)
