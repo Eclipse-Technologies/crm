@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 53)
+
+### Scope (Source Tooltip Guidance)
+
+- Add a concise explanatory tooltip on the shortcut-state Source value.
+
+### Key Changes (Source Tooltip Guidance)
+
+- Updated shortcut-state source markup in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`) to include default Session tooltip text.
+- Added `sourceTooltipText(sourceLabel)` helper in `tasks.php` client logic with source-specific guidance:
+  - Keyboard: changed through panel shortcuts
+  - Button: changed via panel controls
+  - Session: restored from saved row/session preferences
+- Updated summary refresh flow to keep source tooltip synchronized whenever source label changes.
+
+### Important Files (Source Tooltip Guidance)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Source Tooltip Guidance)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - initial Session source tooltip text is present,
+  - source tooltip switches to Keyboard text after shortcut action,
+  - source tooltip switches to Button text after button action.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 52)
 
 ### Scope (Source-Specific Pulse Accents)
