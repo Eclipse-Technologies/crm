@@ -1184,6 +1184,10 @@ function status_badge($status) {
           shortcutCopyBadge.textContent = 'Snapshot';
           shortcutCopyBadge.style.background = '#dbeafe';
           shortcutCopyBadge.style.color = '#1e3a8a';
+        } else if (badgeMode === 'filter') {
+          shortcutCopyBadge.textContent = 'Filter';
+          shortcutCopyBadge.style.background = '#fef3c7';
+          shortcutCopyBadge.style.color = '#92400e';
         } else {
           shortcutCopyBadge.textContent = 'Copied';
           shortcutCopyBadge.style.background = '#dcfce7';
@@ -1795,7 +1799,7 @@ function status_badge($status) {
         if (!event.defaultPrevented && !event.altKey && !event.metaKey && event.ctrlKey && key === 'y') {
           event.preventDefault();
           const sourceFilterSnapshot = buildSourceFilterSnapshot();
-          copyCurrentSourceLabel('Ctrl+Y -> Copy source+filter', sourceFilterSnapshot, 'Source/filter copied: ' + sourceFilterSnapshot, 'snapshot');
+          copyCurrentSourceLabel('Ctrl+Y -> Copy source+filter', sourceFilterSnapshot, 'Source/filter copied: ' + sourceFilterSnapshot, 'filter');
           return;
         }
 

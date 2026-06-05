@@ -3,6 +3,35 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 66)
+
+### Scope (Ctrl+Y Filter Badge Variant)
+
+- Add a distinct badge variant for `Ctrl+Y` copy feedback so source+filter copy is visually different from snapshot copy.
+
+### Key Changes (Ctrl+Y Filter Badge Variant)
+
+- Extended `flashShortcutCopyBadge(mode)` in `tasks.php` with a new `filter` mode:
+  - label: `Filter`
+  - warm amber styling
+- Updated `Ctrl+Y` copy path to pass badge mode `filter` instead of reusing `snapshot`.
+- Kept existing badge variants unchanged:
+  - `Copied` for source-only copy
+  - `Snapshot` for Shift+Y rich snapshot copy
+
+### Important Files (Ctrl+Y Filter Badge Variant)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Ctrl+Y Filter Badge Variant)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - `Ctrl+Y` shows `Filter` badge with distinct amber styling,
+  - `Shift+Y` still shows `Snapshot` badge with blue styling.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 65)
 
 ### Scope (Ctrl+Y Source+Filter Copy)
