@@ -3,6 +3,38 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 62)
+
+### Scope (Copy Badge Variants)
+
+- Differentiate copy badge feedback by action type:
+  - `Copied` for source-only copy (`Y` / glyph click)
+  - `Snapshot` for rich snapshot copy (`Shift+Y`)
+
+### Key Changes (Copy Badge Variants)
+
+- Updated `flashShortcutCopyBadge(...)` in `tasks.php` client logic to accept mode and apply mode-specific label/colors.
+- Extended `copyCurrentSourceLabel(...)` to accept badge mode and route success feedback accordingly.
+- Updated key handlers to pass explicit modes:
+  - `Y` -> `copied`
+  - `Shift+Y` -> `snapshot`
+- Preserved existing auto-hide timing and error handling behavior.
+
+### Important Files (Copy Badge Variants)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Copy Badge Variants)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - `Y` shows `Copied` badge with green styling,
+  - `Shift+Y` shows `Snapshot` badge with blue styling,
+  - both variants auto-hide after timeout,
+  - key status reflects `Shift+Y` snapshot copy action.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 61)
 
 ### Scope (Shift+Y Rich Snapshot Copy)

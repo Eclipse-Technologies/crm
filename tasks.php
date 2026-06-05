@@ -1172,12 +1172,22 @@ function status_badge($status) {
         return Promise.resolve(fallbackCopied);
       }
 
-      function flashShortcutCopyBadge() {
+      function flashShortcutCopyBadge(mode) {
         if (!shortcutCopyBadge) {
           return;
         }
+        const badgeMode = String(mode || 'copied').toLowerCase();
         if (shortcutCopyBadgeTimer) {
           window.clearTimeout(shortcutCopyBadgeTimer);
+        }
+        if (badgeMode === 'snapshot') {
+          shortcutCopyBadge.textContent = 'Snapshot';
+          shortcutCopyBadge.style.background = '#dbeafe';
+          shortcutCopyBadge.style.color = '#1e3a8a';
+        } else {
+          shortcutCopyBadge.textContent = 'Copied';
+          shortcutCopyBadge.style.background = '#dcfce7';
+          shortcutCopyBadge.style.color = '#166534';
         }
         shortcutCopyBadge.style.display = 'inline-flex';
         shortcutCopyBadgeTimer = window.setTimeout(function () {
@@ -1193,10 +1203,11 @@ function status_badge($status) {
         return 'Source: ' + sourceLabel + ' | Hint: ' + hintLabel + ' | Toasts: ' + toastLabel;
       }
 
-      function copyCurrentSourceLabel(statusPrefix, explicitPayload, successToastText) {
+      function copyCurrentSourceLabel(statusPrefix, explicitPayload, successToastText, badgeMode) {
         const sourceLabel = String(lastSettingSource || '').trim();
         const prefix = String(statusPrefix || 'Glyph copy');
         const payload = String(explicitPayload || sourceLabel).trim();
+        const badgeVariant = String(badgeMode || 'copied').toLowerCase();
         if (!sourceLabel) {
           setKeyStatus(prefix + ' -> unavailable');
           showToast('Source copy unavailable.', false);
@@ -1206,7 +1217,7 @@ function status_badge($status) {
           if (copied) {
             setKeyStatus(prefix + ' -> ' + sourceLabel);
             showToast(successToastText || ('Source copied: ' + sourceLabel + '.'), false);
-            flashShortcutCopyBadge();
+            flashShortcutCopyBadge(badgeVariant);
           } else {
             setKeyStatus(prefix + ' failed');
             showToast('Could not copy source label.', true);
@@ -1825,10 +1836,10 @@ function status_badge($status) {
         } else if (key === 'y' && event.shiftKey) {
           event.preventDefault();
           const snapshot = buildRichSourceSnapshot();
-          copyCurrentSourceLabel('Shift+Y -> Copy snapshot', snapshot, 'Snapshot copied.');
+          copyCurrentSourceLabel('Shift+Y -> Copy snapshot', snapshot, 'Snapshot copied.', 'snapshot');
         } else if (key === 'y') {
           event.preventDefault();
-          copyCurrentSourceLabel('Y -> Copy source');
+          copyCurrentSourceLabel('Y -> Copy source', undefined, undefined, 'copied');
         } else if (key === 'escape') {
           event.preventDefault();
           setKeyStatus('Escape -> Close panel');
