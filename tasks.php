@@ -291,8 +291,8 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>'
     . '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>'
     . '</div>'
-    . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes, R = Reset view, G = Global mode</div>'
-    . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, G = Toggle global mode, ? = Toggle this help.</div>'
+    . '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Global mode</div>'
+    . '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, ? = Toggle this help.</div>'
     . '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>'
     . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
     . '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>'
@@ -894,8 +894,8 @@ function status_badge($status) {
         '<button type="button" class="js-audit-history-clear-visible" style="border:none;background:transparent;color:#7c2d12;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Clear row overrides (visible)</button>' +
         '<button type="button" class="js-audit-history-reset" style="border:none;background:transparent;color:#64748b;font-size:11px;font-weight:600;padding:0;cursor:pointer;">Reset view</button>' +
       '</div>' +
-      '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes, R = Reset view, G = Global mode</div>' +
-      '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, G = Toggle global mode, ? = Toggle this help.</div>' +
+      '<div class="js-audit-shortcut-hint" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Shortcuts: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Global mode</div>' +
+      '<div class="js-audit-shortcut-help" style="display:none;font-size:10px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin:0 0 6px 0;">Shortcut help: A = All Events, S = Status Changes, R = Reset view, C = Clear overrides, G = Toggle global mode, ? = Toggle this help.</div>' +
       '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>' +
       '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
       '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>' +
@@ -1073,6 +1073,70 @@ function status_badge($status) {
         refreshAllOverrideSummaries();
       }
 
+      function applyClearVisibleShortcut() {
+        const previousRows = [];
+        let clearedCount = 0;
+
+        getVisibleTaskRows().forEach(function (taskRow) {
+          const visibleTaskId = String(taskRow.getAttribute('data-task-id') || '').trim();
+          if (!visibleTaskId) {
+            return;
+          }
+
+          const prior = getStoredAuditFilter(visibleTaskId);
+          previousRows.push({ taskId: visibleTaskId, filter: prior });
+          if (prior === 'status_changes' || prior === 'all') {
+            clearedCount++;
+          }
+          clearStoredAuditFilter(visibleTaskId);
+        });
+
+        refreshAllOverrideSummaries();
+
+        const globalState = getGlobalAuditFilterState();
+        document.querySelectorAll('.task-audit-history-shell').forEach(function (targetShell) {
+          const targetTaskId = getTaskIdForHistoryShell(targetShell);
+          const restoredFilter = getStoredAuditFilter(targetTaskId);
+          const nextFilter = (restoredFilter === 'status_changes' || restoredFilter === 'all')
+            ? restoredFilter
+            : (globalState.enabled ? globalState.filter : 'all');
+          const nextSource = (restoredFilter === 'status_changes' || restoredFilter === 'all')
+            ? 'row'
+            : (globalState.enabled ? 'global' : 'default');
+          refreshShellVisualState(targetShell, nextFilter, nextSource);
+        });
+
+        showToast('Cleared ' + clearedCount + ' row override' + (clearedCount === 1 ? '' : 's') + '.', false, {
+          label: 'Undo',
+          onClick: function () {
+            previousRows.forEach(function (entry) {
+              if (entry.filter === 'status_changes' || entry.filter === 'all') {
+                setStoredAuditFilter(entry.taskId, entry.filter);
+              } else {
+                clearStoredAuditFilter(entry.taskId);
+              }
+            });
+
+            const restoredGlobalState = getGlobalAuditFilterState();
+            document.querySelectorAll('.task-audit-history-shell').forEach(function (targetShell) {
+              const targetTaskId = getTaskIdForHistoryShell(targetShell);
+              const restoredFilter = getStoredAuditFilter(targetTaskId);
+              const nextFilter = (restoredFilter === 'status_changes' || restoredFilter === 'all')
+                ? restoredFilter
+                : (restoredGlobalState.enabled ? restoredGlobalState.filter : 'all');
+              const nextSource = (restoredFilter === 'status_changes' || restoredFilter === 'all')
+                ? 'row'
+                : (restoredGlobalState.enabled ? 'global' : 'default');
+              refreshShellVisualState(targetShell, nextFilter, nextSource);
+            });
+
+            refreshAllOverrideSummaries();
+
+            showToast('Clear row overrides was undone.', false);
+          }
+        });
+      }
+
       function refreshShellVisualState(targetShell, selectedFilter, source) {
         const targetChips = targetShell.querySelectorAll('.js-audit-history-chip');
         const targetRows = targetShell.querySelectorAll('.task-audit-history-list li');
@@ -1153,6 +1217,10 @@ function status_badge($status) {
           applyResetViewShortcut();
           setKeyStatus('R -> Reset view');
           showToast('History view reset.', false);
+        } else if (key === 'c') {
+          event.preventDefault();
+          applyClearVisibleShortcut();
+          setKeyStatus('C -> Clear overrides');
         } else if (key === 'g') {
           event.preventDefault();
           if (rememberGlobalCheckbox) {
@@ -1286,67 +1354,7 @@ function status_badge($status) {
 
       if (clearVisibleButton) {
         clearVisibleButton.addEventListener('click', function () {
-          const previousRows = [];
-          let clearedCount = 0;
-
-          getVisibleTaskRows().forEach(function (taskRow) {
-            const visibleTaskId = String(taskRow.getAttribute('data-task-id') || '').trim();
-            if (!visibleTaskId) {
-              return;
-            }
-
-            const prior = getStoredAuditFilter(visibleTaskId);
-            previousRows.push({ taskId: visibleTaskId, filter: prior });
-            if (prior === 'status_changes' || prior === 'all') {
-              clearedCount++;
-            }
-            clearStoredAuditFilter(visibleTaskId);
-          });
-
-          refreshAllOverrideSummaries();
-
-          const globalState = getGlobalAuditFilterState();
-          document.querySelectorAll('.task-audit-history-shell').forEach(function (targetShell) {
-            const targetTaskId = getTaskIdForHistoryShell(targetShell);
-            const restoredFilter = getStoredAuditFilter(targetTaskId);
-            const nextFilter = (restoredFilter === 'status_changes' || restoredFilter === 'all')
-              ? restoredFilter
-              : (globalState.enabled ? globalState.filter : 'all');
-            const nextSource = (restoredFilter === 'status_changes' || restoredFilter === 'all')
-              ? 'row'
-              : (globalState.enabled ? 'global' : 'default');
-            refreshShellVisualState(targetShell, nextFilter, nextSource);
-          });
-
-          showToast('Cleared ' + clearedCount + ' row override' + (clearedCount === 1 ? '' : 's') + '.', false, {
-            label: 'Undo',
-            onClick: function () {
-              previousRows.forEach(function (entry) {
-                if (entry.filter === 'status_changes' || entry.filter === 'all') {
-                  setStoredAuditFilter(entry.taskId, entry.filter);
-                } else {
-                  clearStoredAuditFilter(entry.taskId);
-                }
-              });
-
-              const restoredGlobalState = getGlobalAuditFilterState();
-              document.querySelectorAll('.task-audit-history-shell').forEach(function (targetShell) {
-                const targetTaskId = getTaskIdForHistoryShell(targetShell);
-                const restoredFilter = getStoredAuditFilter(targetTaskId);
-                const nextFilter = (restoredFilter === 'status_changes' || restoredFilter === 'all')
-                  ? restoredFilter
-                  : (restoredGlobalState.enabled ? restoredGlobalState.filter : 'all');
-                const nextSource = (restoredFilter === 'status_changes' || restoredFilter === 'all')
-                  ? 'row'
-                  : (restoredGlobalState.enabled ? 'global' : 'default');
-                refreshShellVisualState(targetShell, nextFilter, nextSource);
-              });
-
-              refreshAllOverrideSummaries();
-
-              showToast('Clear row overrides was undone.', false);
-            }
-          });
+          applyClearVisibleShortcut();
         });
       }
 

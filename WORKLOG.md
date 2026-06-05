@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 27)
+
+### Scope (C Shortcut for Clear Overrides)
+
+- Add `C` keyboard shortcut in focused audit-history panels to run `Clear row overrides (visible)` with existing undo behavior.
+
+### Key Changes (C Shortcut for Clear Overrides)
+
+- Updated `tasks.php` shortcut hint/help text (server-rendered and JS-rendered) to include:
+  - `C = Clear overrides`
+- Refactored clear-visible flow into a shared helper in `tasks.php` and reused it for:
+  - clear-visible button click,
+  - focused-panel `C` keyboard action.
+- Extended focused-shell keyboard handling:
+  - `C` triggers clear-visible workflow,
+  - key status updates to `C -> Clear overrides`,
+  - existing undo toast flow remains unchanged and reusable.
+
+### Important Files (C Shortcut for Clear Overrides)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (C Shortcut for Clear Overrides)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - shortcut hint includes `C = Clear overrides`,
+  - pressing `C` triggers clear-visible toast with undo,
+  - source transitions to default after clear,
+  - undo restores prior row override state (e.g., `Source: Row (Status Changes)`).
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 26)
 
 ### Scope (G Shortcut for Global Mode)
