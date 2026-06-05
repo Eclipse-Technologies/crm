@@ -1229,6 +1229,16 @@ function status_badge($status) {
         return 'Source: ' + sourceLabel + ' | Filter: ' + filterLabel + ' | Origin: ' + originLabel;
       }
 
+      function sourceFilterPreviewToastText(snapshotText) {
+        const text = String(snapshotText || '').trim();
+        if (!text) {
+          return 'Source/filter copied.';
+        }
+        const maxLen = 72;
+        const safePreview = text.length > maxLen ? (text.slice(0, maxLen - 3) + '...') : text;
+        return 'Source/filter copied: ' + safePreview + ' (' + text.length + ' chars)';
+      }
+
       function snapshotPreviewToastText(snapshotText) {
         const text = String(snapshotText || '').trim();
         if (!text) {
@@ -1814,7 +1824,7 @@ function status_badge($status) {
         if (!event.defaultPrevented && !event.altKey && !event.metaKey && event.ctrlKey && key === 'y') {
           event.preventDefault();
           const sourceFilterSnapshot = buildSourceFilterSnapshot();
-          copyCurrentSourceLabel('Ctrl+Y -> Copy source+filter', sourceFilterSnapshot, 'Source/filter copied: ' + sourceFilterSnapshot, 'filter');
+          copyCurrentSourceLabel('Ctrl+Y -> Copy source+filter', sourceFilterSnapshot, sourceFilterPreviewToastText(sourceFilterSnapshot), 'filter');
           return;
         }
 

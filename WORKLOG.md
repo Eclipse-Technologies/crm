@@ -3,6 +3,32 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 68)
+
+### Scope (Ctrl+Y Toast Length Suffix)
+
+- Add payload-length suffix to Ctrl+Y source/filter/origin toast preview for consistency with Shift+Y snapshot feedback.
+
+### Key Changes (Ctrl+Y Toast Length Suffix)
+
+- Added `sourceFilterPreviewToastText(snapshotText)` in tasks.php client logic.
+- Implemented concise preview + length format for Ctrl+Y success toast:
+  - `Source/filter copied: <preview> (<n> chars)`
+- Wired Ctrl+Y copy handler to use the new toast formatter while keeping copied payload unchanged.
+
+### Important Files (Ctrl+Y Toast Length Suffix)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Ctrl+Y Toast Length Suffix)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed:
+  - Ctrl+Y toast includes source/filter/origin preview plus `(<n> chars)` suffix,
+  - key status remains accurate for Ctrl+Y action.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 67)
 
 ### Scope (Ctrl+Y Origin Context)
