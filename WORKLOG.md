@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-05 - Nutshell Improvements (Task Module Slice 107)
+
+### Scope (Dual-Path Restore Guidance Copy)
+
+- Keep recovery guidance aligned with current UI by referencing both restore paths (keyboard and restore button).
+
+### Key Changes (Dual-Path Restore Guidance Copy)
+
+- Updated manual-hint hidden/dismissed toast copy in tasks.php to mention both:
+  - `Shift+J`,
+  - `Show manual hint` restore control.
+- Updated `announcePolicyManualHintRestoreCue(...)` aria-live copy in tasks.php to the same dual-path guidance.
+- Preserved existing cooldown and one-per-hidden-cycle announcement behavior.
+
+### Important Files (Dual-Path Restore Guidance Copy)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Dual-Path Restore Guidance Copy)
+
+- php -l tasks.php passed.
+- VS Code diagnostics report no errors in tasks.php.
+- Runtime verification on tasks.php confirmed both toast and aria-live restore messages include:
+  - `Shift+J`,
+  - `Show manual hint`.
+
 ## 2026-06-05 - Nutshell Improvements (Task Module Slice 106)
 
 ### Scope (Inline Manual-Hint Restore Control)

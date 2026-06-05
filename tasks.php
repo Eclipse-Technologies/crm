@@ -1812,7 +1812,7 @@ function status_badge($status) {
         if (!hintLiveRegion || policyManualHintRestoreCueAnnounced) {
           return;
         }
-        const message = 'Manual hint hidden. Trigger: ' + String(triggerLabel || 'manual dismiss') + '. Press Shift+J to show it again.';
+        const message = 'Manual hint hidden. Trigger: ' + String(triggerLabel || 'manual dismiss') + '. Press Shift+J or use Show manual hint to restore it.';
         const nowMs = Date.now();
         if (message === lastPolicyManualHintRestoreCueLiveText && (nowMs - lastPolicyManualHintRestoreCueLiveAt) < copyAnnouncementPolicy.originFailureLiveCooldownMs) {
           return;
@@ -2098,7 +2098,7 @@ function status_badge($status) {
           policyManualHintDismissed = true;
           refreshPolicyReadoutTone();
           setKeyStatus('Manual hint dismissed');
-          showToast('Manual policy-copy hint dismissed for this panel session. Press Shift+J to show again.', false);
+          showToast('Manual policy-copy hint dismissed for this panel session. Press Shift+J or use Show manual hint to restore.', false);
           announcePolicyManualHintDismissed('manual hint dismissed');
           announcePolicyManualHintRestoreCue('manual hint dismissed');
         });
@@ -2136,7 +2136,7 @@ function status_badge($status) {
         refreshPolicyReadoutTone();
         if (policyManualHintDismissed) {
           setKeyStatus(statusPrefix + ' hidden');
-          showToast('Manual policy-copy hint hidden for this panel session. Press Shift+J to show again.', false);
+          showToast('Manual policy-copy hint hidden for this panel session. Press Shift+J or use Show manual hint to restore.', false);
           announcePolicyManualHintDismissed(triggerLabel || 'keyboard Shift+J');
           announcePolicyManualHintRestoreCue(triggerLabel || 'keyboard Shift+J');
         } else {
