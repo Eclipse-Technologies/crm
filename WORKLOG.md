@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 59)
+
+### Scope (Keyboard Copy Shortcut)
+
+- Add keyboard shortcut `Y` to copy current source label directly from panel focus.
+
+### Key Changes (Keyboard Copy Shortcut)
+
+- Updated shortcut hint strings in `tasks.php` to include `Y` in compact and detailed hint text.
+- Updated help/cheatline text in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`) to document `Y = Copy current source label`.
+- Added `Y` handling in panel keydown handler to trigger source copy action without moving focus.
+- Refined `copyCurrentSourceLabel()` to accept a status prefix so keyboard copy and glyph-click copy can report distinct key-status labels.
+
+### Important Files (Keyboard Copy Shortcut)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Keyboard Copy Shortcut)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - cheatline includes `Y`,
+  - shortcut help includes copy-source mapping for `Y`,
+  - pressing `Y` updates key status with copied source label.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 58)
 
 ### Scope (Glyph Copy Action)
