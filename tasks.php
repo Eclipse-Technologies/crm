@@ -1059,6 +1059,8 @@ function status_badge($status) {
       let hintLiveTimer = null;
       let isShortcutHintDetailed = false;
       let lastSettingSource = 'Session';
+      let lastSettingFreshness = '';
+      let lastSettingFreshnessTimer = null;
 
       function setShortcutHelpVisible(visible) {
         if (!shortcutHelp) {
@@ -1172,8 +1174,22 @@ function status_badge($status) {
         }
         const hintLabel = isShortcutHintDetailed ? 'Detailed' : 'Compact';
         const toastMuted = isHintToastMuted(taskId);
-        shortcutStateSummary.textContent = 'Shortcut state: Hint ' + hintLabel + ' | Toasts ' + (toastMuted ? 'Muted' : 'On') + ' | Source ' + lastSettingSource;
+        const freshnessSuffix = lastSettingFreshness ? (' | ' + lastSettingFreshness) : '';
+        shortcutStateSummary.textContent = 'Shortcut state: Hint ' + hintLabel + ' | Toasts ' + (toastMuted ? 'Muted' : 'On') + ' | Source ' + lastSettingSource + freshnessSuffix;
         shortcutStateSummary.style.color = toastMuted ? '#7c2d12' : '#475569';
+      }
+
+      function markSettingFreshness() {
+        lastSettingFreshness = 'just now';
+        refreshShortcutStateSummary();
+        if (lastSettingFreshnessTimer) {
+          window.clearTimeout(lastSettingFreshnessTimer);
+        }
+        lastSettingFreshnessTimer = window.setTimeout(function () {
+          lastSettingFreshness = '';
+          refreshShortcutStateSummary();
+          lastSettingFreshnessTimer = null;
+        }, 4200);
       }
 
       function setLastSettingSource(sourceLabel) {
@@ -1227,6 +1243,7 @@ function status_badge($status) {
         setShortcutHintDetailed(targetDetailed);
         setStoredAuditHintMode(taskId, targetDetailed ? 'detailed' : 'compact');
         setLastSettingSource(sourceLabelFromTrigger(messages.liveTriggerLabel));
+        markSettingFreshness();
         announceHintMode(messages.liveModeLabel, messages.liveTriggerLabel);
 
         if (messages.statusText) {
@@ -1277,6 +1294,7 @@ function status_badge($status) {
         setHintToastMuted(taskId, muted);
         refreshHintToastToggle();
         setLastSettingSource(sourceLabelFromTrigger(triggerLabel));
+        markSettingFreshness();
         announceHintToastMute(muted, triggerLabel);
         setKeyStatus(statusPrefix + ' ' + (muted ? 'muted' : 'unmuted'));
         showToast('Hint toasts ' + (muted ? 'muted.' : 'unmuted.'), false);
@@ -1290,6 +1308,7 @@ function status_badge($status) {
         setHintToastMuted(taskId, false);
         refreshHintToastToggle();
         setLastSettingSource(sourceLabelFromTrigger(triggerLabel));
+        markSettingFreshness();
         announceHintToastMute(false, triggerLabel || 'keyboard Shift+M');
         setKeyStatus(statusText);
         showToast('Hint toasts unmuted.', false);

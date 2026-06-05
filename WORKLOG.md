@@ -3,6 +3,39 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 49)
+
+### Scope (Shortcut Freshness Token)
+
+- Add a tiny freshness token (`just now`) beside the shortcut-state source indicator after setting changes, then auto-clear it.
+
+### Key Changes (Shortcut Freshness Token)
+
+- Added freshness state tracking in `tasks.php`:
+  - `lastSettingFreshness`
+  - `lastSettingFreshnessTimer`
+  - `markSettingFreshness()` helper
+- Updated shortcut state summary rendering in `tasks.php` to append freshness suffix when active:
+  - `... | Source <...> | just now`
+- Wired freshness marking into setting mutation paths:
+  - hint mode transitions,
+  - mute toggle transitions,
+  - explicit unmute transitions.
+- Implemented auto-clear timeout (about 4.2s) to remove freshness token without user action.
+
+### Important Files (Shortcut Freshness Token)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Shortcut Freshness Token)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirms:
+  - after a setting change, summary includes `| just now`,
+  - after timeout window, token auto-clears while summary state remains correct.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 48)
 
 ### Scope (Normalized Source Label Formatting)
