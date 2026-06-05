@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-04 - Nutshell Improvements (Task Module Slice 57)
+
+### Scope (Meaning-Line Highlight Pulse)
+
+- Add a brief highlight pulse to the current source meaning line whenever source changes, then ease back to baseline.
+
+### Key Changes (Meaning-Line Highlight Pulse)
+
+- Updated `.js-audit-source-meaning` base styling in both render paths (`tasks.php` PHP renderer and JS `renderAuditHistory`) to support smooth highlight transitions.
+- Added `sourceMeaningPulseResetTimer` and `pulseSourceMeaning(sourceLabel)` in `tasks.php` client logic.
+- Reused existing source accent palette so meaning-line pulse color matches Keyboard/Button/Session source context.
+- Hooked meaning-line pulse into `setLastSettingSource()` so it fires only when source actually changes (same trigger guard used by source label pulse).
+
+### Important Files (Meaning-Line Highlight Pulse)
+
+- tasks.php
+- WORKLOG.md
+
+### Validation (Meaning-Line Highlight Pulse)
+
+- `php -l tasks.php` passed.
+- VS Code diagnostics report no errors in `tasks.php`.
+- Runtime verification on `tasks.php` confirmed:
+  - meaning line briefly highlights on Keyboard and Button source changes,
+  - highlight transitions back to baseline style after pulse window,
+  - source summary behavior remains stable.
+
 ## 2026-06-04 - Nutshell Improvements (Task Module Slice 56)
 
 ### Scope (Source Glyph Marker)

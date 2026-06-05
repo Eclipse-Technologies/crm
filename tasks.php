@@ -297,7 +297,7 @@ function renderTaskAuditHistoryHtml(array $entries): string {
     . '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>'
     . '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 4px 0;"><span class="js-audit-shortcut-state-prefix">Shortcut state: Hint Compact | Toasts On | Source </span><span class="js-audit-shortcut-state-glyph" title="Session source marker" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:14px;padding:0 3px;margin-right:4px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-size:9px;font-weight:700;line-height:1;">[S]</span><span class="js-audit-shortcut-state-source" title="Session: restored from saved row/session preferences." style="display:inline-block;transition:transform .18s ease, background-color .25s ease, color .25s ease;transform:scale(1);border-radius:6px;padding:0 2px;">Session</span><span class="js-audit-source-freshness" style="display:none;color:#64748b;opacity:1;transition:opacity .8s ease;margin-left:2px;">| just now</span></div>'
     . '<div class="js-audit-source-legend" style="display:block;font-size:10px;color:#64748b;margin:0 0 4px 0;">Legend: <span style="display:inline-flex;align-items:center;gap:3px;"><span style="width:7px;height:7px;border-radius:999px;background:#0f766e;display:inline-block;"></span>Keyboard</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#1d4ed8;display:inline-block;"></span>Button</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#7c3aed;display:inline-block;"></span>Session</span></div>'
-    . '<div class="js-audit-source-meaning" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;">Current source meaning: Session restored your saved row/session preference.</div>'
+    . '<div class="js-audit-source-meaning" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;padding:1px 6px;border-radius:6px;transition:background-color .3s ease,color .3s ease,font-weight .25s ease;">Current source meaning: Session restored your saved row/session preference.</div>'
     . '<div class="js-audit-hint-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Hint mode: Compact</div>'
     . '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' . $items . '</ul>'
     . '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>'
@@ -966,7 +966,7 @@ function status_badge($status) {
       '<div class="js-audit-key-status" style="display:none;font-size:10px;color:#64748b;margin:0 0 6px 0;">Last key action: none</div>' +
       '<div class="js-audit-shortcut-state" style="display:block;font-size:10px;color:#475569;margin:0 0 4px 0;"><span class="js-audit-shortcut-state-prefix">Shortcut state: Hint Compact | Toasts On | Source </span><span class="js-audit-shortcut-state-glyph" title="Session source marker" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:14px;padding:0 3px;margin-right:4px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-size:9px;font-weight:700;line-height:1;">[S]</span><span class="js-audit-shortcut-state-source" title="Session: restored from saved row/session preferences." style="display:inline-block;transition:transform .18s ease, background-color .25s ease, color .25s ease;transform:scale(1);border-radius:6px;padding:0 2px;">Session</span><span class="js-audit-source-freshness" style="display:none;color:#64748b;opacity:1;transition:opacity .8s ease;margin-left:2px;">| just now</span></div>' +
       '<div class="js-audit-source-legend" style="display:block;font-size:10px;color:#64748b;margin:0 0 4px 0;">Legend: <span style="display:inline-flex;align-items:center;gap:3px;"><span style="width:7px;height:7px;border-radius:999px;background:#0f766e;display:inline-block;"></span>Keyboard</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#1d4ed8;display:inline-block;"></span>Button</span> <span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;"><span style="width:7px;height:7px;border-radius:999px;background:#7c3aed;display:inline-block;"></span>Session</span></div>' +
-      '<div class="js-audit-source-meaning" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;">Current source meaning: Session restored your saved row/session preference.</div>' +
+      '<div class="js-audit-source-meaning" style="display:block;font-size:10px;color:#475569;margin:0 0 6px 0;padding:1px 6px;border-radius:6px;transition:background-color .3s ease,color .3s ease,font-weight .25s ease;">Current source meaning: Session restored your saved row/session preference.</div>' +
       '<div class="js-audit-hint-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">Hint mode: Compact</div>' +
       '<ul class="task-audit-history-list" style="margin:0;padding-left:18px;">' + items + '</ul>' +
       '<div class="task-audit-history-empty" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">No status-change events in this window.</div>' +
@@ -1073,6 +1073,7 @@ function status_badge($status) {
       let lastSettingFreshnessFadeTimer = null;
       let lastSettingFreshnessClearTimer = null;
       let sourcePulseResetTimer = null;
+      let sourceMeaningPulseResetTimer = null;
 
       function sourcePulseAccent(sourceLabel) {
         if (sourceLabel === 'Keyboard') {
@@ -1140,6 +1141,25 @@ function status_badge($status) {
           shortcutStateSource.style.backgroundColor = 'transparent';
           sourcePulseResetTimer = null;
         }, 260);
+      }
+
+      function pulseSourceMeaning(sourceLabel) {
+        if (!sourceMeaningNode) {
+          return;
+        }
+        if (sourceMeaningPulseResetTimer) {
+          window.clearTimeout(sourceMeaningPulseResetTimer);
+        }
+        const accent = sourcePulseAccent(sourceLabel);
+        sourceMeaningNode.style.backgroundColor = accent.backgroundColor;
+        sourceMeaningNode.style.color = accent.color;
+        sourceMeaningNode.style.fontWeight = '700';
+        sourceMeaningPulseResetTimer = window.setTimeout(function () {
+          sourceMeaningNode.style.backgroundColor = 'transparent';
+          sourceMeaningNode.style.color = '#475569';
+          sourceMeaningNode.style.fontWeight = '400';
+          sourceMeaningPulseResetTimer = null;
+        }, 460);
       }
 
       function setShortcutHelpVisible(visible) {
@@ -1333,6 +1353,7 @@ function status_badge($status) {
         refreshShortcutStateSummary();
         if (previousSource !== sourceLabel) {
           pulseShortcutSource(sourceLabel);
+          pulseSourceMeaning(sourceLabel);
         }
       }
 
