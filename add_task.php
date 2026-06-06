@@ -3,6 +3,7 @@
 require_once 'tasks_mysql.php';
 require_once __DIR__ . '/csrf_helper.php';
 require_once __DIR__ . '/simple_auth/middleware.php';
+require_once __DIR__ . '/audit_handler.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -54,7 +55,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'recurrence' => $recurrence,
         'attachment' => $attachment
     ];
-    insert_task_mysql($task);
+
+    $insertOk = insert_task_mysql($task);
+    if (!$insertOk) {
+        logAuditAction(
+            'create',
+            'task',
+            $id,
+            [
+                'title' => ['old' => null, 'new' => $title],
+                'status' => ['old' => null, 'new' => $status],
+                'due_date' => ['old' => null, 'new' => $due_date],
+                'assigned_to' => ['old' => null, 'new' => $assigned_to],
+            ],
+            'Task creation failed',
+            'failed',
+            'insert_task_mysql returned false'
+        );
+        header('Location: tasks.php?error=invalid_request');
+        exit;
+    }
+
+    logAuditAction(
+        'create',
+        'task',
+        $id,
+        [
+            'title' => ['old' => null, 'new' => $title],
+            'status' => ['old' => null, 'new' => $status],
+            'due_date' => ['old' => null, 'new' => $due_date],
+            'priority' => ['old' => null, 'new' => $priority],
+            'assigned_to' => ['old' => null, 'new' => $assigned_to],
+            'contact_id' => ['old' => null, 'new' => $contact_id],
+            'opportunity_id' => ['old' => null, 'new' => $opportunity_id],
+            'project_id' => ['old' => null, 'new' => $project_id],
+        ],
+        'Task created',
+        'success',
+        null
+    );
+
     header('Location: tasks.php?success=added');
     exit;
 }

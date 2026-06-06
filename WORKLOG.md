@@ -3,6 +3,42 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-06 - Task Transaction Audit Coverage
+
+### Scope
+
+- Ensure task create, edit, delete, and archive transactions are consistently audit logged.
+
+### Key Changes
+
+- Added audit logging in add_task.php:
+  - success path logs `create task` with key fields,
+  - DB-failure path logs `failed` create event.
+- Added audit logging in edit_task.php:
+  - computes field-level change set,
+  - logs `update task` success/failure entries.
+- Added audit logging in delete_task.php:
+  - logs failed delete attempts (not found/DB failure),
+  - logs successful delete with old-to-null field change payload.
+- Added audit logging in archive_task.php:
+  - logs archive success and failure with status transition details.
+
+### Important Files
+
+- add_task.php
+- edit_task.php
+- delete_task.php
+- archive_task.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l add_task.php` passed.
+- `php -l edit_task.php` passed.
+- `php -l delete_task.php` passed.
+- `php -l archive_task.php` passed.
+- VS Code diagnostics report no errors in modified files.
+
 ## 2026-06-06 - Tasks Delete + Redirect Regression Fix
 
 ### Scope

@@ -3,6 +3,7 @@
 require_once 'tasks_mysql.php';
 require_once __DIR__ . '/csrf_helper.php';
 require_once __DIR__ . '/simple_auth/middleware.php';
+require_once __DIR__ . '/audit_handler.php';
 
 $id = trim((string)($_GET['id'] ?? ''));
 $timestamp = trim((string)($_GET['timestamp'] ?? ''));
@@ -24,14 +25,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "CSRF validation failed.";
         exit;
     }
-    
+
     $fields = [
         'title' => $_POST['title'],
         'due_date' => $_POST['due_date'],
         'status' => $_POST['status'],
         'timestamp' => $_POST['timestamp']
     ];
-    update_task_mysql($taskToEdit['id'], $fields);
+
+  $changes = [];
+  foreach ($fields as $field => $newValue) {
+    $oldValue = $taskToEdit[$field] ?? null;
+    if ((string) $oldValue !== (string) $newValue) {
+      $changes[$field] = ['old' => $oldValue, 'new' => $newValue];
+    }
+  }
+
+  $updateOk = update_task_mysql($taskToEdit['id'], $fields);
+  if (!$updateOk) {
+    logAuditAction(
+      'update',
+      'task',
+      (string) $taskToEdit['id'],
+      $changes,
+      'Task edit failed',
+      'failed',
+      'update_task_mysql returned false'
+    );
+    header('Location: tasks.php?error=invalid_request');
+    exit;
+  }
+
+  logAuditAction(
+    'update',
+    'task',
+    (string) $taskToEdit['id'],
+    $changes,
+    empty($changes) ? 'Task edit submitted with no field changes' : 'Task edited',
+    'success',
+    null
+  );
+
     header('Location: tasks.php?success=updated');
     exit;
 }

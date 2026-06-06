@@ -2,6 +2,7 @@
 require_once 'tasks_mysql.php';
 require_once __DIR__ . '/csrf_helper.php';
 require_once __DIR__ . '/simple_auth/middleware.php';
+require_once __DIR__ . '/audit_handler.php';
 
 function redirect_after_delete(string $result = 'deleted', string $returnQuery = ''): void {
     $target = 'tasks.php';
@@ -44,7 +45,55 @@ if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
 $id = trim((string) ($_POST['id'] ?? ''));
 $returnQuery = trim((string) ($_POST['return_query'] ?? ''));
 if ($id !== '') {
-    delete_task_mysql($id);
+    $existing = fetch_tasks_mysql(['id' => $id]);
+    $task = $existing[0] ?? null;
+
+    if (!$task) {
+        logAuditAction(
+            'delete',
+            'task',
+            $id,
+            [],
+            'Task delete failed: task not found',
+            'failed',
+            'Task not found'
+        );
+        header('Location: tasks.php?error=not_found');
+        exit;
+    }
+
+    $deleteOk = delete_task_mysql($id);
+    if (!$deleteOk) {
+        logAuditAction(
+            'delete',
+            'task',
+            $id,
+            [],
+            'Task delete failed',
+            'failed',
+            'delete_task_mysql returned false'
+        );
+        header('Location: tasks.php?error=invalid_request');
+        exit;
+    }
+
+    $changes = [];
+    foreach ($task as $field => $value) {
+        if ($field === 'id') {
+            continue;
+        }
+        $changes[$field] = ['old' => $value, 'new' => null];
+    }
+
+    logAuditAction(
+        'delete',
+        'task',
+        $id,
+        $changes,
+        'Task deleted',
+        'success',
+        null
+    );
 }
 
 redirect_after_delete('deleted', $returnQuery);
