@@ -61,6 +61,12 @@ This document captures key lessons, recurring errors, and communication improvem
 - GoDaddy relay mode (`localhost`/`relay-hosting.secureserver.net` on port 25, no auth) is often unavailable from local development networks; use authenticated SMTP when relay is blocked.
 - SMTP2GO standard working baseline for this project: `mail.smtp2go.com`, port `2525`, `SMTP_AUTH=true`, `SMTP_ENCRYPTION=tls`, plus valid SMTP username/password.
 - Credential safety: if a password is ever shared in chat or committed in config, rotate it immediately and replace with a new secret.
+- Tasks visibility rule: if a saved user-scoped filter can hide all rows while tasks still exist, default to all-tasks and provide a clear fallback notice with quick actions.
+- Route compatibility rule: keep thin redirect aliases for legacy/pasted task URLs (for example task.php to tasks.php) to prevent access confusion.
+- Task transaction audit rule: every state-changing task endpoint (create, edit, inline status update, archive, delete) must write audit_log rows for both success and failure paths.
+- Hard-delete traceability rule: when using hard deletes, capture pre-delete row values and log old-to-null field changes so compliance history remains complete.
+- Endpoint guardrail rule: add lightweight usage smoke tests that fail when required audit hooks/includes are removed from transaction endpoints.
+- Global project requirement: every project must include structured transaction and error logging for all state-changing operations, with success/failure status, actor/context, and error details stored in queryable persistence.
 
 ## Efficiency Improvements
 - Use checklists or roadmaps for multi-step features.
