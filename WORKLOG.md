@@ -3,6 +3,33 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-06 - Supplier Form Template Refinement (Slice 5)
+
+### Scope
+
+- Upgrade supplier purchase order form to a cleaner vendor-facing print template.
+
+### Key Changes
+
+- Refined purchase_order_summary.php visual structure into a document-style template:
+  - branded header block,
+  - PO metadata grid with status pill,
+  - supplier / bill-to / ship-to cards,
+  - emphasized totals and payment instructions,
+  - signature blocks for authorization and supplier confirmation.
+- Improved print behavior by excluding app chrome and keeping only the PO sheet when printing.
+
+### Important Files
+
+- purchase_order_summary.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l purchase_order_summary.php` passed.
+- VS Code diagnostics report no errors in modified files.
+- Browser verification confirmed updated template renders in purchase_order_summary.php.
+
 ## 2026-06-06 - Supplier Form Implementation (Slice 4)
 
 ### Scope
