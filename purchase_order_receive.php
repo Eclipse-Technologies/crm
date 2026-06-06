@@ -2,46 +2,7 @@
 require_once 'db_mysql.php';
 require_once __DIR__ . '/request_guard.php';
 require_once __DIR__ . '/audit_handler.php';
-
-$backorderFile = __DIR__ . '/backorders.csv';
-
-function read_backorders($filename) {
-  if (!file_exists($filename)) {
-    return [];
-  }
-  $rows = [];
-  if (($handle = fopen($filename, 'r')) !== false) {
-    $headers = fgetcsv($handle);
-    if ($headers === false) {
-      return [];
-    }
-    while (($data = fgetcsv($handle)) !== false) {
-      if (count($data) !== count($headers)) {
-        continue;
-      }
-      $rows[] = array_combine($headers, $data);
-    }
-    fclose($handle);
-  }
-  return $rows;
-}
-
-function write_backorders($filename, $rows) {
-  $headers = ['po_number','item_id','item_name','quantity_backorder','note','created_at'];
-  $file = fopen($filename, 'w');
-  if ($file === false) {
-    return;
-  }
-  fputcsv($file, $headers);
-  foreach ($rows as $row) {
-    $line = [];
-    foreach ($headers as $header) {
-      $line[] = $row[$header] ?? '';
-    }
-    fputcsv($file, $line);
-  }
-  fclose($file);
-}
+require_once __DIR__ . '/backorders_mysql.php';
 
 function redirect_po_receive(string $url): void {
   if (!headers_sent()) {
@@ -105,7 +66,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['receive_po'])) {
   $backorderQtys = $_POST['backorder_qty'] ?? [];
 
   $conn = get_mysql_connection();
-  $backorders = read_backorders($backorderFile);
   $receivedTotal = 0.0;
   $backorderedTotal = 0.0;
   try {
@@ -133,18 +93,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['receive_po'])) {
       }
 
       if ($backorder > 0) {
-        $backorders[] = [
-          'po_number' => $poNumber,
-          'item_id' => $itemId,
-          'item_name' => $itemName,
-          'quantity_backorder' => (string) $backorder,
-          'note' => $note,
-          'created_at' => date('Y-m-d H:i:s')
-        ];
+        add_or_increment_backorder_mysql($conn, $poNumber, $itemId, $itemName, $backorder, $note);
       }
     }
 
-    write_backorders($backorderFile, $backorders);
     $statusValue = $backorderedTotal > 0 ? 'partially_received' : 'received';
     $statusUpdatedAt = date('Y-m-d H:i:s');
     $statusStmt = $conn->prepare('UPDATE purchase_orders SET status = ?, updated_at = ? WHERE po_number = ?');

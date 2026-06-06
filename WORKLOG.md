@@ -3,6 +3,40 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-06 - Backorders MySQL Migration (Slice 3)
+
+### Scope
+
+- Remove remaining CSV dependence in backorder operations and move receive/list flows to MySQL with transactional consistency and audit logging.
+
+### Key Changes
+
+- Added new MySQL helper module backorders_mysql.php:
+  - ensure_backorders_table(...),
+  - fetch_backorders_mysql(...),
+  - add_or_increment_backorder_mysql(...),
+  - reduce_backorder_mysql(...).
+- Updated purchase_order_receive.php to write/update backorders in MySQL (instead of CSV) inside the same transaction as inventory/PO status updates.
+- Rebuilt backorders_list.php to MySQL flow:
+  - removed deprecated pgsql/csv dependencies and duplicate layout output,
+  - receive action now runs transactional backorder reduction + inventory quantity/status update,
+  - success/failure audit logging added for backorder receipt operations.
+
+### Important Files
+
+- backorders_mysql.php
+- purchase_order_receive.php
+- backorders_list.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l backorders_mysql.php` passed.
+- `php -l purchase_order_receive.php` passed.
+- `php -l backorders_list.php` passed.
+- VS Code diagnostics report no errors in modified files.
+- Browser check confirmed backorders_list.php renders successfully after migration.
+
 ## 2026-06-06 - Purchase Order Module MySQL Migration (Slice 2)
 
 ### Scope

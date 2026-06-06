@@ -1,156 +1,116 @@
 <?php
+require_once __DIR__ . '/db_mysql.php';
+require_once __DIR__ . '/request_guard.php';
+require_once __DIR__ . '/audit_handler.php';
+require_once __DIR__ . '/backorders_mysql.php';
 
-include_once(__DIR__ . '/layout_start.php');
-require_once 'db_pgsql.php';
-
-$inventorySchema = require __DIR__ . '/inventory_schema.php';
-$backorderFile = __DIR__ . '/backorders.csv';
-
-function fetch_inventory_mysql($schema) {
-  $conn = get_mysql_connection();
-  $fields = implode(',', array_map(function($f) { return '`' . $f . '`'; }, $schema));
-  $sql = "SELECT $fields FROM inventory";
-  $result = $conn->query($sql);
-  $rows = [];
-  if ($result) {
-    while ($row = $result->fetch_assoc()) {
-      $rows[] = $row;
-    }
-    $result->free();
+function redirect_backorders(string $url): void {
+  if (!headers_sent()) {
+    header('Location: ' . $url);
+    exit;
   }
-  $conn->close();
-  return $rows;
+  echo '<script>window.location.href=' . json_encode($url) . ';</script>';
+  echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"></noscript>';
+  exit;
 }
 
-function update_inventory_qty_mysql($itemId, $qty) {
-  $conn = get_mysql_connection();
-  $stmt = $conn->prepare("UPDATE inventory SET quantity_in_stock = COALESCE(quantity_in_stock,0) + ?, updated_at = NOW() WHERE item_id = ?");
-  $stmt->bind_param('ds', $qty, $itemId);
-  $stmt->execute();
-  $stmt->close();
-  $conn->close();
-}
-
-function update_inventory_status_mysql($itemId, $status) {
-  $conn = get_mysql_connection();
-  $stmt = $conn->prepare("UPDATE inventory SET status = ?, updated_at = NOW() WHERE item_id = ?");
-  $stmt->bind_param('ss', $status, $itemId);
-  $stmt->execute();
-  $stmt->close();
-  $conn->close();
-}
-
-$inventory = fetch_inventory_mysql($inventorySchema);
-
-function read_backorders($filename) {
-  if (!file_exists($filename)) {
-    return [];
+function apply_backorder_receipt_to_inventory(mysqli $conn, string $itemId, string $itemName, float $receiveQty, float $remainingQty): void {
+  $selectStmt = $conn->prepare('SELECT quantity_in_stock FROM inventory WHERE item_id = ? LIMIT 1');
+  $selectStmt->bind_param('s', $itemId);
+  $selectStmt->execute();
+  $selectRes = $selectStmt->get_result();
+  $invRow = $selectRes ? $selectRes->fetch_assoc() : null;
+  if ($selectRes instanceof mysqli_result) {
+    $selectRes->free();
   }
-  $rows = [];
-  if (($handle = fopen($filename, 'r')) !== false) {
-    $headers = fgetcsv($handle);
-    if ($headers === false) {
-      return [];
-    }
-    while (($data = fgetcsv($handle)) !== false) {
-      if (count($data) !== count($headers)) {
-        continue;
-      }
-      $rows[] = array_combine($headers, $data);
-    }
-    fclose($handle);
-  }
-  return $rows;
-}
+  $selectStmt->close();
 
-function write_backorders($filename, $rows) {
-  $headers = ['po_number','item_id','item_name','quantity_backorder','note','created_at'];
-  $file = fopen($filename, 'w');
-  if ($file === false) {
+  $targetStatus = $remainingQty > 0 ? 'Backorder' : 'Stock';
+  $now = date('Y-m-d H:i:s');
+
+  if ($invRow) {
+    $currentQty = is_numeric($invRow['quantity_in_stock'] ?? '') ? (float) $invRow['quantity_in_stock'] : 0.0;
+    $newQtyString = (string) ($currentQty + $receiveQty);
+    $updateStmt = $conn->prepare('UPDATE inventory SET quantity_in_stock = ?, status = ?, updated_at = ? WHERE item_id = ?');
+    $updateStmt->bind_param('ssss', $newQtyString, $targetStatus, $now, $itemId);
+    if (!$updateStmt->execute()) {
+      $error = $updateStmt->error;
+      $updateStmt->close();
+      throw new RuntimeException('Inventory update failed: ' . $error);
+    }
+    $updateStmt->close();
     return;
   }
-  fputcsv($file, $headers);
-  foreach ($rows as $row) {
-    $line = [];
-    foreach ($headers as $header) {
-      $line[] = $row[$header] ?? '';
-    }
-    fputcsv($file, $line);
-  }
-  fclose($file);
-}
 
-function find_inventory_index($inventory, $itemId) {
-  foreach ($inventory as $idx => $row) {
-    if (($row['item_id'] ?? '') === $itemId) {
-      return $idx;
-    }
+  $receivedQtyString = (string) $receiveQty;
+  $insertStmt = $conn->prepare('INSERT INTO inventory (item_id, item_name, quantity_in_stock, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+  $insertStmt->bind_param('ssssss', $itemId, $itemName, $receivedQtyString, $targetStatus, $now, $now);
+  if (!$insertStmt->execute()) {
+    $error = $insertStmt->error;
+    $insertStmt->close();
+    throw new RuntimeException('Inventory insert failed: ' . $error);
   }
-  return -1;
-}
-
-function init_inventory_row($schema, $itemId, $itemName) {
-  $row = [];
-  foreach ($schema as $field) {
-    $row[$field] = '';
-  }
-  $row['item_id'] = $itemId;
-  $row['item_name'] = $itemName;
-  $row['quantity_in_stock'] = '0';
-  $row['status'] = 'Stock';
-  $row['created_at'] = date('Y-m-d H:i:s');
-  $row['updated_at'] = $row['created_at'];
-  return $row;
+  $insertStmt->close();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['receive_backorder'])) {
-  if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-    header('Location: backorders_list.php?error=csrf');
-    exit;
+  require_post_with_csrf();
+
+  $itemId = trim((string) ($_POST['item_id'] ?? ''));
+  $poNumber = trim((string) ($_POST['po_number'] ?? ''));
+  $qtyReceive = is_numeric($_POST['receive_qty'] ?? '') ? (float) $_POST['receive_qty'] : 0.0;
+
+  if ($itemId === '' || $poNumber === '' || $qtyReceive <= 0.0) {
+    logAuditAction('update', 'backorder', ($poNumber !== '' ? $poNumber . ':' . $itemId : ''), [], 'Backorder receive failed: invalid input', 'failed', 'Missing item_id/po_number or non-positive receive_qty');
+    redirect_backorders('backorders_list.php?error=invalid_request');
   }
 
-  $itemId = trim($_POST['item_id'] ?? '');
-  $poNumber = trim($_POST['po_number'] ?? '');
-  $qtyReceive = is_numeric($_POST['receive_qty'] ?? '') ? (float)$_POST['receive_qty'] : 0.0;
+  $conn = get_mysql_connection();
+  try {
+    $conn->begin_transaction();
+    $receipt = reduce_backorder_mysql($conn, $poNumber, $itemId, $qtyReceive);
 
-  $backorders = read_backorders($backorderFile);
-  $updated = [];
+    $appliedQty = (float) ($receipt['applied_qty'] ?? 0.0);
+    $remainingQty = (float) ($receipt['remaining_qty'] ?? 0.0);
+    $itemName = (string) ($receipt['item_name'] ?? '');
 
-  foreach ($backorders as $row) {
-    if (($row['item_id'] ?? '') === $itemId && ($row['po_number'] ?? '') === $poNumber) {
-      $backorderQty = is_numeric($row['quantity_backorder'] ?? '') ? (float)$row['quantity_backorder'] : 0.0;
-      $remaining = max(0.0, $backorderQty - $qtyReceive);
-
-      if ($qtyReceive > 0) {
-        update_inventory_qty_pgsql($itemId, $qtyReceive);
-      }
-
-      if ($remaining > 0) {
-        $row['quantity_backorder'] = (string)$remaining;
-        $updated[] = $row;
-      }
-    } else {
-      $updated[] = $row;
+    if ($appliedQty <= 0.0) {
+      throw new RuntimeException('No quantity applied to receive');
     }
+
+    apply_backorder_receipt_to_inventory($conn, $itemId, $itemName, $appliedQty, $remainingQty);
+
+    $conn->commit();
+    $conn->close();
+
+    logAuditAction(
+      'update',
+      'backorder',
+      $poNumber . ':' . $itemId,
+      [
+        'quantity_backorder' => ['old' => (float) ($receipt['previous_qty'] ?? 0.0), 'new' => $remainingQty],
+        'received_qty' => ['old' => 0.0, 'new' => $appliedQty],
+      ],
+      'Backorder received into inventory',
+      'success',
+      null
+    );
+
+    redirect_backorders('backorders_list.php?success=updated');
+  } catch (Throwable $e) {
+    $conn->rollback();
+    $conn->close();
+    logAuditAction('update', 'backorder', $poNumber . ':' . $itemId, [], 'Backorder receive failed', 'failed', $e->getMessage());
+    redirect_backorders('backorders_list.php?error=invalid_request');
   }
-  // After updating, write backorders and redirect if needed
-  write_backorders($backorderFile, $updated);
-  header('Location: backorders_list.php');
-  exit;
 }
-// End PHP processing, begin HTML output
+
+$conn = get_mysql_connection();
+$backorders = fetch_backorders_mysql($conn);
+$conn->close();
+
+include_once(__DIR__ . '/layout_start.php');
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CRM Backorders: Manage and receive inventory backorders.">
-  <title>Backorders</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<?php include_once(__DIR__ . '/layout_start.php'); ?>
 <div class="container">
   <h2>Backorders</h2>
   <?php if (empty($backorders)): ?>
@@ -191,6 +151,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['receive_backorder']))
     </table>
   <?php endif; ?>
 </div>
-</body>
-</html>
 <?php include_once(__DIR__ . '/layout_end.php'); ?>
