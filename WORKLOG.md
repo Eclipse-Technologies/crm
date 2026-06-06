@@ -3,6 +3,78 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-06 - Purchase Order Module MySQL Migration (Slice 2)
+
+### Scope
+
+- Migrate purchase order edit/receive workflows from CSV-backed data access to MySQL-backed transactional flows.
+
+### Key Changes
+
+- Rebuilt purchase_order_edit.php to MySQL flow:
+  - fetches PO header/items from purchase_orders and purchase_order_items,
+  - updates header + replaces items inside one DB transaction,
+  - logs success/failure to audit_log with item-count and timestamp deltas.
+- Rebuilt purchase_order_receive.php to MySQL flow:
+  - reads PO items from purchase_order_items,
+  - applies inventory updates directly to inventory table,
+  - updates PO status to received/partially_received,
+  - logs receive success/failure with received/backorder totals.
+- Added header-safe redirect helpers for purchase order POST endpoints that include layout output:
+  - purchase_order_add.php,
+  - purchase_orders_list.php,
+  - purchase_order_edit.php,
+  - purchase_order_receive.php.
+
+### Important Files
+
+- purchase_order_edit.php
+- purchase_order_receive.php
+- purchase_order_add.php
+- purchase_orders_list.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l purchase_order_edit.php` passed.
+- `php -l purchase_order_receive.php` passed.
+- `php -l purchase_order_add.php` passed.
+- `php -l purchase_orders_list.php` passed.
+- VS Code diagnostics report no errors in modified files.
+
+## 2026-06-06 - Purchase Order Module Hardening (Slice 1)
+
+### Scope
+
+- Start purchase order module work with immediate reliability/compliance fixes: list query alignment, transactional delete behavior, and structured transaction/error audit logging.
+
+### Key Changes
+
+- Fixed purchase order list data mapping in purchase_orders_list.php by selecting MySQL fields with expected schema names (removed mismatched prefixed aliases that could hide rows).
+- Hardened purchase order delete flow in purchase_orders_list.php:
+  - deletes line items and header in one DB transaction,
+  - logs success/failure to audit_log,
+  - prevents orphaned item rows when deleting a PO.
+- Added structured create success/failure audit logging to purchase_order_add.php.
+- Added structured update success/failure audit logging to purchase_order_edit.php.
+- Added structured receive success/failure audit logging (including received/backorder totals) to purchase_order_receive.php.
+
+### Important Files
+
+- purchase_orders_list.php
+- purchase_order_add.php
+- purchase_order_edit.php
+- purchase_order_receive.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l purchase_orders_list.php` passed.
+- `php -l purchase_order_add.php` passed.
+- `php -l purchase_order_edit.php` passed.
+- `php -l purchase_order_receive.php` passed.
+- VS Code diagnostics report no errors in modified files.
+
 ## 2026-06-06 - Task Transaction Audit Smoke Guard
 
 ### Scope

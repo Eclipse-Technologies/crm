@@ -1,16 +1,9 @@
 <?php
-include_once(__DIR__ . '/layout_start.php');
-require_once 'csv_handler.php';
+require_once 'db_mysql.php';
 require_once __DIR__ . '/request_guard.php';
+require_once __DIR__ . '/audit_handler.php';
 
-$schema = require __DIR__ . '/purchase_order_schema.php';
-$poFile = __DIR__ . '/purchase_orders.csv';
-$inventorySchema = require __DIR__ . '/inventory_schema.php';
-$inventoryFile = __DIR__ . '/inventory.csv';
 $backorderFile = __DIR__ . '/backorders.csv';
-
-$orders = readCSV($poFile, $schema);
-$inventory = readCSV($inventoryFile, $inventorySchema);
 
 function read_backorders($filename) {
   if (!file_exists($filename)) {
@@ -50,27 +43,54 @@ function write_backorders($filename, $rows) {
   fclose($file);
 }
 
-function find_inventory_index($inventory, $itemId) {
-  foreach ($inventory as $idx => $row) {
-    if (($row['item_id'] ?? '') === $itemId) {
-      return $idx;
-    }
+function redirect_po_receive(string $url): void {
+  if (!headers_sent()) {
+    header('Location: ' . $url);
+    exit;
   }
-  return -1;
+  echo '<script>window.location.href=' . json_encode($url) . ';</script>';
+  echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"></noscript>';
+  exit;
 }
 
-function init_inventory_row($schema, $itemId, $itemName) {
-  $row = [];
-  foreach ($schema as $field) {
-    $row[$field] = '';
+function upsert_inventory_receipt(mysqli $conn, string $itemId, string $itemName, float $receivedQty, bool $hasBackorder): void {
+  $selectStmt = $conn->prepare('SELECT quantity_in_stock, status FROM inventory WHERE item_id = ? LIMIT 1');
+  $selectStmt->bind_param('s', $itemId);
+  $selectStmt->execute();
+  $res = $selectStmt->get_result();
+  $row = $res ? $res->fetch_assoc() : null;
+  if ($res instanceof mysqli_result) {
+    $res->free();
   }
-  $row['item_id'] = $itemId;
-  $row['item_name'] = $itemName;
-  $row['quantity_in_stock'] = '0';
-  $row['status'] = 'Stock';
-  $row['created_at'] = date('Y-m-d H:i:s');
-  $row['updated_at'] = $row['created_at'];
-  return $row;
+  $selectStmt->close();
+
+  $now = date('Y-m-d H:i:s');
+  $nextStatus = $hasBackorder ? 'Backorder' : 'Stock';
+
+  if ($row) {
+    $currentQty = is_numeric($row['quantity_in_stock'] ?? '') ? (float) $row['quantity_in_stock'] : 0.0;
+    $newQty = $currentQty + $receivedQty;
+    $updateStmt = $conn->prepare('UPDATE inventory SET quantity_in_stock = ?, status = ?, updated_at = ? WHERE item_id = ?');
+    $newQtyString = (string) $newQty;
+    $updateStmt->bind_param('ssss', $newQtyString, $nextStatus, $now, $itemId);
+    if (!$updateStmt->execute()) {
+      $error = $updateStmt->error;
+      $updateStmt->close();
+      throw new RuntimeException('Inventory update failed: ' . $error);
+    }
+    $updateStmt->close();
+    return;
+  }
+
+  $initialQty = (string) max(0.0, $receivedQty);
+  $insertStmt = $conn->prepare('INSERT INTO inventory (item_id, item_name, quantity_in_stock, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+  $insertStmt->bind_param('ssssss', $itemId, $itemName, $initialQty, $nextStatus, $now, $now);
+  if (!$insertStmt->execute()) {
+    $error = $insertStmt->error;
+    $insertStmt->close();
+    throw new RuntimeException('Inventory insert failed: ' . $error);
+  }
+  $insertStmt->close();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['receive_po'])) {
@@ -84,64 +104,114 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['receive_po'])) {
   $orderedQtys = $_POST['ordered_qty'] ?? [];
   $backorderQtys = $_POST['backorder_qty'] ?? [];
 
+  $conn = get_mysql_connection();
   $backorders = read_backorders($backorderFile);
+  $receivedTotal = 0.0;
+  $backorderedTotal = 0.0;
+  try {
+    $conn->begin_transaction();
 
-  foreach ($itemIds as $i => $itemId) {
-    $itemId = trim($itemId);
-    $itemName = trim($itemNames[$i] ?? '');
-    $ordered = is_numeric($orderedQtys[$i] ?? '') ? (float)$orderedQtys[$i] : 0.0;
-    $backorder = 0.0;
-    if (!$receiveAll) {
-      $backorder = is_numeric($backorderQtys[$i] ?? '') ? (float)$backorderQtys[$i] : 0.0;
-    }
-    $backorder = max(0.0, min($ordered, $backorder));
-    $received = max(0.0, $ordered - $backorder);
-
-    if ($itemId === '' && $itemName === '') {
-      continue;
-    }
-
-    if ($itemId !== '') {
-      $invIndex = find_inventory_index($inventory, $itemId);
-      if ($invIndex < 0) {
-        $inventory[] = init_inventory_row($inventorySchema, $itemId, $itemName);
-        $invIndex = count($inventory) - 1;
+    foreach ($itemIds as $i => $itemIdRaw) {
+      $itemId = trim((string) $itemIdRaw);
+      $itemName = trim((string) ($itemNames[$i] ?? ''));
+      $ordered = is_numeric($orderedQtys[$i] ?? '') ? (float) $orderedQtys[$i] : 0.0;
+      $backorder = 0.0;
+      if (!$receiveAll) {
+        $backorder = is_numeric($backorderQtys[$i] ?? '') ? (float) $backorderQtys[$i] : 0.0;
       }
-      if ($received > 0) {
-        $current = is_numeric($inventory[$invIndex]['quantity_in_stock'] ?? '') ? (float)$inventory[$invIndex]['quantity_in_stock'] : 0.0;
-        $inventory[$invIndex]['quantity_in_stock'] = (string)($current + $received);
+      $backorder = max(0.0, min($ordered, $backorder));
+      $received = max(0.0, $ordered - $backorder);
+      $receivedTotal += $received;
+      $backorderedTotal += $backorder;
+
+      if ($itemId === '' && $itemName === '') {
+        continue;
       }
+
+      if ($itemId !== '') {
+        upsert_inventory_receipt($conn, $itemId, $itemName, $received, $backorder > 0);
+      }
+
       if ($backorder > 0) {
-        $inventory[$invIndex]['status'] = 'Backorder';
-      } elseif (($inventory[$invIndex]['status'] ?? '') === 'Backorder') {
-        $inventory[$invIndex]['status'] = 'Stock';
+        $backorders[] = [
+          'po_number' => $poNumber,
+          'item_id' => $itemId,
+          'item_name' => $itemName,
+          'quantity_backorder' => (string) $backorder,
+          'note' => $note,
+          'created_at' => date('Y-m-d H:i:s')
+        ];
       }
-      $inventory[$invIndex]['updated_at'] = date('Y-m-d H:i:s');
     }
 
-    if ($backorder > 0) {
-      $backorders[] = [
-        'po_number' => $poNumber,
-        'item_id' => $itemId,
-        'item_name' => $itemName,
-        'quantity_backorder' => (string)$backorder,
-        'note' => $note,
-        'created_at' => date('Y-m-d H:i:s')
-      ];
+    write_backorders($backorderFile, $backorders);
+    $statusValue = $backorderedTotal > 0 ? 'partially_received' : 'received';
+    $statusUpdatedAt = date('Y-m-d H:i:s');
+    $statusStmt = $conn->prepare('UPDATE purchase_orders SET status = ?, updated_at = ? WHERE po_number = ?');
+    $statusStmt->bind_param('sss', $statusValue, $statusUpdatedAt, $poNumber);
+    if (!$statusStmt->execute()) {
+      $error = $statusStmt->error;
+      $statusStmt->close();
+      throw new RuntimeException('Purchase order status update failed: ' . $error);
     }
+    $statusStmt->close();
+
+    $conn->commit();
+    $conn->close();
+    logAuditAction(
+      'update',
+      'purchase_order',
+      $poNumber,
+      [
+        'receive_all' => ['old' => null, 'new' => $receiveAll ? 'yes' : 'no'],
+        'total_received_qty' => ['old' => null, 'new' => $receivedTotal],
+        'total_backorder_qty' => ['old' => null, 'new' => $backorderedTotal],
+      ],
+      'Purchase order received (inventory updated)',
+      'success',
+      null
+    );
+  } catch (Throwable $e) {
+    $conn->rollback();
+    $conn->close();
+    logAuditAction(
+      'update',
+      'purchase_order',
+      $poNumber,
+      [
+        'receive_all' => ['old' => null, 'new' => $receiveAll ? 'yes' : 'no'],
+        'total_received_qty' => ['old' => null, 'new' => $receivedTotal],
+        'total_backorder_qty' => ['old' => null, 'new' => $backorderedTotal],
+      ],
+      'Purchase order receive failed',
+      'failed',
+      $e->getMessage()
+    );
+    redirect_po_receive('purchase_orders_list.php?error=receive_failed');
   }
 
-  writeCSV($inventoryFile, $inventory, $inventorySchema);
-  write_backorders($backorderFile, $backorders);
-
-  header('Location: purchase_orders_list.php');
-  exit;
+  redirect_po_receive('purchase_orders_list.php?success=updated');
 }
 
-$poNumber = trim($_GET['po'] ?? '');
-$poRows = array_values(array_filter($orders, function($row) use ($poNumber) {
-  return ($row['po_number'] ?? '') === $poNumber;
-}));
+$poNumber = trim((string) ($_GET['po'] ?? ''));
+$poRows = [];
+if ($poNumber !== '') {
+  $conn = get_mysql_connection();
+  $itemsStmt = $conn->prepare('SELECT item_id,item_name,quantity FROM purchase_order_items WHERE po_number = ? ORDER BY id ASC');
+  $itemsStmt->bind_param('s', $poNumber);
+  $itemsStmt->execute();
+  $itemsRes = $itemsStmt->get_result();
+  if ($itemsRes instanceof mysqli_result) {
+    while ($row = $itemsRes->fetch_assoc()) {
+      $poRows[] = $row;
+    }
+    $itemsRes->free();
+  }
+  $itemsStmt->close();
+  $conn->close();
+}
+
+include_once(__DIR__ . '/layout_start.php');
 ?>
 <div class="container">
   <h2>Receive Purchase Order</h2>

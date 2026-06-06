@@ -1,58 +1,201 @@
 <?php
-include_once(__DIR__ . '/layout_start.php');
-require_once 'csv_handler.php';
+require_once 'db_mysql.php';
 require_once __DIR__ . '/request_guard.php';
+require_once __DIR__ . '/audit_handler.php';
+require_once 'inventory_mysql.php';
 
 $schema = require __DIR__ . '/purchase_order_schema.php';
-$poFile = __DIR__ . '/purchase_orders.csv';
 $inventorySchema = require __DIR__ . '/inventory_schema.php';
-$inventoryFile = __DIR__ . '/inventory.csv';
-$inventory = readCSV($inventoryFile, $inventorySchema);
-$orders = readCSV($poFile, $schema);
+$inventory = fetch_inventory_mysql($inventorySchema);
 
 $itemFields = ['item_id','item_name','quantity','unit','unit_price','discount','tax_rate','tax_amount','total'];
+$headerFields = [
+  'date','status','supplier_id','supplier_name','supplier_contact','supplier_address','billing_address','shipping_address',
+  'subtotal','total_discount','total_tax','shipping_cost','other_fees','grand_total','currency','expected_delivery','payment_terms','notes','created_by'
+];
+
+function redirect_po_edit(string $url): void {
+  if (!headers_sent()) {
+    header('Location: ' . $url);
+    exit;
+  }
+  echo '<script>window.location.href=' . json_encode($url) . ';</script>';
+  echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"></noscript>';
+  exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_po'])) {
   require_post_with_csrf();
   $poNumber = trim($_POST['po_number'] ?? '');
-  if ($poNumber !== '') {
-    $orders = array_values(array_filter($orders, function($row) use ($poNumber) {
-      return ($row['po_number'] ?? '') !== $poNumber;
-    }));
+  if ($poNumber === '') {
+    logAuditAction('update', 'purchase_order', '', [], 'Purchase order update failed: missing po_number', 'failed', 'Missing po_number');
+    redirect_po_edit('purchase_orders_list.php?error=invalid_request');
+  }
 
-    $createdAt = trim($_POST['created_at'] ?? '');
-    if ($createdAt === '') {
-      $createdAt = date('Y-m-d H:i:s');
+  $conn = get_mysql_connection();
+  try {
+    $conn->begin_transaction();
+
+    $snapshotStmt = $conn->prepare('SELECT updated_at FROM purchase_orders WHERE po_number = ? LIMIT 1');
+    $snapshotStmt->bind_param('s', $poNumber);
+    $snapshotStmt->execute();
+    $snapshotRes = $snapshotStmt->get_result();
+    $snapshot = $snapshotRes ? $snapshotRes->fetch_assoc() : null;
+    if ($snapshotRes instanceof mysqli_result) {
+      $snapshotRes->free();
+    }
+    $snapshotStmt->close();
+
+    if (!$snapshot) {
+      $conn->rollback();
+      $conn->close();
+      logAuditAction('update', 'purchase_order', $poNumber, [], 'Purchase order update failed: PO not found', 'failed', 'PO not found');
+      redirect_po_edit('purchase_orders_list.php?error=not_found');
+    }
+
+    $headerSet = [];
+    $headerValues = [];
+    $headerTypes = '';
+    foreach ($headerFields as $field) {
+      $headerSet[] = '`' . $field . '` = ?';
+      $headerValues[] = trim((string) ($_POST[$field] ?? ''));
+      $headerTypes .= 's';
     }
     $updatedAt = date('Y-m-d H:i:s');
-    $itemCount = isset($_POST['item_id']) ? count($_POST['item_id']) : 0;
+    $headerSet[] = '`updated_at` = ?';
+    $headerValues[] = $updatedAt;
+    $headerTypes .= 's';
+    $headerValues[] = $poNumber;
+    $headerTypes .= 's';
 
-    for ($i = 0; $i < $itemCount; $i++) {
-      $newPO = [];
-      foreach ($schema as $f) {
-        if (in_array($f, $itemFields, true)) {
-          $newPO[$f] = trim($_POST[$f][$i] ?? '');
-        } else {
-          $newPO[$f] = trim($_POST[$f] ?? '');
-        }
-      }
-      $newPO['po_number'] = $poNumber;
-      $newPO['created_at'] = $createdAt;
-      $newPO['updated_at'] = $updatedAt;
-      $orders[] = $newPO;
+    $updateHeaderStmt = $conn->prepare('UPDATE purchase_orders SET ' . implode(', ', $headerSet) . ' WHERE po_number = ?');
+    $updateHeaderStmt->bind_param($headerTypes, ...$headerValues);
+    if (!$updateHeaderStmt->execute()) {
+      $error = $updateHeaderStmt->error;
+      $updateHeaderStmt->close();
+      throw new RuntimeException('Header update failed: ' . $error);
     }
+    $updateHeaderStmt->close();
 
-    writeCSV($poFile, $orders, $schema);
+    $oldItemCountStmt = $conn->prepare('SELECT COUNT(*) AS c FROM purchase_order_items WHERE po_number = ?');
+    $oldItemCountStmt->bind_param('s', $poNumber);
+    $oldItemCountStmt->execute();
+    $oldItemCountRes = $oldItemCountStmt->get_result();
+    $oldItemCountRow = $oldItemCountRes ? $oldItemCountRes->fetch_assoc() : ['c' => 0];
+    $oldItemCount = (int) ($oldItemCountRow['c'] ?? 0);
+    if ($oldItemCountRes instanceof mysqli_result) {
+      $oldItemCountRes->free();
+    }
+    $oldItemCountStmt->close();
+
+    $deleteItemsStmt = $conn->prepare('DELETE FROM purchase_order_items WHERE po_number = ?');
+    $deleteItemsStmt->bind_param('s', $poNumber);
+    if (!$deleteItemsStmt->execute()) {
+      $error = $deleteItemsStmt->error;
+      $deleteItemsStmt->close();
+      throw new RuntimeException('Item delete failed: ' . $error);
+    }
+    $deleteItemsStmt->close();
+
+    $itemIds = $_POST['item_id'] ?? [];
+    $itemCount = is_array($itemIds) ? count($itemIds) : 0;
+    $insertItemStmt = $conn->prepare('INSERT INTO purchase_order_items (po_number,item_id,item_name,quantity,unit,unit_price,discount,tax_rate,tax_amount,total) VALUES (?,?,?,?,?,?,?,?,?,?)');
+    for ($i = 0; $i < $itemCount; $i++) {
+      $itemId = trim((string) ($_POST['item_id'][$i] ?? ''));
+      $itemName = trim((string) ($_POST['item_name'][$i] ?? ''));
+      if ($itemId === '' && $itemName === '') {
+        continue;
+      }
+      $quantity = trim((string) ($_POST['quantity'][$i] ?? ''));
+      $unit = trim((string) ($_POST['unit'][$i] ?? ''));
+      $unitPrice = trim((string) ($_POST['unit_price'][$i] ?? ''));
+      $discount = trim((string) ($_POST['discount'][$i] ?? ''));
+      $taxRate = trim((string) ($_POST['tax_rate'][$i] ?? ''));
+      $taxAmount = trim((string) ($_POST['tax_amount'][$i] ?? ''));
+      $total = trim((string) ($_POST['total'][$i] ?? ''));
+      $insertItemStmt->bind_param('ssssssssss', $poNumber, $itemId, $itemName, $quantity, $unit, $unitPrice, $discount, $taxRate, $taxAmount, $total);
+      if (!$insertItemStmt->execute()) {
+        $error = $insertItemStmt->error;
+        $insertItemStmt->close();
+        throw new RuntimeException('Item insert failed: ' . $error);
+      }
+    }
+    $insertItemStmt->close();
+
+    $newItemCountStmt = $conn->prepare('SELECT COUNT(*) AS c FROM purchase_order_items WHERE po_number = ?');
+    $newItemCountStmt->bind_param('s', $poNumber);
+    $newItemCountStmt->execute();
+    $newItemCountRes = $newItemCountStmt->get_result();
+    $newItemCountRow = $newItemCountRes ? $newItemCountRes->fetch_assoc() : ['c' => 0];
+    $newItemCount = (int) ($newItemCountRow['c'] ?? 0);
+    if ($newItemCountRes instanceof mysqli_result) {
+      $newItemCountRes->free();
+    }
+    $newItemCountStmt->close();
+
+    $conn->commit();
+    $conn->close();
+
+    logAuditAction(
+      'update',
+      'purchase_order',
+      $poNumber,
+      [
+        'item_count' => ['old' => $oldItemCount, 'new' => $newItemCount],
+        'updated_at' => ['old' => (string) ($snapshot['updated_at'] ?? ''), 'new' => $updatedAt],
+      ],
+      'Purchase order updated (MySQL flow)',
+      'success',
+      null
+    );
+
+    redirect_po_edit('purchase_orders_list.php?success=updated');
+  } catch (Throwable $e) {
+    $conn->rollback();
+    $conn->close();
+    logAuditAction(
+      'update',
+      'purchase_order',
+      $poNumber,
+      [],
+      'Purchase order update failed (MySQL flow)',
+      'failed',
+      $e->getMessage()
+    );
+    redirect_po_edit('purchase_orders_list.php?error=update_failed');
   }
-  header('Location: purchase_orders_list.php');
-  exit;
 }
 
-$poNumber = trim($_GET['po'] ?? '');
-$poRows = array_values(array_filter($orders, function($row) use ($poNumber) {
-  return ($row['po_number'] ?? '') === $poNumber;
-}));
-$header = $poRows[0] ?? [];
+$poNumber = trim((string) ($_GET['po'] ?? ''));
+$poRows = [];
+$header = [];
+if ($poNumber !== '') {
+  $conn = get_mysql_connection();
+  $headerStmt = $conn->prepare('SELECT po_number,date,status,supplier_id,supplier_name,supplier_contact,supplier_address,billing_address,shipping_address,subtotal,total_discount,total_tax,shipping_cost,other_fees,grand_total,currency,expected_delivery,payment_terms,notes,created_by,created_at,updated_at FROM purchase_orders WHERE po_number = ? LIMIT 1');
+  $headerStmt->bind_param('s', $poNumber);
+  $headerStmt->execute();
+  $headerRes = $headerStmt->get_result();
+  $header = $headerRes ? ($headerRes->fetch_assoc() ?: []) : [];
+  if ($headerRes instanceof mysqli_result) {
+    $headerRes->free();
+  }
+  $headerStmt->close();
+
+  $itemsStmt = $conn->prepare('SELECT item_id,item_name,quantity,unit,unit_price,discount,tax_rate,tax_amount,total FROM purchase_order_items WHERE po_number = ? ORDER BY id ASC');
+  $itemsStmt->bind_param('s', $poNumber);
+  $itemsStmt->execute();
+  $itemsRes = $itemsStmt->get_result();
+  if ($itemsRes instanceof mysqli_result) {
+    while ($row = $itemsRes->fetch_assoc()) {
+      $poRows[] = $row;
+    }
+    $itemsRes->free();
+  }
+  $itemsStmt->close();
+  $conn->close();
+}
+
+include_once(__DIR__ . '/layout_start.php');
 ?>
 <div class="container">
   <h2>Edit Purchase Order</h2>

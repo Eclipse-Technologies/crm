@@ -2,7 +2,19 @@
 include_once(__DIR__ . '/layout_start.php');
 require_once 'db_mysql.php';
 require_once __DIR__ . '/request_guard.php';
+require_once __DIR__ . '/audit_handler.php';
 $schema = require __DIR__ . '/purchase_order_schema.php';
+
+function redirect_po_list(string $url): void {
+  if (!headers_sent()) {
+    header('Location: ' . $url);
+    exit;
+  }
+  echo '<script>window.location.href=' . json_encode($url) . ';</script>';
+  echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"></noscript>';
+  exit;
+}
+
 // Fetch purchase orders and items from MySQL (LEFT JOIN to show all POs)
 function fetch_purchase_orders_with_items($schema) {
   $conn = get_mysql_connection();
@@ -15,10 +27,10 @@ function fetch_purchase_orders_with_items($schema) {
   ];
   $selectFields = [];
   foreach ($headerFields as $f) {
-    $selectFields[] = 'h.`' . $f . '` AS `h_' . $f . '`';
+    $selectFields[] = 'h.`' . $f . '`';
   }
   foreach ($itemFields as $f) {
-    $selectFields[] = 'i.`' . $f . '` AS `i_' . $f . '`';
+    $selectFields[] = 'i.`' . $f . '`';
   }
   $sql = "SELECT " . implode(',', $selectFields) . " FROM purchase_orders h LEFT JOIN purchase_order_items i ON h.po_number = i.po_number ORDER BY h.created_at DESC, i.id ASC";
   $result = $conn->query($sql);
@@ -38,14 +50,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_po'])) {
   $poToDelete = trim($_POST['po_number'] ?? '');
   if ($poToDelete !== '') {
     $conn = get_mysql_connection();
-    $stmt = $conn->prepare("DELETE FROM purchase_orders WHERE po_number = ?");
-    $stmt->bind_param('s', $poToDelete);
-    $stmt->execute();
-    $stmt->close();
-    $conn->close();
+    try {
+      $conn->begin_transaction();
+
+      $snapshotStmt = $conn->prepare("SELECT supplier_name FROM purchase_orders WHERE po_number = ? LIMIT 1");
+      $snapshotStmt->bind_param('s', $poToDelete);
+      $snapshotStmt->execute();
+      $snapshotRes = $snapshotStmt->get_result();
+      $snapshotRow = $snapshotRes ? $snapshotRes->fetch_assoc() : null;
+      if ($snapshotRes instanceof mysqli_result) {
+        $snapshotRes->free();
+      }
+      $snapshotStmt->close();
+
+      $deleteItemsStmt = $conn->prepare("DELETE FROM purchase_order_items WHERE po_number = ?");
+      $deleteItemsStmt->bind_param('s', $poToDelete);
+      $deleteItemsStmt->execute();
+      $deletedItems = (int) $deleteItemsStmt->affected_rows;
+      $deleteItemsStmt->close();
+
+      $deleteHeaderStmt = $conn->prepare("DELETE FROM purchase_orders WHERE po_number = ?");
+      $deleteHeaderStmt->bind_param('s', $poToDelete);
+      $deleteHeaderStmt->execute();
+      $deletedHeaders = (int) $deleteHeaderStmt->affected_rows;
+      $deleteHeaderStmt->close();
+
+      if ($deletedHeaders < 1) {
+        $conn->rollback();
+        logAuditAction(
+          'delete',
+          'purchase_order',
+          $poToDelete,
+          ['po_number' => ['old' => $poToDelete, 'new' => null]],
+          'Purchase order delete failed: header not found',
+          'failed',
+          'Header row not found'
+        );
+        $conn->close();
+        redirect_po_list('purchase_orders_list.php?error=not_found');
+      }
+
+      $conn->commit();
+      logAuditAction(
+        'delete',
+        'purchase_order',
+        $poToDelete,
+        [
+          'po_number' => ['old' => $poToDelete, 'new' => null],
+          'supplier_name' => ['old' => (string) ($snapshotRow['supplier_name'] ?? ''), 'new' => null],
+          'deleted_item_rows' => ['old' => $deletedItems, 'new' => 0],
+        ],
+        'Purchase order deleted',
+        'success',
+        null
+      );
+      $conn->close();
+    } catch (Throwable $e) {
+      $conn->rollback();
+      $conn->close();
+      logAuditAction(
+        'delete',
+        'purchase_order',
+        $poToDelete,
+        ['po_number' => ['old' => $poToDelete, 'new' => null]],
+        'Purchase order delete failed',
+        'failed',
+        $e->getMessage()
+      );
+      redirect_po_list('purchase_orders_list.php?error=delete_failed');
+    }
   }
-  header('Location: purchase_orders_list.php');
-  exit;
+  redirect_po_list('purchase_orders_list.php');
 }
 
 function to_float($value) {

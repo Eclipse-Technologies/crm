@@ -3,6 +3,17 @@ include_once(__DIR__ . '/layout_start.php');
 require_once 'db_mysql.php';
 require_once 'inventory_mysql.php';
 require_once __DIR__ . '/request_guard.php';
+require_once __DIR__ . '/audit_handler.php';
+
+function redirect_po_add(string $url): void {
+  if (!headers_sent()) {
+    header('Location: ' . $url);
+    exit;
+  }
+  echo '<script>window.location.href=' . json_encode($url) . ';</script>';
+  echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"></noscript>';
+  exit;
+}
 
 
 $schema = require __DIR__ . '/purchase_order_schema.php';
@@ -80,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $updated_at = $created_at;
   $item_count = isset($_POST['item_id']) ? count($_POST['item_id']) : 0;
   $conn = get_mysql_connection();
+  $conn->begin_transaction();
   $selectedSupplierId = trim((string) ($_POST['supplier_id'] ?? ''));
   $selectedSupplierName = '';
   if ($selectedSupplierId !== '') {
@@ -123,15 +135,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
   $orderStmt = $conn->prepare('INSERT INTO purchase_orders (' . implode(',', $orderFields) . ') VALUES (' . $orderPlaceholders . ')');
   if (!$orderStmt) {
-    echo '<div style="color:red;">MySQL Prepare Error (orders): ' . htmlspecialchars($conn->error) . '</div>';
-    exit;
+    $conn->rollback();
+    logAuditAction('create', 'purchase_order', $po_number, ['po_number' => ['old' => null, 'new' => $po_number]], 'Purchase order create failed (prepare header)', 'failed', $conn->error);
+    $conn->close();
+    redirect_po_add('purchase_orders_list.php?error=create_failed');
   }
   $orderStmt->bind_param($orderTypes, ...$orderData);
   if (!$orderStmt->execute()) {
-    echo '<div style="color:red;">MySQL Execute Error (orders): ' . htmlspecialchars($orderStmt->error) . '</div>';
+    $error = $orderStmt->error;
     $orderStmt->close();
+    $conn->rollback();
+    logAuditAction('create', 'purchase_order', $po_number, ['po_number' => ['old' => null, 'new' => $po_number]], 'Purchase order create failed (execute header)', 'failed', $error);
     $conn->close();
-    exit;
+    redirect_po_add('purchase_orders_list.php?error=create_failed');
   }
   $orderStmt->close();
   // Insert items into purchase_order_items
@@ -154,22 +170,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $itemStmt = $conn->prepare('INSERT INTO purchase_order_items (' . implode(',', $itemFields) . ') VALUES (' . $itemPlaceholders . ')');
     if (!$itemStmt) {
-      echo '<div style="color:red;">MySQL Prepare Error (items): ' . htmlspecialchars($conn->error) . '</div>';
+      $conn->rollback();
+      logAuditAction('create', 'purchase_order', $po_number, ['po_number' => ['old' => null, 'new' => $po_number], 'item_count' => ['old' => 0, 'new' => $item_count]], 'Purchase order create failed (prepare item)', 'failed', $conn->error);
       $conn->close();
-      exit;
+      redirect_po_add('purchase_orders_list.php?error=create_failed');
     }
     $itemStmt->bind_param($itemTypes, ...$itemData);
     if (!$itemStmt->execute()) {
-      echo '<div style="color:red;">MySQL Execute Error (items): ' . htmlspecialchars($itemStmt->error) . '</div>';
+      $error = $itemStmt->error;
       $itemStmt->close();
+      $conn->rollback();
+      logAuditAction('create', 'purchase_order', $po_number, ['po_number' => ['old' => null, 'new' => $po_number], 'item_count' => ['old' => 0, 'new' => $item_count]], 'Purchase order create failed (execute item)', 'failed', $error);
       $conn->close();
-      exit;
+      redirect_po_add('purchase_orders_list.php?error=create_failed');
     }
     $itemStmt->close();
   }
+  $conn->commit();
+  logAuditAction(
+    'create',
+    'purchase_order',
+    $po_number,
+    [
+      'po_number' => ['old' => null, 'new' => $po_number],
+      'supplier_id' => ['old' => null, 'new' => $selectedSupplierId],
+      'supplier_name' => ['old' => null, 'new' => $selectedSupplierName],
+      'item_count' => ['old' => 0, 'new' => $item_count],
+      'grand_total' => ['old' => null, 'new' => (string) ($orderData[array_search('grand_total', $orderFields, true)] ?? '')],
+    ],
+    'Purchase order created',
+    'success',
+    null
+  );
   $conn->close();
-  header('Location: purchase_orders_list.php');
-  exit;
+  redirect_po_add('purchase_orders_list.php');
 }
 ?>
 <div class="container">
