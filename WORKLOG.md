@@ -3,6 +3,30 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-06 - Task Transaction Audit Smoke Guard
+
+### Scope
+
+- Add a lightweight smoke guard to prevent removal of task audit logging hooks from transaction endpoints.
+
+### Key Changes
+
+- Added static usage smoke test in tests/TaskTransactionAuditUsageSmokeTest.php.
+- Test verifies task transaction endpoints include audit handler wiring and expected logAuditAction usage thresholds.
+- Added runner script scripts/run-task-transaction-smoke.ps1 for one-command local execution.
+
+### Important Files
+
+- tests/TaskTransactionAuditUsageSmokeTest.php
+- scripts/run-task-transaction-smoke.ps1
+- WORKLOG.md
+
+### Validation
+
+- `php -l tests/TaskTransactionAuditUsageSmokeTest.php` passed.
+- `powershell -ExecutionPolicy Bypass -File scripts/run-task-transaction-smoke.ps1` passed.
+- VS Code diagnostics report no errors in new files.
+
 ## 2026-06-06 - Task Transaction Audit Coverage
 
 ### Scope
