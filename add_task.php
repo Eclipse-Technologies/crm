@@ -6,7 +6,7 @@ require_once __DIR__ . '/simple_auth/middleware.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        header('Location: index.php?error=invalid_request');
+        header('Location: tasks.php?error=invalid_request');
         exit;
     }
     $title = trim($_POST['title']);
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($errors)) {
         echo "<div style='color:red;'><strong>Error:</strong><ul>";
         foreach ($errors as $error) echo "<li>" . htmlspecialchars($error) . "</li>";
-        echo "</ul></div><a href='index.php'>Go back</a>";
+        echo "</ul></div><a href='tasks.php'>Go back</a>";
         exit;
     }
 
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'attachment' => $attachment
     ];
     insert_task_mysql($task);
-    header('Location: index.php');
+    header('Location: tasks.php?success=added');
     exit;
 }
 ?>

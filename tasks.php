@@ -626,6 +626,7 @@ function status_badge($status) {
             <form method="POST" action="delete_task.php" style="display:inline;" onsubmit="return confirm('Delete this task?');">
               <?php renderCSRFInput(); ?>
               <input type="hidden" name="id" value="<?= htmlspecialchars($task['id']) ?>">
+              <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
               <button type="submit" style="background:none;border:none;color:#c00;font-weight:600;cursor:pointer;padding:0;">Delete</button>
             </form>
           </td>

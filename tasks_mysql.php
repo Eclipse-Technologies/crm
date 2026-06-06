@@ -87,3 +87,13 @@ function update_task_mysql($id, $fields) {
 function archive_task_mysql($id) {
     return update_task_mysql($id, ['status' => 'archived']);
 }
+
+function delete_task_mysql($id) {
+    $conn = get_mysql_connection();
+    $stmt = $conn->prepare("DELETE FROM tasks WHERE id = ?");
+    $stmt->bind_param('s', $id);
+    $result = $stmt->execute();
+    $stmt->close();
+    $conn->close();
+    return $result;
+}

@@ -3,6 +3,41 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-06 - Tasks Delete + Redirect Regression Fix
+
+### Scope
+
+- Fix task deletion so rows are actually removed, and keep task actions on tasks.php instead of routing to index/calendar views.
+
+### Key Changes
+
+- Added hard-delete helper `delete_task_mysql($id)` in tasks_mysql.php.
+- Updated delete_task.php to:
+  - perform hard delete via `delete_task_mysql`,
+  - preserve allowed filter query params (`view`, `status`, `assignee`) from `return_query`,
+  - redirect back to tasks.php with `success=deleted`.
+- Updated tasks.php delete form to submit `return_query` so user context is retained.
+- Updated edit_task.php post-submit redirect from index.php to tasks.php.
+- Updated add_task.php redirects (`invalid_request`, validation back-link, success) to tasks.php for page consistency.
+
+### Important Files
+
+- tasks_mysql.php
+- delete_task.php
+- tasks.php
+- edit_task.php
+- add_task.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l delete_task.php` passed.
+- `php -l tasks_mysql.php` passed.
+- `php -l tasks.php` passed.
+- `php -l edit_task.php` passed.
+- `php -l add_task.php` passed.
+- VS Code diagnostics report no errors in modified files.
+
 ## 2026-06-05 - Tasks Fallback Notice Actions
 
 ### Scope

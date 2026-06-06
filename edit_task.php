@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'timestamp' => $_POST['timestamp']
     ];
     update_task_mysql($taskToEdit['id'], $fields);
-    header('Location: index.php');
+    header('Location: tasks.php?success=updated');
     exit;
 }
 ?>
