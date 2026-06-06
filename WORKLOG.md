@@ -3,6 +3,31 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-06 - Supplier Form Implementation (Slice 4)
+
+### Scope
+
+- Implement the purchase-order supplier form page linked from the PO list (purchase_order_summary.php), which was previously empty.
+
+### Key Changes
+
+- Built purchase_order_summary.php as a MySQL-backed supplier-facing PO summary page.
+- Added robust loading for PO header + item rows from purchase_orders and purchase_order_items.
+- Added computed totals fallback logic when header totals are blank (subtotal/tax/grand total).
+- Added supplier details, PO metadata, addresses, notes, item table, and totals sections.
+- Added print action and print-friendly CSS handling for a clean supplier document output.
+
+### Important Files
+
+- purchase_order_summary.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l purchase_order_summary.php` passed.
+- VS Code diagnostics report no errors in modified files.
+- Browser verification confirmed purchase_order_summary.php renders and is accessible from PO workflow links.
+
 ## 2026-06-06 - Backorders MySQL Migration (Slice 3)
 
 ### Scope
