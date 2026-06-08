@@ -16,11 +16,20 @@ ServerSignature Off
   Require all denied
 </Files>
 
+<FilesMatch "^(\.env(\..*)?|config(\.local)?\.php|composer\.(json|lock)|\.cpanel\.yml)$">
+  Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(sql|log|bak)$">
+  Require all denied
+</FilesMatch>
+
 # Block direct access to internal/deprecated trees
 RewriteEngine On
 RewriteRule ^DEPRICATED(/|$) - [F,L,NC]
 RewriteRule ^libraries(/|$) - [F,L,NC]
 RewriteRule ^setup(/|$) - [F,L,NC]
+RewriteRule ^(backups|logs)(/|$) - [F,L,NC]
 
 # Force HTTPS in production (safe behind typical proxies)
 RewriteCond %{HTTPS} !=on

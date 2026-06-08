@@ -10,6 +10,9 @@ simple_auth/sessions/
 *.log
 GODADDY_DEPLOYMENT_CHECKLIST.md
 .env
+.env.*
+!.env.example
+!.env.production.template
 node_modules/
 .DS_Store
 *.csv
@@ -18,3 +21,5 @@ test_write.txt
 deploy_artifacts/
 cmrdb_godaddy.sql
 PHP Server (localhost
+.cpanel.yml
+.env.runtime

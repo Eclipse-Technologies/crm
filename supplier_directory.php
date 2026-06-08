@@ -263,8 +263,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $form['supplier_id'] = $supplierId;
         }
 
-        if (!preg_match('/^[A-Z0-9\-]+$/', $supplierId)) {
-            $errors[] = 'Supplier ID can contain only letters, numbers, and dashes.';
+        if (preg_match('/^[0-9]+$/', $supplierId)) {
+            $supplierId = 'SUP-' . str_pad($supplierId, 4, '0', STR_PAD_LEFT);
+            $form['supplier_id'] = $supplierId;
+        } elseif (preg_match('/^SUP-(\d{1,4})$/', $supplierId, $matches)) {
+            $supplierId = 'SUP-' . str_pad($matches[1], 4, '0', STR_PAD_LEFT);
+            $form['supplier_id'] = $supplierId;
+        }
+
+        if (!preg_match('/^SUP-\d{4}$/', $supplierId)) {
+            $errors[] = 'Supplier ID must use SUP-#### format (example: SUP-0001).';
         }
 
         $excludeId = $action === 'update' ? $postedId : null;

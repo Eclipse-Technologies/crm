@@ -3,6 +3,64 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-06-08 - Security Hardening + Secret Containment (Incident Response Slice)
+
+### Scope
+
+- Reduce repository/webserver exposure risk after credential compromise concern.
+
+### Key Changes
+
+- Hardened git ignore policy in .gitignore for env/runtime patterns and sensitive artifacts.
+- Hardened Apache rules in .htaccess to deny env/config/sql/log/bak access and internal directories.
+- Hardened IIS rules in web.config with denied extensions, hidden segments, and deny rewrite for sensitive files.
+- Sanitized tracked .env.runtime values to placeholders (removed live credential values from tracked runtime file).
+- Added scripts/security-secret-scan.ps1 for local pre-push credential scanning.
+
+### Important Files
+
+- .gitignore
+- .htaccess
+- web.config
+- .env.runtime
+- scripts/security-secret-scan.ps1
+- WORKLOG.md
+
+### Validation
+
+- VS Code diagnostics report no errors in modified files.
+- Secret scan script run: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/security-secret-scan.ps1` => pass.
+
+## 2026-06-06 - Supplier ID + PO Supplier Master Reference (Slice 6)
+
+### Scope
+
+- Align supplier ID behavior to contact-style numeric IDs.
+- Make purchase order supplier fields reference supplier master details directly.
+
+### Key Changes
+
+- Updated supplier ID generation in supplier_directory.php:
+  - next ID is now numeric max+1 from existing numeric supplier IDs,
+  - validation now enforces numeric supplier IDs,
+  - form placeholder updated to numeric style.
+- Updated purchase_order_add.php supplier integration:
+  - supplier dropdown now carries supplier contact/address metadata from suppliers table,
+  - selecting a supplier auto-fills supplier name/contact/address fields in the PO form,
+  - POST create flow now sources supplier_name, supplier_contact, and supplier_address from supplier master (server-side), so PO references the supplier database record consistently.
+
+### Important Files
+
+- supplier_directory.php
+- purchase_order_add.php
+- WORKLOG.md
+
+### Validation
+
+- `php -l supplier_directory.php` passed.
+- `php -l purchase_order_add.php` passed.
+- VS Code diagnostics report no errors in modified files.
+
 ## 2026-06-06 - Supplier Form Template Refinement (Slice 5)
 
 ### Scope

@@ -53,9 +53,33 @@ $supplierConn->query("CREATE TABLE IF NOT EXISTS suppliers (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_supplier_name (supplier_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-$supplierResult = $supplierConn->query("SELECT supplier_id, supplier_name FROM suppliers WHERE is_active = 1 ORDER BY supplier_name ASC, supplier_id ASC");
+$supplierResult = $supplierConn->query("SELECT supplier_id, supplier_name, contact_name, email, phone, address_line1, address_line2, city, state_province, postal_code, country FROM suppliers WHERE is_active = 1 ORDER BY supplier_name ASC, supplier_id ASC");
 if ($supplierResult instanceof mysqli_result) {
   while ($row = $supplierResult->fetch_assoc()) {
+    $contactParts = [];
+    $contactName = trim((string) ($row['contact_name'] ?? ''));
+    $email = trim((string) ($row['email'] ?? ''));
+    $phone = trim((string) ($row['phone'] ?? ''));
+    if ($contactName !== '') {
+      $contactParts[] = $contactName;
+    }
+    if ($email !== '') {
+      $contactParts[] = $email;
+    }
+    if ($phone !== '') {
+      $contactParts[] = $phone;
+    }
+
+    $addressParts = [];
+    foreach (['address_line1', 'address_line2', 'city', 'state_province', 'postal_code', 'country'] as $addressKey) {
+      $part = trim((string) ($row[$addressKey] ?? ''));
+      if ($part !== '') {
+        $addressParts[] = $part;
+      }
+    }
+
+    $row['supplier_contact'] = implode(' | ', $contactParts);
+    $row['supplier_address'] = implode("\n", $addressParts);
     $supplierOptions[] = $row;
   }
   $supplierResult->free();
@@ -63,11 +87,11 @@ if ($supplierResult instanceof mysqli_result) {
 $supplierConn->close();
 
 function generate_po_number() {
-  $prefix = 'EWTPO' . date('Ymd');
+  $prefix = 'EWTPO';
   $conn = get_mysql_connection();
-  $count = 1;
-  while (true) {
-    $po_number = $prefix . str_pad($count, 3, '0', STR_PAD_LEFT);
+  $sequence = random_int(50, 100);
+  while ($sequence <= 99999) {
+    $po_number = $prefix . str_pad((string) $sequence, 5, '0', STR_PAD_LEFT);
     $stmt = $conn->prepare("SELECT 1 FROM purchase_orders WHERE po_number = ? LIMIT 1");
     $stmt->bind_param('s', $po_number);
     $stmt->execute();
@@ -77,9 +101,12 @@ function generate_po_number() {
       break;
     }
     $stmt->close();
-    $count++;
+    $sequence++;
   }
   $conn->close();
+  if (!isset($po_number) || $po_number === '') {
+    $po_number = $prefix . str_pad((string) random_int(50, 100), 5, '0', STR_PAD_LEFT);
+  }
   return $po_number;
 }
 
@@ -94,8 +121,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $conn->begin_transaction();
   $selectedSupplierId = trim((string) ($_POST['supplier_id'] ?? ''));
   $selectedSupplierName = '';
+  $selectedSupplierContact = '';
+  $selectedSupplierAddress = '';
   if ($selectedSupplierId !== '') {
-    $supplierStmt = $conn->prepare('SELECT supplier_name FROM suppliers WHERE supplier_id = ? LIMIT 1');
+    $supplierStmt = $conn->prepare('SELECT supplier_name, contact_name, email, phone, address_line1, address_line2, city, state_province, postal_code, country FROM suppliers WHERE supplier_id = ? LIMIT 1');
     $supplierStmt->bind_param('s', $selectedSupplierId);
     $supplierStmt->execute();
     $supplierRes = $supplierStmt->get_result();
@@ -104,6 +133,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $supplierStmt->close();
     if ($supplierRow) {
       $selectedSupplierName = (string) ($supplierRow['supplier_name'] ?? '');
+
+      $contactParts = [];
+      foreach (['contact_name', 'email', 'phone'] as $contactKey) {
+        $part = trim((string) ($supplierRow[$contactKey] ?? ''));
+        if ($part !== '') {
+          $contactParts[] = $part;
+        }
+      }
+      $selectedSupplierContact = implode(' | ', $contactParts);
+
+      $addressParts = [];
+      foreach (['address_line1', 'address_line2', 'city', 'state_province', 'postal_code', 'country'] as $addressKey) {
+        $part = trim((string) ($supplierRow[$addressKey] ?? ''));
+        if ($part !== '') {
+          $addressParts[] = $part;
+        }
+      }
+      $selectedSupplierAddress = implode("\n", $addressParts);
     }
   }
   // Insert into purchase_orders (header)
@@ -120,6 +167,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($f === 'date') $val = $date;
     if ($f === 'created_at' || $f === 'updated_at') $val = $created_at;
     if ($f === 'supplier_name') $val = $selectedSupplierName;
+    if ($f === 'supplier_contact') $val = $selectedSupplierContact;
+    if ($f === 'supplier_address') $val = $selectedSupplierAddress;
     if (in_array($f, $decimalFields)) {
       $orderData[] = ($val === '' ? null : (float)$val);
     } elseif (in_array($f, $dateFields)) {
@@ -224,7 +273,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <option value="">-- Select Supplier --</option>
               <?php foreach ($supplierOptions as $supplier): ?>
                 <?php $sid = (string) ($supplier['supplier_id'] ?? ''); ?>
-                <option value="<?= htmlspecialchars($sid) ?>" data-name="<?= htmlspecialchars((string) ($supplier['supplier_name'] ?? '')) ?>" <?= ($_POST['supplier_id'] ?? '') === $sid ? 'selected' : '' ?>>
+                <option value="<?= htmlspecialchars($sid) ?>"
+                        data-name="<?= htmlspecialchars((string) ($supplier['supplier_name'] ?? '')) ?>"
+                        data-contact="<?= htmlspecialchars((string) ($supplier['supplier_contact'] ?? '')) ?>"
+                        data-address="<?= htmlspecialchars((string) ($supplier['supplier_address'] ?? '')) ?>"
+                        <?= ($_POST['supplier_id'] ?? '') === $sid ? 'selected' : '' ?>>
                   <?= htmlspecialchars($sid . ' - ' . ((string) ($supplier['supplier_name'] ?? ''))) ?>
                 </option>
               <?php endforeach; ?>
@@ -392,13 +445,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       const supplierSelect = document.getElementById('supplier_id');
       const supplierName = document.getElementById('supplier_name');
+      const supplierContact = document.getElementById('supplier_contact');
+      const supplierAddress = document.getElementById('supplier_address');
       if (supplierSelect && supplierName) {
-        const syncSupplierName = function() {
+        const syncSupplierFields = function() {
           const selectedOption = supplierSelect.options[supplierSelect.selectedIndex];
           supplierName.value = selectedOption ? (selectedOption.getAttribute('data-name') || '') : '';
+          if (supplierContact) {
+            supplierContact.value = selectedOption ? (selectedOption.getAttribute('data-contact') || '') : '';
+          }
+          if (supplierAddress) {
+            supplierAddress.value = selectedOption ? (selectedOption.getAttribute('data-address') || '') : '';
+          }
         };
-        supplierSelect.addEventListener('change', syncSupplierName);
-        syncSupplierName();
+        supplierSelect.addEventListener('change', syncSupplierFields);
+        syncSupplierFields();
       }
     });
   </script>
