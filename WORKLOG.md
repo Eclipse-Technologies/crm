@@ -3,6 +3,29 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-07-15 - CRM Database Connection Fallback Hardening
+
+### Scope
+
+- Prevent placeholder runtime database credentials from breaking the live CRM database connection path.
+
+### Key Changes
+
+- Updated db_mysql.php to ignore placeholder environment values such as <runtime_db_name> and <runtime_db_password> when building MySQL connection settings.
+- Updated config.local.php to treat placeholder values as absent so the app falls back to real config instead of failing connection attempts.
+- Added a regression smoke test at tests/DbMysqlEnvSmokeTest.php to lock in the behavior.
+
+### Important Files
+
+- db_mysql.php
+- config.local.php
+- tests/DbMysqlEnvSmokeTest.php
+- WORKLOG.md
+
+### Validation
+
+- Ran `php .\tests\DbMysqlEnvSmokeTest.php` => PASS.
+
 ## 2026-06-08 - Security Hardening + Secret Containment (Incident Response Slice)
 
 ### Scope

@@ -5,7 +5,21 @@ load_env();
 
 function crm_get_env(string $name): string {
     $value = getenv($name);
-    return $value === false ? '' : trim((string)$value);
+    if ($value === false) {
+        return '';
+    }
+
+    $trimmed = trim((string) $value);
+    if ($trimmed === '') {
+        return '';
+    }
+
+    $placeholderPattern = '/^<(?:[^>]+)>$/i';
+    if (preg_match($placeholderPattern, $trimmed) === 1) {
+        return '';
+    }
+
+    return $trimmed;
 }
 
 function crm_first_env(array $names): string {
