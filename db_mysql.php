@@ -41,18 +41,31 @@ function crm_infer_cpanel_account(): string {
 }
 
 function crm_build_connection_candidates(string $host, string $dbname, string $user, string $password, bool $isLocal): array {
-    $primary = [
-        'host' => $host,
-        'dbname' => $dbname,
-        'user' => $user,
-        'password' => $password,
-        'label' => 'primary',
+    $variants = [
+        [
+            'host' => $host,
+            'dbname' => $dbname,
+            'user' => $user,
+            'password' => $password,
+            'label' => 'primary',
+        ],
     ];
 
-    $candidates = [$primary];
+    foreach (['cmrdb', 'crmdb', 'crmdb1', 'cmrdb1'] as $fallbackDb) {
+        if ($fallbackDb === '' || $fallbackDb === $dbname) {
+            continue;
+        }
+        $variants[] = [
+            'host' => $host,
+            'dbname' => $fallbackDb,
+            'user' => $user,
+            'password' => $password,
+            'label' => 'fallback-' . $fallbackDb,
+        ];
+    }
 
     if ($isLocal) {
-        return $candidates;
+        return $variants;
     }
 
     $account = crm_first_env(['CPANEL_ACCOUNT', 'CPANEL_DB_PREFIX']);
@@ -61,7 +74,7 @@ function crm_build_connection_candidates(string $host, string $dbname, string $u
     }
 
     if ($account === '') {
-        return $candidates;
+        return $variants;
     }
 
     $accountPrefix = $account . '_';
@@ -74,13 +87,12 @@ function crm_build_connection_candidates(string $host, string $dbname, string $u
     $seen = [];
     $built = [];
 
-    $variants = [
+    $additionalVariants = [
         ['label' => 'cpanel-prefixed', 'host' => $host, 'dbname' => $prefixedDb, 'user' => $prefixedUser, 'password' => $password],
-        ['label' => 'primary', 'host' => $host, 'dbname' => $dbname, 'user' => $user, 'password' => $password],
         ['label' => 'cpanel-unprefixed', 'host' => $host, 'dbname' => $strippedDb, 'user' => $strippedUser, 'password' => $password],
     ];
 
-    foreach ($variants as $variant) {
+    foreach (array_merge($variants, $additionalVariants) as $variant) {
         $key = $variant['user'] . '|' . $variant['dbname'];
         if (isset($seen[$key])) {
             continue;
@@ -89,9 +101,7 @@ function crm_build_connection_candidates(string $host, string $dbname, string $u
         $built[] = $variant;
     }
 
-    $candidates = $built;
-
-    return $candidates;
+    return $built;
 }
 
 function get_mysql_connection() {
@@ -163,6 +173,23 @@ function get_mysql_connection() {
     }
 
     error_log('MySQL connection attempts failed. ' . implode(' | ', $errors));
+
+    $debugEnabled = in_array(strtolower((string) crm_get_env('CRM_DB_DEBUG')), ['1', 'true', 'yes', 'on'], true);
+    $requestDebug = isset($_GET['crm_db_debug']) || isset($_GET['db_debug']);
+    if ($debugEnabled || $requestDebug) {
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo "Database connection failed.\n";
+        echo "server_name=" . ($_SERVER['SERVER_NAME'] ?? 'unknown') . "\n";
+        echo "resolved_host=" . $host . "\n";
+        echo "resolved_dbname=" . $dbname . "\n";
+        echo "resolved_user=" . $user . "\n";
+        echo "resolved_password_present=" . ($password !== '' ? 'yes' : 'no') . "\n";
+        foreach ($errors as $error) {
+            echo $error . "\n";
+        }
+        exit;
+    }
+
     die('Database connection error. Please contact support.');
 }
 ?>

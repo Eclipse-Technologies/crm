@@ -3,6 +3,28 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-07-16 - Production Database Name Alignment
+
+### Scope
+
+- Align the CRM production connection path with the actual MySQL database name on the live server.
+
+### Key Changes
+
+- Updated the production environment value in .env to use the correct database name, cmrdb.
+- Expanded db_mysql.php connection fallback attempts to try the known CRM database variants if the configured name is not accepted by MySQL.
+
+### Important Files
+
+- .env
+- db_mysql.php
+- WORKLOG.md
+
+### Validation
+
+- Ran `php -l db_mysql.php` => no syntax errors.
+- Confirmed the resolved production DB name from the workspace env now evaluates to cmrdb.
+
 ## 2026-07-15 - CRM Database Connection Fallback Hardening
 
 ### Scope
