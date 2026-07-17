@@ -3,6 +3,27 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-07-17 - Login Landing Normalization
+
+### Scope
+
+- Ensure successful login from the site root lands on `index.php` instead of preserving `/` as the final URL.
+
+### Key Changes
+
+- Updated `simple_auth/login.php` to normalize root-style redirect targets (`/`, base path, base path with trailing slash) to `/index.php`.
+- Changed the default post-login fallback target from `contacts_list.php` to `index.php`.
+
+### Important Files
+
+- simple_auth/login.php
+- WORKLOG.md
+
+### Validation
+
+- Ran `php -l simple_auth/login.php` => no syntax errors.
+- VS Code diagnostics for simple_auth/login.php => no errors.
+
 ## 2026-07-17 - Config Consistency And Probe Cleanup
 
 ### Scope

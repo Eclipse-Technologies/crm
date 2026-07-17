@@ -45,7 +45,26 @@ $scriptSegments = $scriptDir === '' ? [] : explode('/', $scriptDir);
 array_pop($scriptSegments);
 $basePath = empty($scriptSegments) ? '' : '/' . implode('/', $scriptSegments);
 $loginPath = ($basePath === '' ? '' : $basePath) . '/simple_auth/login.php';
-$defaultTarget = ($basePath === '' ? '' : $basePath) . '/contacts_list.php';
+$defaultTarget = ($basePath === '' ? '' : $basePath) . '/index.php';
+
+$resolveLoginTarget = static function (?string $redirect, string $fallback, string $basePath): string {
+    $redirect = trim((string) $redirect);
+    if ($redirect === '') {
+        return $fallback;
+    }
+
+    $rootCandidates = ['/'];
+    if ($basePath !== '') {
+        $rootCandidates[] = $basePath;
+        $rootCandidates[] = $basePath . '/';
+    }
+
+    if (in_array($redirect, $rootCandidates, true)) {
+        return $fallback;
+    }
+
+    return strpos($redirect, '/') === 0 ? $redirect : $fallback;
+};
 
 if ($reason === 'session_expired') {
     $notice = 'Your session expired. Please sign in again.';
@@ -58,7 +77,7 @@ if ($reason === 'session_expired') {
 // Check if already logged in
 if ($auth->isAuthenticated()) {
     $redirect = $_GET['redirect'] ?? $_POST['redirect'] ?? '';
-    $target = ($redirect && strpos($redirect, '/') === 0) ? $redirect : $defaultTarget;
+    $target = $resolveLoginTarget($redirect, $defaultTarget, $basePath);
     if (!headers_sent()) {
         header('Location: ' . $target);
         exit;
@@ -80,13 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $result = $auth->login($usernameOrEmail, $password, $rememberMe);
         if ($result['success']) {
-            // Redirect to the URL in the 'redirect' parameter if present, else to /index.php
             $redirect = $_GET['redirect'] ?? $_POST['redirect'] ?? '';
-            if ($redirect && strpos($redirect, '/') === 0) {
-                header('Location: ' . $redirect);
-            } else {
-                header('Location: ' . $defaultTarget);
-            }
+            header('Location: ' . $resolveLoginTarget($redirect, $defaultTarget, $basePath));
             exit;
         } else {
             $error = $result['error'] ?? 'Login failed. Please try again.';
