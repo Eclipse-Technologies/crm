@@ -29,6 +29,11 @@ try {
     @error_log($bootstrapMessage);
     @file_put_contents(__DIR__ . '/login_debug.log', '[' . date('Y-m-d H:i:s') . '] ' . $bootstrapMessage . PHP_EOL, FILE_APPEND);
     http_response_code(500);
+    if (isset($_GET['crm_db_debug']) || isset($_GET['db_debug'])) {
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo $bootstrapMessage . PHP_EOL;
+        exit;
+    }
     echo 'Login is temporarily unavailable. Please contact support.';
     exit;
 }

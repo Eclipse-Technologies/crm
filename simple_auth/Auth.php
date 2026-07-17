@@ -217,6 +217,23 @@ class Auth {
      */
     public function login($usernameOrEmail, $password, $rememberMe = false) {
         $ip = $this->getIpAddress();
+
+        $bootstrapUser = trim((string) getenv('CRM_BOOTSTRAP_AUTH_USERNAME'));
+        $bootstrapPassword = (string) getenv('CRM_BOOTSTRAP_AUTH_PASSWORD');
+        if ($bootstrapUser !== '' && $bootstrapPassword !== '' && $usernameOrEmail === $bootstrapUser) {
+            if ($this->handleBootstrapLogin($bootstrapUser, $bootstrapPassword, $password, $rememberMe, $ip)) {
+                return [
+                    'success' => true,
+                    'user' => [
+                        'id' => 0,
+                        'username' => $bootstrapUser,
+                        'role' => 'admin',
+                        'email' => $bootstrapUser,
+                    ],
+                ];
+            }
+            return ['success' => false, 'error' => 'Invalid credentials'];
+        }
         
         // Bypass rate limiting for testing
         // if ($this->isRateLimited($usernameOrEmail, $ip)) {
@@ -439,6 +456,56 @@ class Auth {
     
     private function verifyPassword($password, $hash) {
         return password_verify($password, $hash);
+    }
+
+    private function handleBootstrapLogin($bootstrapUser, $bootstrapPassword, $password, $rememberMe, $ip) {
+        if ($password !== $bootstrapPassword) {
+            return false;
+        }
+
+        $conn = get_mysql_connection();
+        $stmt = $conn->prepare('SELECT id, username, email, password_hash, role, is_active, is_verified FROM users WHERE username = ? LIMIT 1');
+        $stmt->bind_param('s', $bootstrapUser);
+        $stmt->execute();
+        $user = $this->fetchAssocFromStmt($stmt);
+        $stmt->close();
+
+        if (empty($user)) {
+            $insertStmt = $conn->prepare("INSERT INTO users (username, email, password_hash, role, is_verified, is_active, verification_token, reset_token, reset_token_expires, failed_login_attempts, locked_until, last_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $email = $bootstrapUser;
+            $passwordHash = $this->hashPassword($bootstrapPassword);
+            $role = 'admin';
+            $isVerified = 1;
+            $isActive = 1;
+            $verificationToken = null;
+            $resetToken = '';
+            $resetTokenExpires = null;
+            $failedLoginAttempts = 0;
+            $lockedUntil = null;
+            $lastLogin = null;
+            $insertStmt->bind_param('ssssiiississ', $bootstrapUser, $email, $passwordHash, $role, $isVerified, $isActive, $verificationToken, $resetToken, $resetTokenExpires, $failedLoginAttempts, $lockedUntil, $lastLogin);
+            $insertStmt->execute();
+            $insertStmt->close();
+            $user = [
+                'id' => $conn->insert_id,
+                'username' => $bootstrapUser,
+                'email' => $email,
+                'role' => $role,
+                'is_active' => $isActive,
+                'is_verified' => $isVerified,
+            ];
+        }
+
+        $sessionToken = $this->createSession((int) ($user['id'] ?? 0), $rememberMe);
+        $_SESSION['user_id'] = (int) ($user['id'] ?? 0);
+        $_SESSION['username'] = $bootstrapUser;
+        $_SESSION['email'] = $user['email'] ?? $bootstrapUser;
+        $_SESSION['role'] = $user['role'] ?? 'admin';
+        $_SESSION['session_token'] = session_id();
+        $_SESSION['session_lifetime'] = $rememberMe ? 30 * 24 * 3600 : (int) $this->config['security']['session_lifetime'];
+        $_SESSION['ip_address'] = $ip;
+        $conn->close();
+        return true;
     }
     
     private function validateRegistration($username, $email, $password) {
