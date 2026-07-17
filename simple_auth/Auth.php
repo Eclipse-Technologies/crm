@@ -14,10 +14,9 @@ class Auth {
      * Wipe all users and session tokens (for testing/cleanup)
      */
     public function wipeAllUsersAndSessions() {
-        // Remove all users
-        $this->store->truncate('users');
-        // Remove all sessions from SQL
         $conn = get_mysql_connection();
+        // Remove all users and sessions from SQL-backed tables.
+        $conn->query('DELETE FROM users');
         $conn->query('DELETE FROM sessions');
         $conn->close();
         // Optionally clear current session
@@ -496,24 +495,35 @@ class Auth {
      * Change user password
      */
     public function changePassword($userId, $oldPassword, $newPassword) {
-        $user = $this->store->fetchOne('users', ['id' => (string)$userId]);
+        $conn = get_mysql_connection();
+        $stmt = $conn->prepare('SELECT id, password_hash FROM users WHERE id = ? LIMIT 1');
+        $stmt->bind_param('i', $userId);
+        $stmt->execute();
+        $user = $this->fetchAssocFromStmt($stmt);
+        $stmt->close();
         
         if (!$user) {
+            $conn->close();
             return ['success' => false, 'error' => 'User not found'];
         }
         
         if (!$this->verifyPassword($oldPassword, $user['password_hash'])) {
+            $conn->close();
             return ['success' => false, 'error' => 'Current password is incorrect'];
         }
         
         $validation = $this->validatePassword($newPassword);
         if (!$validation['valid']) {
+            $conn->close();
             return ['success' => false, 'errors' => $validation['errors']];
         }
         
         $newHash = $this->hashPassword($newPassword);
-        // $this->store->update('users', ['password_hash' => $newHash], ['id' => (string)$userId]); // CSV support removed
-        // Implement SQL password update here
+        $updateStmt = $conn->prepare('UPDATE users SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = ?');
+        $updateStmt->bind_param('si', $newHash, $userId);
+        $updateStmt->execute();
+        $updateStmt->close();
+        $conn->close();
         
         $this->logActivity($userId, 'password_changed', 'User changed password');
         

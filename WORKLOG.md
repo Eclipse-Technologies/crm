@@ -3,6 +3,29 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-07-16 - Auth Runtime Fatal Removal (Blank Page Follow-Up)
+
+### Scope
+
+- Remove remaining legacy CSV-store references in auth methods that could trigger runtime fatals and appear as blank pages.
+
+### Key Changes
+
+- Updated simple_auth/Auth.php:
+  - Replaced wipeAllUsersAndSessions() CSV call with SQL deletes for users/sessions.
+  - Replaced changePassword() CSV fetch/update flow with MySQL select/update statements.
+- Kept behavior consistent while removing references to undefined `$this->store`.
+
+### Important Files
+
+- simple_auth/Auth.php
+- WORKLOG.md
+
+### Validation
+
+- Ran `php -l simple_auth/Auth.php` => no syntax errors.
+- VS Code diagnostics for simple_auth/Auth.php => no errors.
+
 ## 2026-07-16 - Auth Bootstrap Recovery For Login Lockout
 
 ### Scope
