@@ -27,6 +27,11 @@ This document captures key lessons, recurring errors, and communication improvem
 - Environment precedence rule: server `.env` must be authoritative in production; git-tracked runtime env files should only be fallback when server `.env` is absent.
 - Git deployment with `rsync --delete` can remove server-only secrets; always exclude `.env` from deployment sync and verify this rule after pipeline edits.
 - Temporary diagnostics endpoints are useful for live auth triage but must be removed immediately after resolution.
+- cPanel deployment-path rule: a successful `git pull` in the repository checkout does not mean the live site is updated. Always confirm the actual document root and, when the live site is a separate plain folder, rsync from the repo checkout into that exact docroot.
+- Apache "unable to read htaccess file" rule: if 403 persists even after temporarily renaming the suspected `.htaccess`, the blocker is not that file's contents. Treat it as a higher-level vhost/docroot/permission issue before changing app code again.
+- Live-path verification rule: when a subdomain may point at the wrong folder, add a temporary probe to a known reachable endpoint and verify it over HTTP before assuming deploys are landing in the served tree.
+- Shared-include fatal rule: helper/config files that are `require`d from multiple top-level includes must wrap global function declarations in `function_exists(...)` guards, or authenticated pages can fail with blank 200 responses from redeclaration fatals.
+- Mixed storage migration rule: when a module has already moved to MySQL, remove or rewrite any leftover file-based constants/variables in shared helpers immediately; stale file-mode code in a shared include can break unrelated authenticated pages.
 - For phased feature rollouts that add DB columns/tables, guard UI queries and update handlers with runtime column checks (`SHOW COLUMNS ...`) so pages stay usable before and after migration runs.
 - Use proper link/button types for UI actions (e.g., mailto: for email, window.location for redirects).
 - Validate that all quick-action buttons perform their intended function, not just alerts.
