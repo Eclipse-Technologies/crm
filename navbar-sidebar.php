@@ -4,6 +4,27 @@ require_once __DIR__ . '/simple_auth/middleware.php';
 $authPathPrefix = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 $authPathPrefix = $authPathPrefix === '' ? '' : '/' . $authPathPrefix;
 
+if (!function_exists('crm_safe_count_query')) {
+  function crm_safe_count_query(string $sql): int {
+    try {
+      require_once __DIR__ . '/db_mysql.php';
+      $conn = get_mysql_connection();
+      $result = $conn->query($sql);
+      $count = 0;
+      if ($result) {
+        $row = $result->fetch_row();
+        $count = isset($row[0]) ? (int) $row[0] : 0;
+        $result->free();
+      }
+      $conn->close();
+      return $count;
+    } catch (Throwable $e) {
+      error_log('navbar-sidebar count query failed: ' . $e->getMessage());
+      return 0;
+    }
+  }
+}
+
 // Notification counts (overdue tasks + contracts expiring within 30 days)
 $_notif_overdue_tasks = 0;
 $_notif_expiring_contracts = 0;
@@ -102,15 +123,7 @@ $initials = strtoupper(substr($user_name, 0, 2));
           <a href="contacts_list.php" class="nav-link <?= $currentPage === 'contacts_list.php' ? 'active' : '' ?>">
             <span class="nav-icon">👥</span>
             <span>All Contacts</span>
-            <?php 
-            require_once 'db_mysql.php';
-            $conn = get_mysql_connection();
-            $result = $conn->query('SELECT COUNT(*) AS cnt FROM contacts');
-            $row = $result ? $result->fetch_assoc() : null;
-            $contact_count = $row ? (int)$row['cnt'] : 0;
-            $result && $result->free();
-            $conn->close();
-            ?>
+            <?php $contact_count = crm_safe_count_query('SELECT COUNT(*) FROM contacts'); ?>
             <span class="nav-badge"><?= $contact_count ?></span>
           </a>
         </li>
@@ -158,11 +171,7 @@ $initials = strtoupper(substr($user_name, 0, 2));
         </li>
       </ul>
     </div>
-    <?php
-    require_once __DIR__ . '/simple_auth/middleware.php';
-    // Sidebar navbar code here
-    ?>
-    
+
     <!-- SALES SECTION -->
     <div class="nav-section">
       <div class="nav-section-title">Sales</div>
@@ -212,15 +221,7 @@ $initials = strtoupper(substr($user_name, 0, 2));
       </style>
             <span class="nav-icon">📄</span>
             <span>All Contracts</span>
-            <?php 
-            $conn = get_mysql_connection();
-            $result = $conn->query('SELECT COUNT(*) AS cnt FROM contracts');
-            $row = $result ? $result->fetch_assoc() : null;
-            $contracts_count = $row ? (int)$row['cnt'] : 0;
-            $result && $result->free();
-            $conn->close();
-            if ($contracts_count > 0):
-            ?>
+            <?php $contracts_count = crm_safe_count_query('SELECT COUNT(*) FROM contracts'); if ($contracts_count > 0): ?>
             <span class="nav-badge"><?= $contracts_count ?></span>
             <?php endif; ?>
             <?php if ($_notif_expiring_contracts > 0): ?><span class="nav-badge" style="background:#d97706;" title="<?= $_notif_expiring_contracts ?> expiring in 30 days"><?= $_notif_expiring_contracts ?> ⚠️</span><?php endif; ?>
@@ -306,17 +307,7 @@ $initials = strtoupper(substr($user_name, 0, 2));
           <a href="equipment_list.php" class="nav-link <?= $currentPage === 'equipment_list.php' ? 'active' : '' ?>">
             <span class="nav-icon">🔧</span>
             <span>All Equipment</span>
-            <?php 
-            // Equipment count from MySQL
-            require_once 'db_mysql.php';
-            $conn = get_mysql_connection();
-            $result = $conn->query('SELECT COUNT(*) AS cnt FROM equipment');
-            $row = $result ? $result->fetch_assoc() : null;
-            $equipment_count = $row ? (int)$row['cnt'] : 0;
-            $result && $result->free();
-            $conn->close();
-            if ($equipment_count > 0):
-            ?>
+            <?php $equipment_count = crm_safe_count_query('SELECT COUNT(*) FROM equipment'); if ($equipment_count > 0): ?>
             <span class="nav-badge"><?= $equipment_count ?></span>
             <?php endif; ?>
           </a>

@@ -3,6 +3,28 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-07-17 - Sidebar Query Guardrails For Authenticated Pages
+
+### Scope
+
+- Prevent authenticated pages from blanking when sidebar badge queries fail on partially migrated or missing tables.
+
+### Key Changes
+
+- Updated `navbar-sidebar.php` to centralize count queries behind a safe helper that catches DB/query failures and returns `0`.
+- Guarded contact, contract, and equipment badge counts.
+- Removed a duplicate middleware include from the sidebar file.
+
+### Important Files
+
+- navbar-sidebar.php
+- WORKLOG.md
+
+### Validation
+
+- Ran `php -l navbar-sidebar.php` => no syntax errors.
+- VS Code diagnostics for navbar-sidebar.php => no errors.
+
 ## 2026-07-17 - Login Landing Normalization
 
 ### Scope
