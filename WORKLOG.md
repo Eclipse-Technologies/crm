@@ -3,6 +3,29 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-07-16 - Auth Recovery Account Availability Update
+
+### Scope
+
+- Ensure recovery access is available when credentials are unknown but the users table is not empty.
+
+### Key Changes
+
+- Updated simple_auth/Auth.php bootstrap logic:
+  - Replaced empty-table-only check with username/email existence check for bootstrap admin identity.
+  - If configured bootstrap account is missing, create it even when other users already exist.
+  - Keeps existing account untouched when already present.
+
+### Important Files
+
+- simple_auth/Auth.php
+- WORKLOG.md
+
+### Validation
+
+- Ran `php -l simple_auth/Auth.php` => no syntax errors.
+- VS Code diagnostics for simple_auth/Auth.php => no errors.
+
 ## 2026-07-16 - Auth Runtime Fatal Removal (Blank Page Follow-Up)
 
 ### Scope

@@ -133,21 +133,6 @@ class Auth {
             error_log('Auth bootstrap schema create failed: ' . $e->getMessage());
         }
 
-        try {
-            $countResult = $conn->query('SELECT COUNT(*) AS user_count FROM users');
-            if ($countResult === false) {
-                return;
-            }
-            $countRow = $countResult->fetch_assoc();
-            $countResult->free();
-            if (!empty($countRow['user_count']) && (int) $countRow['user_count'] > 0) {
-                return;
-            }
-        } catch (Throwable $e) {
-            error_log('Auth bootstrap count failed: ' . $e->getMessage());
-            return;
-        }
-
         $username = trim((string) getenv('AUTH_BOOTSTRAP_USERNAME'));
         if ($username === '') {
             $username = 'crm_admin';
@@ -161,6 +146,20 @@ class Auth {
         $password = trim((string) getenv('AUTH_BOOTSTRAP_PASSWORD'));
         if ($password === '') {
             $password = 'EclipseCRM2026!';
+        }
+
+        try {
+            $existingStmt = $conn->prepare('SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1');
+            $existingStmt->bind_param('ss', $username, $email);
+            $existingStmt->execute();
+            $existingRow = $this->fetchAssocFromStmt($existingStmt);
+            $existingStmt->close();
+            if ($existingRow && isset($existingRow['id'])) {
+                return;
+            }
+        } catch (Throwable $e) {
+            error_log('Auth bootstrap existence check failed: ' . $e->getMessage());
+            return;
         }
 
         $hash = password_hash(
