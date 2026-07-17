@@ -22,7 +22,7 @@ function crm_config_env_value(string $name, string $fallback = ''): string {
 return [
     'local' => [
         'host' => crm_config_env_value('DB_HOST', 'localhost'),
-        'dbname' => crm_config_env_value('DB_NAME', 'crmdb'),
+        'dbname' => crm_config_env_value('DB_NAME', 'cmrdb'),
         'user' => crm_config_env_value('DB_USER', 'root'),
         'password' => crm_config_env_value('DB_PASSWORD', ''),
     ],

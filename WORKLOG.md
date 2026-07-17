@@ -3,6 +3,31 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-07-17 - Config Consistency And Probe Cleanup
+
+### Scope
+
+- Remove temporary live-debug hooks and align tracked database defaults/templates to the confirmed `cmrdb` name.
+
+### Key Changes
+
+- Removed temporary path/ping/diagnostic probe code from `simple_auth/login.php` and `contacts_list.php`.
+- Updated `config.local.php` local fallback DB name from `crmdb` to `cmrdb`.
+- Updated `.env.example` and `.env.production.template` to use `cmrdb` consistently in tracked templates.
+
+### Important Files
+
+- simple_auth/login.php
+- contacts_list.php
+- config.local.php
+- .env.example
+- .env.production.template
+- WORKLOG.md
+
+### Validation
+
+- Pending local lint/diagnostics after cleanup patch.
+
 ## 2026-07-16 - Contacts Blank Page Guard (Debug Var Init)
 
 ### Scope
