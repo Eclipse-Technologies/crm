@@ -169,6 +169,10 @@ $schema = require __DIR__ . '/contact_schema.php';
 $customerTypeOptions = get_customer_type_options();
 $inlineEditableFields = array_values(array_diff($schema, ['contact_id', 'created_at', 'last_modified']));
 
+// Keep debug toggles defined even when debug mode is not enabled.
+$debugMode = false;
+$debugOutput = [];
+
 load_env();
 $dailyCallDefaultEmail = trim((string) (getenv('DAILY_CALL_EMAIL_TO') ?: ($_SESSION['email'] ?? 'rlee@eclipsewatertechnologies.com')));
 
