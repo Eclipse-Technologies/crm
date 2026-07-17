@@ -1,13 +1,29 @@
 <?php
+$layoutDiagEnabled = isset($_GET['layout_diag']) && (string) $_GET['layout_diag'] === '1';
+$layoutDiagLog = [];
+$layoutDiagStep = static function (string $message) use (&$layoutDiagLog, $layoutDiagEnabled): void {
+    if ($layoutDiagEnabled) {
+        $layoutDiagLog[] = $message;
+    }
+};
+
+$layoutDiagStep('layout:start');
 // Force correct session name before any output
 require_once __DIR__ . '/csrf_helper.php';
+$layoutDiagStep('layout:after_csrf_helper');
 initializeCSRFToken();
+$layoutDiagStep('layout:after_initialize_csrf');
 // Layout start code here
 require_once __DIR__ . '/simple_auth/middleware.php';
+$layoutDiagStep('layout:after_middleware');
 require_once __DIR__ . '/backup_handler.php';
+$layoutDiagStep('layout:after_backup_handler');
 require_once __DIR__ . '/error_handler.php';
+$layoutDiagStep('layout:after_error_handler');
 require_once __DIR__ . '/sanitize_helper.php';
+$layoutDiagStep('layout:after_sanitize_helper');
 require_once __DIR__ . '/audit_handler.php';
+$layoutDiagStep('layout:after_audit_handler');
 
 // Security headers
 header('Content-Type: text/html; charset=UTF-8');
@@ -25,6 +41,14 @@ if (strpos($_SERVER['REQUEST_URI'], 'contact') !== false) {
 
 $pageTitle = $pageTitle ?? 'CRM';
 $currentPage = basename($_SERVER['SCRIPT_NAME']);
+
+if ($layoutDiagEnabled) {
+    header('Content-Type: text/plain; charset=UTF-8');
+    echo "layout_diag=pre_html\n";
+    foreach ($layoutDiagLog as $line) {
+        echo $line . "\n";
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en-CA">
@@ -52,6 +76,21 @@ $currentPage = basename($_SERVER['SCRIPT_NAME']);
 <?php
 // Always include navbar-sidebar
 include_once 'navbar-sidebar.php';
+$layoutDiagStep('layout:after_navbar_sidebar');
+
+if ($layoutDiagEnabled) {
+    echo "layout_diag=after_navbar\n";
+    foreach ($layoutDiagLog as $line) {
+        echo $line . "\n";
+    }
+    $lastError = error_get_last();
+    if ($lastError) {
+        echo 'layout:last_error=' . json_encode($lastError, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+    } else {
+        echo "layout:last_error=none\n";
+    }
+    exit;
+}
 ?>
 
 <?php
