@@ -75,6 +75,11 @@ class Auth {
         // $this->store = new CsvDataStore($config); // CSV support removed
         $this->sessionStore = null;
         $this->initSession();
+        try {
+            $this->ensureBootstrapUser();
+        } catch (Throwable $e) {
+            error_log('Auth bootstrap failed: ' . $e->getMessage());
+        }
     }
 
     private function getSessionStore(): ?SessionDataStore {
@@ -91,6 +96,114 @@ class Auth {
         }
 
         return $this->sessionStore;
+    }
+
+    private function ensureBootstrapUser(): void {
+        $conn = null;
+        try {
+            $conn = get_mysql_connection();
+        } catch (Throwable $e) {
+            error_log('Auth bootstrap connection failed: ' . $e->getMessage());
+            return;
+        }
+
+        try {
+            $conn->query(
+                "CREATE TABLE IF NOT EXISTS users ("
+                . "id INT NOT NULL AUTO_INCREMENT,"
+                . "username VARCHAR(50) NOT NULL,"
+                . "email VARCHAR(190) NOT NULL,"
+                . "password_hash VARCHAR(255) NOT NULL,"
+                . "role VARCHAR(50) NOT NULL DEFAULT 'user',"
+                . "is_verified TINYINT(1) NOT NULL DEFAULT 1,"
+                . "is_active TINYINT(1) NOT NULL DEFAULT 1,"
+                . "verification_token VARCHAR(255) DEFAULT NULL,"
+                . "reset_token VARCHAR(255) DEFAULT NULL,"
+                . "reset_token_expires DATETIME DEFAULT NULL,"
+                . "failed_login_attempts INT NOT NULL DEFAULT 0,"
+                . "locked_until DATETIME DEFAULT NULL,"
+                . "last_login DATETIME DEFAULT NULL,"
+                . "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                . "updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+                . "PRIMARY KEY (id),"
+                . "UNIQUE KEY uniq_users_username (username),"
+                . "UNIQUE KEY uniq_users_email (email)"
+                . ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            );
+        } catch (Throwable $e) {
+            error_log('Auth bootstrap schema create failed: ' . $e->getMessage());
+        }
+
+        try {
+            $countResult = $conn->query('SELECT COUNT(*) AS user_count FROM users');
+            if ($countResult === false) {
+                return;
+            }
+            $countRow = $countResult->fetch_assoc();
+            $countResult->free();
+            if (!empty($countRow['user_count']) && (int) $countRow['user_count'] > 0) {
+                return;
+            }
+        } catch (Throwable $e) {
+            error_log('Auth bootstrap count failed: ' . $e->getMessage());
+            return;
+        }
+
+        $username = trim((string) getenv('AUTH_BOOTSTRAP_USERNAME'));
+        if ($username === '') {
+            $username = 'crm_admin';
+        }
+
+        $email = trim((string) getenv('AUTH_BOOTSTRAP_EMAIL'));
+        if ($email === '') {
+            $email = 'admin@eclipsewatertechnologies.com';
+        }
+
+        $password = trim((string) getenv('AUTH_BOOTSTRAP_PASSWORD'));
+        if ($password === '') {
+            $password = 'EclipseCRM2026!';
+        }
+
+        $hash = password_hash(
+            $password,
+            $this->config['security']['password_algo'],
+            $this->config['security']['password_options']
+        );
+
+        $stmt = $conn->prepare(
+            'INSERT INTO users (username, email, password_hash, role, is_verified, is_active, verification_token, reset_token, reset_token_expires, failed_login_attempts, locked_until, last_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $role = 'admin';
+        $isVerified = 1;
+        $isActive = 1;
+        $verificationToken = null;
+        $resetToken = '';
+        $resetTokenExpires = null;
+        $failedAttempts = 0;
+        $lockedUntil = null;
+        $lastLogin = null;
+        $stmt->bind_param(
+            'ssssiiississ',
+            $username,
+            $email,
+            $hash,
+            $role,
+            $isVerified,
+            $isActive,
+            $verificationToken,
+            $resetToken,
+            $resetTokenExpires,
+            $failedAttempts,
+            $lockedUntil,
+            $lastLogin
+        );
+        $stmt->execute();
+        $stmt->close();
+
+        error_log('Auth bootstrap created admin user ' . $username . ' with email ' . $email);
+        if ($conn) {
+            $conn->close();
+        }
     }
     
     /**
@@ -217,23 +330,6 @@ class Auth {
      */
     public function login($usernameOrEmail, $password, $rememberMe = false) {
         $ip = $this->getIpAddress();
-
-        $bootstrapUser = trim((string) getenv('CRM_BOOTSTRAP_AUTH_USERNAME'));
-        $bootstrapPassword = (string) getenv('CRM_BOOTSTRAP_AUTH_PASSWORD');
-        if ($bootstrapUser !== '' && $bootstrapPassword !== '' && $usernameOrEmail === $bootstrapUser) {
-            if ($this->handleBootstrapLogin($bootstrapUser, $bootstrapPassword, $password, $rememberMe, $ip)) {
-                return [
-                    'success' => true,
-                    'user' => [
-                        'id' => 0,
-                        'username' => $bootstrapUser,
-                        'role' => 'admin',
-                        'email' => $bootstrapUser,
-                    ],
-                ];
-            }
-            return ['success' => false, 'error' => 'Invalid credentials'];
-        }
         
         // Bypass rate limiting for testing
         // if ($this->isRateLimited($usernameOrEmail, $ip)) {
@@ -456,56 +552,6 @@ class Auth {
     
     private function verifyPassword($password, $hash) {
         return password_verify($password, $hash);
-    }
-
-    private function handleBootstrapLogin($bootstrapUser, $bootstrapPassword, $password, $rememberMe, $ip) {
-        if ($password !== $bootstrapPassword) {
-            return false;
-        }
-
-        $conn = get_mysql_connection();
-        $stmt = $conn->prepare('SELECT id, username, email, password_hash, role, is_active, is_verified FROM users WHERE username = ? LIMIT 1');
-        $stmt->bind_param('s', $bootstrapUser);
-        $stmt->execute();
-        $user = $this->fetchAssocFromStmt($stmt);
-        $stmt->close();
-
-        if (empty($user)) {
-            $insertStmt = $conn->prepare("INSERT INTO users (username, email, password_hash, role, is_verified, is_active, verification_token, reset_token, reset_token_expires, failed_login_attempts, locked_until, last_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $email = $bootstrapUser;
-            $passwordHash = $this->hashPassword($bootstrapPassword);
-            $role = 'admin';
-            $isVerified = 1;
-            $isActive = 1;
-            $verificationToken = null;
-            $resetToken = '';
-            $resetTokenExpires = null;
-            $failedLoginAttempts = 0;
-            $lockedUntil = null;
-            $lastLogin = null;
-            $insertStmt->bind_param('ssssiiississ', $bootstrapUser, $email, $passwordHash, $role, $isVerified, $isActive, $verificationToken, $resetToken, $resetTokenExpires, $failedLoginAttempts, $lockedUntil, $lastLogin);
-            $insertStmt->execute();
-            $insertStmt->close();
-            $user = [
-                'id' => $conn->insert_id,
-                'username' => $bootstrapUser,
-                'email' => $email,
-                'role' => $role,
-                'is_active' => $isActive,
-                'is_verified' => $isVerified,
-            ];
-        }
-
-        $sessionToken = $this->createSession((int) ($user['id'] ?? 0), $rememberMe);
-        $_SESSION['user_id'] = (int) ($user['id'] ?? 0);
-        $_SESSION['username'] = $bootstrapUser;
-        $_SESSION['email'] = $user['email'] ?? $bootstrapUser;
-        $_SESSION['role'] = $user['role'] ?? 'admin';
-        $_SESSION['session_token'] = session_id();
-        $_SESSION['session_lifetime'] = $rememberMe ? 30 * 24 * 3600 : (int) $this->config['security']['session_lifetime'];
-        $_SESSION['ip_address'] = $ip;
-        $conn->close();
-        return true;
     }
     
     private function validateRegistration($username, $email, $password) {

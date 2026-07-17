@@ -3,6 +3,31 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-07-16 - Auth Bootstrap Recovery For Login Lockout
+
+### Scope
+
+- Prevent production lockout scenarios where the CRM remains stuck at login because the auth users table is empty or missing.
+
+### Key Changes
+
+- Updated simple_auth/Auth.php constructor path to run a guarded bootstrap routine at startup.
+- Added ensureBootstrapUser() in simple_auth/Auth.php to:
+  - create the users table if it is missing,
+  - detect empty-user state,
+  - create a bootstrap admin user using AUTH_BOOTSTRAP_* env values with safe defaults when unset,
+  - log bootstrap outcomes for server-side diagnostics.
+
+### Important Files
+
+- simple_auth/Auth.php
+- WORKLOG.md
+
+### Validation
+
+- Ran `php -l simple_auth/Auth.php` => no syntax errors.
+- Ran `php tests/DbMysqlEnvSmokeTest.php` => PASS.
+
 ## 2026-07-16 - Production Database Name Alignment
 
 ### Scope
