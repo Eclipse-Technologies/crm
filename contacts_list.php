@@ -1,5 +1,17 @@
 <?php
 
+$contactsDiagEnabled = isset($_GET['contacts_diag']) && (string) $_GET['contacts_diag'] === '1';
+$contactsDiagLog = [];
+$contactsDiagStep = static function (string $message) use (&$contactsDiagLog, $contactsDiagEnabled): void {
+  if ($contactsDiagEnabled) {
+    $contactsDiagLog[] = $message;
+  }
+};
+
+if ($contactsDiagEnabled) {
+  $contactsDiagStep('diag:start');
+}
+
 // --- EXPORT BLOCK: must be first, before any output or includes ---
 if (isset($_GET['export']) && $_GET['export'] === '1') {
   require_once __DIR__ . '/db_mysql.php';
@@ -152,22 +164,26 @@ function fetch_contacts_mysql($schema) {
 
 // --- Main includes and initializations ---
 require_once __DIR__ . '/simple_auth/middleware.php';
+$contactsDiagStep('diag:after_middleware');
 // Session initialization is now handled by Auth via middleware.php
 require_once __DIR__ . '/sanitize_helper.php';
 require_once __DIR__ . '/csrf_helper.php';
 require_once __DIR__ . '/env_loader.php';
+$contactsDiagStep('diag:after_core_helpers');
 define('DEFAULT_CONTACTS_PER_PAGE', 25); // Default number of contacts per page
 define('ALLOWED_PER_PAGE_OPTIONS', [10, 25, 50, 100]);
 $currentPage = basename(__FILE__);
 require_once 'db_mysql.php';
 require_once __DIR__ . '/daily_call_list_helper.php';
 require_once __DIR__ . '/customer_type_helper.php';
+$contactsDiagStep('diag:after_db_helpers');
 if (!function_exists('get_customer_type_options')) {
   function get_customer_type_options(): array { return []; }
 }
 $schema = require __DIR__ . '/contact_schema.php';
 $customerTypeOptions = get_customer_type_options();
 $inlineEditableFields = array_values(array_diff($schema, ['contact_id', 'created_at', 'last_modified']));
+$contactsDiagStep('diag:after_schema_and_options');
 
 // Keep debug toggles defined even when debug mode is not enabled.
 $debugMode = false;
@@ -175,6 +191,7 @@ $debugOutput = [];
 
 load_env();
 $dailyCallDefaultEmail = trim((string) (getenv('DAILY_CALL_EMAIL_TO') ?: ($_SESSION['email'] ?? 'rlee@eclipsewatertechnologies.com')));
+$contactsDiagStep('diag:after_env_load');
 
 if (isset($_POST['send_daily_call_list'])) {
   if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -309,6 +326,7 @@ if (empty($displayFields)) {
 
 // Include layout only after preference handling so header/setcookie work.
 require_once __DIR__ . '/layout_start.php';
+$contactsDiagStep('diag:after_layout_start');
 
 // ✅ PAGINATION: Get current page and per-page setting
 $per_page = isset($_GET['per_page']) && in_array((int)$_GET['per_page'], ALLOWED_PER_PAGE_OPTIONS) 
@@ -419,6 +437,7 @@ if ($count_result) {
   $total_contacts = (int)($row['cnt'] ?? 0);
   $count_result->free();
 }
+$contactsDiagStep('diag:after_count_query total=' . (string) $total_contacts);
 $total_pages = max(1, ceil($total_contacts / $per_page));
 $current_page = min($current_page, $total_pages); // Ensure current page doesn't exceed total pages
 $offset = ($current_page - 1) * $per_page;
@@ -461,6 +480,7 @@ if ($result) {
   $result->free();
 }
 $conn->close();
+$contactsDiagStep('diag:after_data_query rows=' . (string) count($contacts));
 // Only keep the debug output logic in pure PHP, not as a mixed PHP/HTML block at this location
 $showDebug = $debugMode && !empty($debugOutput);
 // Detect duplicates
@@ -485,6 +505,22 @@ if (!empty($visibleContactIds)) {
   ensure_daily_call_tracking_table($dailyConn);
   $calledContactMap = fetch_called_contact_id_map($dailyConn, $visibleContactIds);
   $dailyConn->close();
+}
+
+if ($contactsDiagEnabled) {
+  header('Content-Type: text/plain; charset=UTF-8');
+  echo "contacts_diag=1\n";
+  foreach ($contactsDiagLog as $line) {
+    echo $line . "\n";
+  }
+  $lastError = error_get_last();
+  if ($lastError) {
+    echo 'diag:last_error=' . json_encode($lastError, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+  } else {
+    echo "diag:last_error=none\n";
+  }
+  echo 'diag:display_fields=' . json_encode($displayFields, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+  exit;
 }
 
 
