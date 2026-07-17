@@ -1,5 +1,9 @@
 <?php
 
+if (!headers_sent()) {
+  header('X-Contacts-Revision: 2026-07-16-diag2');
+}
+
 $contactsDiagEnabled = isset($_GET['contacts_diag']) && (string) $_GET['contacts_diag'] === '1';
 $contactsDiagLog = [];
 $contactsDiagStep = static function (string $message) use (&$contactsDiagLog, $contactsDiagEnabled): void {
