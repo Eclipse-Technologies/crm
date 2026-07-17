@@ -3,6 +3,32 @@
 Purpose: rolling implementation record for this project.
 Update method: append newest entry at the top with date, scope, key changes, file touchpoints, and validation notes.
 
+## 2026-07-17 - Shared Include Fatal Fix For Authenticated Blank Pages
+
+### Scope
+
+- Fix the actual authenticated blank-page root cause in the shared include chain.
+
+### Key Changes
+
+- Updated `config.local.php` to guard `crm_config_env_value()` with `function_exists(...)` so multiple `require` calls in one request do not trigger a fatal redeclaration.
+- Updated `audit_handler.php#getAuditStats()` to use MySQL-backed aggregation instead of stale file-based placeholders (`AUDIT_LOG_FILE`, `$entries`).
+- Kept `layout_start.php` diagnostics in place for current live verification.
+
+### Important Files
+
+- config.local.php
+- audit_handler.php
+- layout_start.php
+- WORKLOG.md
+
+### Validation
+
+- Ran `php -l config.local.php` => no syntax errors.
+- Ran `php -l audit_handler.php` => no syntax errors.
+- Ran `php -l layout_start.php` => no syntax errors.
+- VS Code diagnostics for all three files => no errors.
+
 ## 2026-07-17 - Sidebar Query Guardrails For Authenticated Pages
 
 ### Scope

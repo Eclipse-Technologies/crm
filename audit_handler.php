@@ -186,11 +186,8 @@ function logAuditAction($action, $entity_type, $entity_id, $changes, $summary, $
  * Get audit statistics
  */
 function getAuditStats($days = 30) {
-    if (!file_exists(AUDIT_LOG_FILE)) {
-        return [];
-    }
-    $cutoff_ts = strtotime("-$days days");
-    
+    $days = max(1, (int) $days);
+
     $stats = [
         'total_entries' => 0,
         'actions' => [],
@@ -198,21 +195,43 @@ function getAuditStats($days = 30) {
         'entities' => [],
         'status' => [],
     ];
-    
-    foreach ($entries as $entry) {
-        $entry_ts = strtotime($entry['timestamp'] ?? '');
-        if ($entry_ts >= $cutoff_ts) {
-            $stats['total_entries']++;
-            $action = $entry['action'] ?? 'unknown';
-            $stats['actions'][$action] = ($stats['actions'][$action] ?? 0) + 1;
-            $user = $entry['user_id'] ?? 'unknown';
-            $stats['users'][$user] = ($stats['users'][$user] ?? 0) + 1;
-            $entity = $entry['entity_type'] ?? 'unknown';
-            $stats['entities'][$entity] = ($stats['entities'][$entity] ?? 0) + 1;
-            $status = $entry['status'] ?? 'unknown';
-            $stats['status'][$status] = ($stats['status'][$status] ?? 0) + 1;
+
+    try {
+        $conn = get_mysql_connection();
+        $cutoff = date('Y-m-d H:i:s', strtotime("-$days days"));
+
+        $totalStmt = $conn->prepare('SELECT COUNT(*) AS cnt FROM audit_log WHERE timestamp >= ?');
+        $totalStmt->bind_param('s', $cutoff);
+        $totalStmt->execute();
+        $totalResult = $totalStmt->get_result();
+        $totalRow = $totalResult ? $totalResult->fetch_assoc() : null;
+        $stats['total_entries'] = (int) ($totalRow['cnt'] ?? 0);
+        $totalStmt->close();
+
+        $groupQueries = [
+            'actions' => 'SELECT action AS label, COUNT(*) AS cnt FROM audit_log WHERE timestamp >= ? GROUP BY action',
+            'users' => 'SELECT user_id AS label, COUNT(*) AS cnt FROM audit_log WHERE timestamp >= ? GROUP BY user_id',
+            'entities' => 'SELECT entity_type AS label, COUNT(*) AS cnt FROM audit_log WHERE timestamp >= ? GROUP BY entity_type',
+            'status' => 'SELECT status AS label, COUNT(*) AS cnt FROM audit_log WHERE timestamp >= ? GROUP BY status',
+        ];
+
+        foreach ($groupQueries as $key => $sql) {
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('s', $cutoff);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($result && ($row = $result->fetch_assoc())) {
+                $label = (string) ($row['label'] ?? 'unknown');
+                $stats[$key][$label] = (int) ($row['cnt'] ?? 0);
+            }
+            $stmt->close();
         }
+
+        $conn->close();
+    } catch (Throwable $e) {
+        error_log('Audit stats query failed: ' . $e->getMessage());
     }
+
     return $stats;
 }
 

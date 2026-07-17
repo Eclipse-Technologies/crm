@@ -1,22 +1,24 @@
 <?php
 // config.local.php - Non-secret fallback configuration.
 // Prefer .env for all real credentials.
-function crm_config_env_value(string $name, string $fallback = ''): string {
-    $value = getenv($name);
-    if ($value === false) {
-        return $fallback;
-    }
+if (!function_exists('crm_config_env_value')) {
+    function crm_config_env_value(string $name, string $fallback = ''): string {
+        $value = getenv($name);
+        if ($value === false) {
+            return $fallback;
+        }
 
-    $trimmed = trim((string) $value);
-    if ($trimmed === '') {
-        return $fallback;
-    }
+        $trimmed = trim((string) $value);
+        if ($trimmed === '') {
+            return $fallback;
+        }
 
-    if (preg_match('/^<[^>]+>$/i', $trimmed) === 1) {
-        return $fallback;
-    }
+        if (preg_match('/^<[^>]+>$/i', $trimmed) === 1) {
+            return $fallback;
+        }
 
-    return $trimmed;
+        return $trimmed;
+    }
 }
 
 return [
