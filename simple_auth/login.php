@@ -15,6 +15,15 @@ if (file_exists(__DIR__ . '/../error_handler.php')) {
 
 require_once __DIR__ . '/Auth.php';
 
+if (isset($_GET['crm_path_probe']) && (string) $_GET['crm_path_probe'] === '1') {
+    header('Content-Type: text/plain; charset=UTF-8');
+    echo 'probe=login-path' . PHP_EOL;
+    echo '__FILE__=' . __FILE__ . PHP_EOL;
+    echo '__DIR__=' . __DIR__ . PHP_EOL;
+    echo 'cwd=' . getcwd() . PHP_EOL;
+    exit;
+}
+
 // Load config
 $configFile = __DIR__ . '/config.php';
 if (!file_exists($configFile)) {
