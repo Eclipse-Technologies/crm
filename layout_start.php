@@ -4,6 +4,9 @@ $layoutDiagLog = [];
 $layoutDiagStep = static function (string $message) use (&$layoutDiagLog, $layoutDiagEnabled): void {
     if ($layoutDiagEnabled) {
         $layoutDiagLog[] = $message;
+        if (!headers_sent()) {
+            header('X-Layout-Step: ' . $message);
+        }
     }
 };
 
