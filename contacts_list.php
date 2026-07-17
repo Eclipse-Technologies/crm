@@ -4,6 +4,12 @@ if (!headers_sent()) {
   header('X-Contacts-Revision: 2026-07-16-diag2');
 }
 
+if (isset($_GET['contacts_ping']) && (string) $_GET['contacts_ping'] === '1') {
+  header('Content-Type: text/plain; charset=UTF-8');
+  echo "contacts_ping=2026-07-16-diag2\n";
+  exit;
+}
+
 $contactsDiagEnabled = isset($_GET['contacts_diag']) && (string) $_GET['contacts_diag'] === '1';
 $contactsDiagLog = [];
 $contactsDiagStep = static function (string $message) use (&$contactsDiagLog, $contactsDiagEnabled): void {
